@@ -171,6 +171,36 @@ class _PresencePageState extends State<PresencePage> {
     setState(() => isLoading = false);
   }
 
+  void _updateMapView() {
+    if (selectedStore != null && currentPosition != null) {
+      // Hitung titik tengah antara user dan store
+      final centerLat =
+          (currentPosition!.latitude + selectedStore!.latitude) / 2;
+      final centerLng =
+          (currentPosition!.longitude + selectedStore!.longitude) / 2;
+
+      // Hitung zoom yang sesuai berdasarkan jarak
+      final distance = Geolocator.distanceBetween(
+        currentPosition!.latitude,
+        currentPosition!.longitude,
+        selectedStore!.latitude,
+        selectedStore!.longitude,
+      );
+
+      // Sesuaikan zoom berdasarkan jarak
+      double zoom = 18.0;
+      if (distance > 1000)
+        zoom = 14.0;
+      else if (distance > 500)
+        zoom = 15.0;
+      else if (distance > 200)
+        zoom = 16.0;
+      else if (distance > 100) zoom = 17.0;
+
+      mapController.move(LatLng(centerLat, centerLng), zoom);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isButtonEnabled =
@@ -235,6 +265,8 @@ class _PresencePageState extends State<PresencePage> {
                                 );
                               }
                             }
+
+                            _updateMapView();
                           },
                         ),
                         SizedBox(height: 16),
@@ -259,11 +291,11 @@ class _PresencePageState extends State<PresencePage> {
                             FlutterMap(
                               mapController: mapController,
                               options: MapOptions(
-                                center: currentPosition != null
-                                    ? LatLng(currentPosition!.latitude,
-                                        currentPosition!.longitude)
-                                    : LatLng(-6.200000, 106.816666),
-                                zoom: 15.0,
+                                initialCenter: LatLng(
+                                  currentPosition?.latitude ?? -6.200000,
+                                  currentPosition?.longitude ?? 106.816666,
+                                ),
+                                initialZoom: 15.0,
                               ),
                               children: [
                                 TileLayer(
@@ -271,22 +303,39 @@ class _PresencePageState extends State<PresencePage> {
                                       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                                   subdomains: ['a', 'b', 'c'],
                                 ),
+                                if (selectedStore != null)
+                                  CircleLayer(
+                                    circles: [
+                                      CircleMarker(
+                                        point: LatLng(selectedStore!.latitude,
+                                            selectedStore!.longitude),
+                                        radius: selectedStore!.radius
+                                            .toDouble(), // dalam meter
+                                        color: Colors.blue.withOpacity(0.2),
+                                        borderColor: Colors.blue,
+                                        borderStrokeWidth: 2,
+                                      ),
+                                    ],
+                                  ),
                                 MarkerLayer(
-                                  markers: currentPosition != null
-                                      ? [
-                                          Marker(
-                                            width: 40.0,
-                                            height: 40.0,
-                                            point: LatLng(
-                                                currentPosition!.latitude,
-                                                currentPosition!.longitude),
-                                            builder: (ctx) => Icon(
-                                                Icons.location_on,
-                                                color: Colors.red,
-                                                size: 40.0),
-                                          ),
-                                        ]
-                                      : [],
+                                  markers: [
+                                    // Marker untuk posisi user
+                                    if (currentPosition != null)
+                                      Marker(
+                                        point: LatLng(currentPosition!.latitude,
+                                            currentPosition!.longitude),
+                                        child: Icon(Icons.person_pin_circle,
+                                            color: Colors.red, size: 40.0),
+                                      ),
+                                    // Marker untuk store yang dipilih
+                                    if (selectedStore != null)
+                                      Marker(
+                                        point: LatLng(selectedStore!.latitude,
+                                            selectedStore!.longitude),
+                                        child: Icon(Icons.store,
+                                            color: Colors.blue, size: 40.0),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),

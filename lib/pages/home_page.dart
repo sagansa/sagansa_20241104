@@ -606,16 +606,37 @@ class HomePageState extends State<HomePage> {
                 SizedBox(height: 24),
                 todayPresence != null
                     ? _buildPresenceCard(todayPresence!)
-                    : Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: const Text(
-                          'Belum ada presensi untuk hari ini',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey,
+                    : Card(
+                        child: Container(
+                          padding: EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.fingerprint_outlined,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Belum ada presensi untuk hari ini',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Silakan lakukan presensi dengan menekan tombol di bawah',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

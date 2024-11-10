@@ -154,4 +154,18 @@ class PresenceService {
       throw Exception('Gagal memuat data presensi: $e');
     }
   }
+
+  static Future<Map<String, dynamic>> _getDeviceInfo() async {
+    return {
+      'platform': Platform.operatingSystem,
+      'version': Platform.operatingSystemVersion,
+      'model': await _getDeviceModel(),
+      // ... informasi device lainnya
+    };
+  }
+
+  static Future<String> _getDeviceModel() async {
+    // Implementasikan untuk mendapatkan model device
+    return '';
+  }
 }

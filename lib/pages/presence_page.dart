@@ -8,6 +8,7 @@ import '../pages/home_page.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../controllers/presence_controller.dart';
+import '../services/location_validator_service.dart';
 
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
@@ -30,6 +31,8 @@ class _PresencePageState extends State<PresencePage> {
   bool isLocationValid = false;
   bool isTimeValid = true;
   late PresenceController _presenceController;
+  final LocationValidatorService _locationValidator =
+      LocationValidatorService();
 
   @override
   void initState() {
@@ -135,40 +138,53 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
-  void _handlePresence() async {
-    if (!widget.isCheckIn && !isTimeValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Tidak dapat melakukan checkout di luar waktu yang ditentukan'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
+  Future<void> _validateAndSubmitPresence() async {
     setState(() => isLoading = true);
 
-    await _presenceController.submitPresence(
-      isCheckIn: widget.isCheckIn,
-      currentPosition: currentPosition!,
-      selectedStore: selectedStore!,
-      selectedShiftStore: selectedShiftStore,
-      onSuccess: () {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-          (route) => false,
-        );
-      },
-      onError: (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red),
-        );
-      },
-    );
+    try {
+      final isLocationValid = await _locationValidator.validateLocation();
 
-    setState(() => isLoading = false);
+      if (!isLocationValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Lokasi tidak valid atau terdeteksi penggunaan fake GPS'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Pengaturan',
+              textColor: Colors.white,
+              onPressed: () => _locationValidator.showLocationSettings(),
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Lanjutkan dengan proses presensi normal
+      await _presenceController.submitPresence(
+        isCheckIn: widget.isCheckIn,
+        currentPosition: currentPosition!,
+        selectedStore: selectedStore!,
+        selectedShiftStore: selectedShiftStore,
+        onSuccess: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => HomePage()),
+            (route) => false,
+          );
+        },
+        onError: (error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), backgroundColor: Colors.red),
+          );
+        },
+      );
+    } catch (e) {
+      // ... handle error
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
 
   void _updateMapView() {
@@ -456,7 +472,7 @@ class _PresencePageState extends State<PresencePage> {
               padding: EdgeInsets.all(16),
               child: ModernButton(
                 text: widget.isCheckIn ? 'Check In' : 'Check Out',
-                onPressed: isButtonEnabled ? _handlePresence : null,
+                onPressed: isButtonEnabled ? _validateAndSubmitPresence : null,
                 isLoading: isLoading,
               ),
             ),

@@ -46,9 +46,9 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Aplikasi ini membutuhkan akses lokasi untuk fitur pencarian lokasi terdekat</string>
+	<string>Aplikasi memerlukan akses lokasi untuk melakukan presensi</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Aplikasi ini membutuhkan akses lokasi untuk fitur pencarian lokasi terdekat</string>
+	<string>Aplikasi memerlukan akses lokasi untuk melakukan presensi</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Aplikasi ini membutuhkan akses lokasi untuk fitur pencarian lokasi terdekat</string>
 </dict>

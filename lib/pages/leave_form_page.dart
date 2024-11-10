@@ -3,7 +3,7 @@ import '../models/leave_model.dart';
 import '../widgets/modern_dropdown.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_text_form_field.dart';
-import '../widgets/modern_date_field.dart';
+import '../widgets/modern_date_range_picker.dart';
 import '../controllers/leave_controller.dart';
 
 class LeaveFormPage extends StatefulWidget {
@@ -92,11 +92,11 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    String? untilDateError;
+    String? dateRangeError;
     if (_fromDate != null &&
         _untilDate != null &&
         _untilDate!.isBefore(_fromDate!)) {
-      untilDateError = 'Tanggal selesai harus setelah tanggal mulai';
+      dateRangeError = 'Tanggal selesai harus setelah tanggal mulai';
     }
 
     return Scaffold(
@@ -129,33 +129,18 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                         },
                       ),
                       SizedBox(height: 16),
-                      ModernDateField(
-                        labelText: 'Tanggal Mulai',
-                        value: _fromDate,
-                        onChanged: (date) {
+                      ModernDateRangePicker(
+                        startDate: _fromDate,
+                        endDate: _untilDate,
+                        onDateRangeSelected: (start, end) {
                           setState(() {
-                            _fromDate = date;
-                            if (_untilDate != null &&
-                                date != null &&
-                                _untilDate!.isBefore(date)) {
-                              _untilDate = date;
-                            }
+                            _fromDate = start;
+                            _untilDate = end;
                           });
                         },
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(Duration(days: 365)),
-                      ),
-                      SizedBox(height: 16),
-                      ModernDateField(
-                        labelText: 'Tanggal Selesai',
-                        value: _untilDate,
-                        onChanged: (date) {
-                          setState(() => _untilDate = date);
-                        },
-                        firstDate: _fromDate ?? DateTime.now(),
-                        lastDate: DateTime.now().add(Duration(days: 365)),
-                        errorText: untilDateError,
-                        enabled: _fromDate != null,
+                        minDate: DateTime.now(),
+                        maxDate: DateTime.now().add(Duration(days: 365)),
+                        errorText: dateRangeError,
                       ),
                       SizedBox(height: 16),
                       ModernTextFormField(

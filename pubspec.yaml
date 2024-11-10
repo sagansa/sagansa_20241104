@@ -43,6 +43,9 @@ dependencies:
   flutter_map: ^7.0.2 # Versi terbaru saat ini
   latlong2: ^0.9.1
   syncfusion_flutter_calendar: ^27.1.57
+  syncfusion_flutter_datepicker: ^27.1.58
+  syncfusion_localizations: ^27.1.58
+  flutter_localization: ^0.2.2
 
 dev_dependencies:
   flutter_test:

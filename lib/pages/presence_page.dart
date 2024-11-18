@@ -9,6 +9,12 @@ import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../controllers/presence_controller.dart';
 import '../services/location_validator_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
@@ -20,10 +26,10 @@ class PresencePage extends StatefulWidget {
 }
 
 class _PresencePageState extends State<PresencePage> {
-  List<Store> stores = [];
-  List<ShiftStore> shiftStores = [];
-  Store? selectedStore;
-  ShiftStore? selectedShiftStore;
+  List<StoreModel> stores = [];
+  List<ShiftStoreModel> shiftStores = [];
+  StoreModel? selectedStore;
+  ShiftStoreModel? selectedShiftStore;
   bool isLoading = false;
   Position? currentPosition;
   MapController mapController = MapController();
@@ -33,6 +39,8 @@ class _PresencePageState extends State<PresencePage> {
   late PresenceController _presenceController;
   final LocationValidatorService _locationValidator =
       LocationValidatorService();
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -68,7 +76,7 @@ class _PresencePageState extends State<PresencePage> {
         currentPosition = position;
 
         // Cari toko terdekat
-        Store? nearestStore;
+        StoreModel? nearestStore;
         double shortestDistance = double.infinity;
 
         for (var store in stores) {
@@ -138,7 +146,59 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (photo != null) {
+        final File originalFile = File(photo.path);
+        final img.Image? originalImage = img.decodeImage(
+          await originalFile.readAsBytes(),
+        );
+
+        if (originalImage != null) {
+          final img.Image resizedImage = img.copyResize(
+            originalImage,
+            width: 800,
+            height: 800,
+            interpolation: img.Interpolation.linear,
+          );
+
+          final Directory tempDir = await getTemporaryDirectory();
+          final String targetPath =
+              '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final File targetFile = File(targetPath);
+
+          await targetFile.writeAsBytes(
+            img.encodeJpg(resizedImage, quality: 85),
+          );
+
+          setState(() {
+            _imageFile = targetFile;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: ${e.toString()}')),
+      );
+    }
+  }
+
   Future<void> _validateAndSubmitPresence() async {
+    if (_imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Silakan ambil foto terlebih dahulu')),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -161,13 +221,38 @@ class _PresencePageState extends State<PresencePage> {
         return;
       }
 
-      // Lanjutkan dengan proses presensi normal
       await _presenceController.submitPresence(
         isCheckIn: widget.isCheckIn,
         currentPosition: currentPosition!,
         selectedStore: selectedStore!,
         selectedShiftStore: selectedShiftStore,
-        onSuccess: () {
+        imageFile: _imageFile!,
+        onSuccess: () async {
+          // Simpan data store ke SharedPreferences saat check-in berhasil
+          if (widget.isCheckIn && selectedStore != null) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              final storeData = {
+                'store': {
+                  'id': selectedStore!.id,
+                  'name': selectedStore!.nickname,
+                }
+              };
+
+              print('Saving store data to SharedPreferences:');
+              print(jsonEncode(storeData));
+
+              await prefs.setString('store', jsonEncode(storeData));
+
+              // Verifikasi data tersimpan
+              final savedData = prefs.getString('store');
+              print('Verified saved store data:');
+              print(savedData);
+            } catch (e) {
+              print('Error saving store data: $e');
+            }
+          }
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => HomePage()),
@@ -181,7 +266,10 @@ class _PresencePageState extends State<PresencePage> {
         },
       );
     } catch (e) {
-      // ... handle error
+      print('Error in validateAndSubmitPresence: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
     } finally {
       setState(() => isLoading = false);
     }
@@ -248,7 +336,7 @@ class _PresencePageState extends State<PresencePage> {
                   child: Column(
                     children: [
                       if (widget.isCheckIn) ...[
-                        ModernDropdown<Store>(
+                        ModernDropdown<StoreModel>(
                           value: selectedStore,
                           hint: 'Pilih Toko',
                           items: stores,
@@ -287,7 +375,7 @@ class _PresencePageState extends State<PresencePage> {
                         ),
                         SizedBox(height: 16),
                         if (isLocationValid)
-                          ModernDropdown<ShiftStore>(
+                          ModernDropdown<ShiftStoreModel>(
                             value: selectedShiftStore,
                             hint: 'Pilih Shift',
                             items: shiftStores,
@@ -452,6 +540,57 @@ class _PresencePageState extends State<PresencePage> {
                             ),
                           ),
                         ),
+                      SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            children: [
+                              Text(
+                                widget.isCheckIn
+                                    ? 'Foto Check In'
+                                    : 'Foto Check Out',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 12),
+                              if (_imageFile != null)
+                                Container(
+                                  height: 200,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: FileImage(_imageFile!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  height: 200,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.camera_alt,
+                                      size: 50, color: Colors.grey),
+                                ),
+                              SizedBox(height: 12),
+                              ModernButton(
+                                text: _imageFile == null
+                                    ? 'Ambil Foto'
+                                    : 'Ambil Ulang',
+                                onPressed: _takePhoto,
+                                icon: Icons.camera_alt,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

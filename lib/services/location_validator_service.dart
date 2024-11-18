@@ -1,76 +1,76 @@
-import 'package:trust_location/trust_location.dart';
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationValidatorService {
+  bool _isMockLocation = false;
+  Stream<Position>? _positionStream;
+
+  Future<void> startListening() async {
+    // Request permission
+    LocationPermission permission = await Geolocator.requestPermission();
+
+    if (permission == LocationPermission.denied) {
+      return;
+    }
+
+    // Start listening to location updates
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    );
+
+    _positionStream?.listen((Position position) {
+      // Check if location is mocked
+      _isMockLocation = position.isMocked;
+    });
+  }
+
+  void stopListening() {
+    _positionStream = null;
+  }
+
+  bool isMockLocationOn() {
+    return _isMockLocation;
+  }
+
+  Future<bool> isLocationServiceEnabled() async {
+    return await Geolocator.isLocationServiceEnabled();
+  }
+
   Future<bool> validateLocation() async {
-    bool isMockLocation = false;
-
     try {
-      // Inisialisasi TrustLocation
-      TrustLocation.start(1000);
-
-      // Listen untuk mock location updates
-      TrustLocation.onChange.listen((event) {
-        isMockLocation = event.isMockLocation ?? false;
-      });
-
-      // Cek akurasi lokasi
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Jika terdeteksi mock location, return false
-      if (isMockLocation) {
+      // Cek apakah layanan lokasi aktif
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         return false;
       }
 
-      // Jika akurasi terlalu rendah (>50 meter), lokasi mungkin tidak valid
-      if (position.accuracy > 50) {
+      // Cek permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return false;
+        }
+      }
+
+      // Cek apakah permission diblokir permanen
+      if (permission == LocationPermission.deniedForever) {
         return false;
       }
 
-      // Cek kecepatan perubahan lokasi
-      Position lastPosition = position;
-      await Future.delayed(Duration(seconds: 2));
-      Position currentPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // Dapatkan posisi saat ini
+      Position position = await Geolocator.getCurrentPosition();
 
-      // Hitung kecepatan perpindahan (dalam m/s)
-      double distance = Geolocator.distanceBetween(
-        lastPosition.latitude,
-        lastPosition.longitude,
-        currentPosition.latitude,
-        currentPosition.longitude,
-      );
-      double speed = distance / 2; // waktu 2 detik
-
-      // Jika kecepatan terlalu tinggi (>100 m/s), mungkin fake
-      if (speed > 100) {
-        return false;
-      }
-
-      return true;
+      // Return false jika lokasi palsu terdeteksi
+      return !position.isMocked;
     } catch (e) {
-      print('Error validating location: $e');
       return false;
-    } finally {
-      // Stop TrustLocation service
-      TrustLocation.stop();
     }
   }
 
   Future<void> showLocationSettings() async {
-    final AndroidIntent intent = AndroidIntent(
-      action: 'android.settings.LOCATION_SOURCE_SETTINGS',
-    );
-    await intent.launch();
-  }
-
-  // Tambahkan method untuk menyimpan riwayat lokasi
-  Future<void> logLocationHistory(Position position) async {
-    // Simpan ke local storage atau server
-    // Berguna untuk analisis pola lokasi yang mencurigakan
+    await Geolocator.openLocationSettings();
   }
 }

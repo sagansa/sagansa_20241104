@@ -73,125 +73,117 @@ class _LoginPageState extends State<LoginPage> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  AppBar().preferredSize.height,
-            ),
-            child: IntrinsicHeight(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // Logo dan form fields
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Image.asset(
-                            'assets/images/logo.png',
-                            height: 120,
-                            width: 120,
-                          ),
-                          SizedBox(height: 32),
-                          Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: 24),
-                          ModernTextField(
-                            controller: emailController,
-                            labelText: 'Email',
-                            prefixIcon: Icons.email,
-                            keyboardType: TextInputType.emailAddress,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                          ),
-                          SizedBox(height: 16),
-                          ModernTextField(
-                            controller: passwordController,
-                            labelText: 'Password',
-                            prefixIcon: Icons.lock,
-                            obscureText: !_passwordVisible,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _passwordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _passwordVisible = !_passwordVisible;
-                                });
-                              },
-                            ),
-                            autocorrect: false,
-                            enableSuggestions: false,
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                print('Forgot password clicked');
-                              },
-                              child: Text(
-                                'Lupa Password?',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 120,
+                        width: 120,
                       ),
-                    ),
-                    // Bottom section dengan login button dan register text
-                    Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Belum punya akun? ',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                print('Register clicked');
-                              },
-                              child: Text(
-                                'Daftar Sekarang',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                      SizedBox(height: 32),
+                      Text(
+                        "Login",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                        SizedBox(height: 16),
-                        ModernButton(
-                          text: 'Login',
-                          onPressed: _login,
-                          isLoading: isLoading,
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 24),
+                      ModernTextField(
+                        controller: emailController,
+                        labelText: 'Email',
+                        prefixIcon: Icons.email,
+                        keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                      ),
+                      SizedBox(height: 16),
+                      ModernTextField(
+                        controller: passwordController,
+                        labelText: 'Password',
+                        prefixIcon: Icons.lock,
+                        obscureText: !_passwordVisible,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _passwordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _passwordVisible = !_passwordVisible;
+                            });
+                          },
                         ),
-                        SizedBox(height: 16), // Tambahan padding di bawah
-                      ],
-                    ),
-                  ],
+                        autocorrect: false,
+                        enableSuggestions: false,
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            print('Forgot password clicked');
+                          },
+                          child: Text(
+                            'Lupa Password?',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Belum punya akun? ',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          print('Register clicked');
+                        },
+                        child: Text(
+                          'Daftar Sekarang',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  ModernButton(
+                    text: 'Login',
+                    onPressed: _login,
+                    isLoading: isLoading,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

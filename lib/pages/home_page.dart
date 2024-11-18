@@ -7,12 +7,14 @@ import '../models/presence_model.dart';
 import 'presence_page.dart';
 import '../services/auth_service.dart';
 import 'calendar_page.dart';
-import 'pos_page.dart';
 import 'leave_page.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
 import '../utils/constants.dart';
 import '../controllers/home_controller.dart';
+import 'salary_page.dart';
+import 'package:provider/provider.dart';
+import '../providers/presence_provider.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -89,16 +91,23 @@ class HomePageState extends State<HomePage> {
     setState(() => isLoading = true);
     try {
       final data = await _controller.loadPresenceData();
+      final newTodayPresence = data['todayPresence'] != null
+          ? PresenceModel.fromJson(data['todayPresence'])
+          : null;
+
+      // Update provider
+      Provider.of<PresenceProvider>(context, listen: false)
+          .setTodayPresence(newTodayPresence);
+
       setState(() {
-        todayPresence = data['todayPresence'] != null
-            ? PresenceModel.fromJson(data['todayPresence'])
-            : null;
+        todayPresence = newTodayPresence;
         previousPresences = (data['previousPresences'] as List?)
                 ?.map((item) => PresenceModel.fromJson(item))
                 .toList() ??
             [];
       });
     } catch (e) {
+      print('Error loading presence data: $e'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
@@ -232,25 +241,6 @@ class HomePageState extends State<HomePage> {
 
     // Reload presence data after check-in/out
     _loadPresenceData();
-  }
-
-  void _showAllPresenceHistory() {
-    if (previousPresences.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Belum ada riwayat presensi')),
-      );
-    } else {
-      // Gabungkan presensi hari ini dan sebelumnya
-      List<PresenceModel> allPresences = [];
-      if (todayPresence != null) {
-        allPresences.add(todayPresence!);
-      }
-      allPresences.addAll(previousPresences);
-
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => CalendarPage(presences: allPresences),
-      ));
-    }
   }
 
   Widget _buildPresenceCard(PresenceModel presence) {
@@ -455,20 +445,31 @@ class HomePageState extends State<HomePage> {
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => LeavePage()),
+          MaterialPageRoute(
+            builder: (context) => LeavePage(
+              todayPresence: todayPresence,
+            ),
+          ),
         );
         break;
       case 2:
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => CalendarPage(
-              presences: [
-                ...previousPresences,
-                if (todayPresence != null) todayPresence!
-              ],
-            ),
+            builder: (context) => CalendarPage(),
           ),
+        );
+        break;
+      case 3:
+        if (todayPresence == null || todayPresence!.checkIn.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Silakan lakukan presensi terlebih dahulu')),
+          );
+          return;
+        }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => SalaryPage()),
         );
         break;
     }
@@ -520,24 +521,20 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  void _showAllPresenceHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CalendarPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool showPOSButton =
-        todayPresence != null && todayPresence!.checkOut == null;
-
     return Scaffold(
       appBar: AppBar(
-        leading: showPOSButton
-            ? IconButton(
-                icon: Icon(Icons.point_of_sale),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => POSPage()),
-                  );
-                },
-              )
-            : null,
+        automaticallyImplyLeading: false,
         centerTitle: true,
         title: Text('Home'),
         actions: [
@@ -605,40 +602,49 @@ class HomePageState extends State<HomePage> {
                 _buildUserProfile(),
                 SizedBox(height: 24),
                 todayPresence != null
-                    ? _buildPresenceCard(todayPresence!)
-                    : Card(
-                        child: Container(
-                          padding: EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.fingerprint_outlined,
-                                size: 48,
-                                color: Colors.grey[400],
+                    ? Column(
+                        children: [
+                          _buildPresenceCard(todayPresence!),
+                          SizedBox(height: 16),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Card(
+                            child: Container(
+                              padding: EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.fingerprint_outlined,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Belum ada presensi untuk hari ini',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Silakan lakukan presensi dengan menekan tombol di kanan bawah',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Belum ada presensi untuk hari ini',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Silakan lakukan presensi dengan menekan tombol di bawah',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                 SizedBox(height: 24),
                 Row(
@@ -698,22 +704,20 @@ class HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      floatingActionButton: (_hasActiveLeave ||
-              (todayPresence != null && todayPresence!.checkOut != null))
-          ? null // Sembunyikan FAB jika ada leave aktif atau sudah check out
-          : CustomFAB(
-              onPressed: _navigateToPresencePage,
-              icon:
-                  todayPresence == null ? Icons.fingerprint : Icons.fingerprint,
-              tooltip: todayPresence == null ? 'Check In' : 'Check Out',
-            ),
+      floatingActionButton: CustomFAB(
+        onPressed: _navigateToPresencePage,
+        icon: todayPresence?.checkOut == null
+            ? Icons.fingerprint_outlined // icon untuk checkout
+            : Icons.fingerprint_outlined, // icon untuk checkin
+        backgroundColor: todayPresence?.checkOut == null
+            ? Colors.green // warna untuk checkout
+            : Colors.red, // warna untuk checkin
+        tooltip: todayPresence?.checkOut == null ? 'Check Out' : 'Check In',
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        presences: [
-          ...previousPresences,
-          if (todayPresence != null) todayPresence!
-        ],
+        hasPresenceToday: todayPresence != null,
       ),
     );
   }

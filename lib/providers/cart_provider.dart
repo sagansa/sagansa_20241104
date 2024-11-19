@@ -14,4 +14,9 @@ class CartProvider extends ChangeNotifier {
     _cartCount++;
     notifyListeners();
   }
+
+  void setCartCount(int count) {
+    _cartCount = count;
+    notifyListeners();
+  }
 }

@@ -5,6 +5,7 @@ import 'check_out_page.dart';
 import '../services/cart_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
+import 'product_detail_page.dart';
 
 class CartPage extends StatefulWidget {
   final bool isEmbedded;
@@ -35,12 +36,13 @@ class _CartPageState extends State<CartPage> {
         cartItems = []; // Reset cart items sebelum loading
       });
 
-      final cart = await cartService.getCartItems();
+      final cart = await cartService.getCartItems(context);
+      print('Received cart items: ${cart.length}'); // Debug print
 
       if (mounted) {
         setState(() {
-          cartItems = cart.items;
-          print('Cart loaded successfully. Items count: ${cart.items.length}');
+          cartItems = cart;
+          print('Cart items set in state: ${cartItems.length}'); // Debug print
         });
       }
     } catch (e) {
@@ -92,47 +94,36 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _updateCartItem(
-      int index, Map<String, dynamic> updatedItem) async {
+      int index, Map<String, dynamic> updatedData) async {
     final originalItem = cartItems[index];
     try {
-      final newQuantity = updatedItem['quantity'];
-
-      // Update state lokal
-      setState(() {
-        cartItems[index] = CartItem.fromJson({
-          ...cartItems[index].toJson(),
-          ...updatedItem,
-          'subtotal': newQuantity * cartItems[index].unitPrice,
-        });
-      });
-
-      // Perbaiki format data untuk API
       final payload = {
-        'quantity': newQuantity,
+        'quantity': updatedData['quantity'],
         'notes': originalItem.notes ?? '',
-        'modifiers': originalItem.modifiers
-            .map((m) => {
-                  'name': m.split(' - ')[0].trim(),
-                  'option': m.split(' - ')[1].split('(')[0].trim(),
-                  'price': int.parse(m
-                      .split('(')[1]
-                      .replaceAll(')', '')
-                      .replaceAll(',', '')
-                      .trim())
-                })
-            .toList(),
-        'variant_name': originalItem.variantName ?? '',
-        'variant_price': originalItem.variantPrice ?? 0,
+        'variant_name': originalItem.variantName,
+        'variant_price': originalItem.variantPrice,
+        'modifiers': originalItem.modifiers,
       };
 
-      await cartService.updateCart(originalItem.id, payload);
-    } catch (e) {
-      print('Detailed error: $e');
-      if (mounted) {
-        setState(() {
-          cartItems[index] = originalItem;
-        });
+      final response = await cartService.updateCart(originalItem.id, payload);
 
+      setState(() {
+        cartItems[index] = CartItem.fromJson({
+          ...originalItem.toJson(),
+          'quantity': response['quantity'],
+          'unit_price': response['unit_price'],
+          'subtotal': response['subtotal'],
+        });
+      });
+    } catch (e) {
+      print('Error updating cart item: $e');
+
+      // Kembalikan ke state sebelumnya
+      setState(() {
+        cartItems[index] = originalItem;
+      });
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal mengubah jumlah. Silakan coba lagi.'),
@@ -140,12 +131,11 @@ class _CartPageState extends State<CartPage> {
             action: SnackBarAction(
               label: 'Coba Lagi',
               textColor: Colors.white,
-              onPressed: () => _updateCartItem(index, updatedItem),
+              onPressed: () => _updateCartItem(index, updatedData),
             ),
           ),
         );
       }
-      print('Error updating cart: $e');
     }
   }
 
@@ -307,12 +297,68 @@ class _CartPageState extends State<CartPage> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Perbaikan navigasi ke POS page
+        if (!widget.isEmbedded) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/pos',
+            (route) => false, // Hapus semua route sebelumnya
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal mengosongkan keranjang'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _incrementQuantity(int index) async {
+    try {
+      final item = cartItems[index];
+      final response = await cartService.incrementQuantity(item.id);
+
+      setState(() {
+        cartItems[index] = CartItem.fromJson({
+          ...cartItems[index].toJson(),
+          'quantity': response['quantity'],
+          'subtotal': response['subtotal'],
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _decrementQuantity(int index) async {
+    try {
+      final item = cartItems[index];
+      final response = await cartService.decrementQuantity(item.id);
+
+      setState(() {
+        cartItems[index] = CartItem.fromJson({
+          ...cartItems[index].toJson(),
+          'quantity': response['quantity'],
+          'subtotal': response['subtotal'],
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
             backgroundColor: Colors.red,
           ),
         );
@@ -332,10 +378,79 @@ class _CartPageState extends State<CartPage> {
               child: AppBar(
                 title: Text('Keranjang'),
                 automaticallyImplyLeading: false,
+                actions: cartItems.isNotEmpty
+                    ? [
+                        IconButton(
+                          icon: Icon(Icons.delete_outline),
+                          onPressed: () {
+                            // Tampilkan dialog konfirmasi
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text('Hapus Semua'),
+                                content: Text(
+                                    'Apakah Anda yakin ingin mengosongkan keranjang?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: Text('Batal'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _clearCart();
+                                    },
+                                    child: Text(
+                                      'Hapus',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          tooltip: 'Hapus Semua',
+                        ),
+                      ]
+                    : null,
               ),
             )
           : AppBar(
               title: Text('Keranjang'),
+              actions: cartItems.isNotEmpty
+                  ? [
+                      IconButton(
+                        icon: Icon(Icons.delete_outline),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text('Hapus Semua'),
+                              content: Text(
+                                  'Apakah Anda yakin ingin mengosongkan keranjang?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: Text('Batal'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _clearCart();
+                                  },
+                                  child: Text(
+                                    'Hapus',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        tooltip: 'Hapus Semua',
+                      ),
+                    ]
+                  : null,
             ),
       body: Container(
         height: double.infinity,
@@ -492,48 +607,150 @@ class _CartPageState extends State<CartPage> {
     return SlidableCartItem(
       itemId: item.id.toString(),
       onDelete: () => _removeCartItem(index),
-      child: Card(
-        margin: EdgeInsets.symmetric(vertical: 4),
-        child: Padding(
-          padding: EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.productName,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailPage(
+                productId: item.productId,
+                isEditing: true,
+                cartItem: item,
+                onUpdateCart: (updatedData) =>
+                    _updateCartItem(index, updatedData),
+              ),
+            ),
+          ).then((_) => _loadCart());
+        },
+        child: Card(
+          margin: EdgeInsets.symmetric(vertical: 4),
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.productName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatPrice(item.subtotal),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
-                  ),
-                  Text(
-                    formatPrice(item.subtotal),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  ],
+                ),
+                if (item.variantName != null) ...[
+                  SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Variant: ${item.variantName}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        formatPrice(item.variantPrice),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              if (item.variantName != null) ...[
-                SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Variant: ${item.variantName}',
+                if (item.modifiers.isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  ...item.modifiers.map((modifier) {
+                    final parts = modifier.split(' - ');
+                    if (parts.length >= 2) {
+                      final nameParts = parts[0].trim();
+                      final detailParts = parts[1].split('(');
+                      if (detailParts.length >= 2) {
+                        final detail = detailParts[0].trim();
+                        final price = detailParts[1].replaceAll(')', '').trim();
+
+                        return Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '$nameParts - $detail',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Rp $price',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    }
+                    return Text(
+                      modifier,
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
                       ),
+                    );
+                  }),
+                ],
+                if (item.notes?.isNotEmpty == true) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    'Catatan: ${item.notes}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.remove),
+                          onPressed: item.quantity > 1
+                              ? () => _decrementQuantity(index)
+                              : null,
+                        ),
+                        Text(
+                          '${item.quantity}',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.add),
+                          onPressed: () => _incrementQuantity(index),
+                        ),
+                      ],
                     ),
                     Text(
-                      formatPrice(item.variantPrice),
+                      '@${formatPrice(item.unitPrice)}',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
@@ -542,99 +759,7 @@ class _CartPageState extends State<CartPage> {
                   ],
                 ),
               ],
-              if (item.modifiers.isNotEmpty) ...[
-                SizedBox(height: 4),
-                ...item.modifiers.map((modifier) {
-                  final parts = modifier.split(' - ');
-                  if (parts.length >= 2) {
-                    final nameParts = parts[0].trim();
-                    final detailParts = parts[1].split('(');
-                    if (detailParts.length >= 2) {
-                      final detail = detailParts[0].trim();
-                      final price = detailParts[1].replaceAll(')', '').trim();
-
-                      return Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$nameParts - $detail',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              'Rp $price',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
-                  return Text(
-                    modifier,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  );
-                }),
-              ],
-              if (item.notes?.isNotEmpty == true) ...[
-                SizedBox(height: 4),
-                Text(
-                  'Catatan: ${item.notes}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-              SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.remove),
-                        onPressed: item.quantity > 1
-                            ? () => _updateCartItem(
-                                  index,
-                                  {'quantity': item.quantity - 1},
-                                )
-                            : null,
-                      ),
-                      Text(
-                        '${item.quantity}',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.add),
-                        onPressed: () => _updateCartItem(
-                          index,
-                          {'quantity': item.quantity + 1},
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '@${formatPrice(item.unitPrice)}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),

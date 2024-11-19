@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/cart_model.dart';
 import '../widgets/modern_button.dart';
 import '../models/product_detail_model.dart';
 import '../services/product_service.dart';
@@ -7,10 +8,17 @@ import '../providers/cart_provider.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
+  final bool isEditing;
+  final CartItem? cartItem;
+  final Function(Map<String, dynamic>)? onUpdateCart;
+
   const ProductDetailPage({
-    super.key,
+    Key? key,
     required this.productId,
-  });
+    this.isEditing = false,
+    this.cartItem,
+    this.onUpdateCart,
+  }) : super(key: key);
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -31,7 +39,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   void initState() {
     super.initState();
-    quantityController.text = quantity.toString();
+
+    // Inisialisasi data jika dalam mode edit
+    if (widget.isEditing && widget.cartItem != null) {
+      quantity = widget.cartItem!.quantity;
+      quantityController.text = quantity.toString();
+      notesController.text = widget.cartItem!.notes ?? '';
+    }
+
     _loadProductDetail();
   }
 
@@ -47,6 +62,39 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
       setState(() {
         productDetail = response.data;
+
+        if (widget.isEditing && widget.cartItem != null) {
+          // Set variant yang sudah ada
+          final variant = productDetail!.variants.firstWhere(
+            (v) => v.name == widget.cartItem!.variantName,
+            orElse: () => productDetail!.variants.first,
+          );
+          selectedVariantId = variant.id;
+
+          // Set modifier berdasarkan data dari cart
+          for (var cartModifier in widget.cartItem!.modifiers) {
+            // Asumsi format: "Nama Modifier - Nama Detail"
+            final parts = cartModifier.split(' - ');
+            if (parts.length == 2) {
+              final modifierName = parts[0];
+              final detailName = parts[1];
+
+              // Cari modifier dan detail yang sesuai
+              final modifier = productDetail!.modifiers.firstWhere(
+                (m) => m.name == modifierName,
+                orElse: () => productDetail!.modifiers.first,
+              );
+
+              final detail = modifier.details.firstWhere(
+                (d) => d.name == detailName,
+                orElse: () => modifier.details.first,
+              );
+
+              selectedModifierIds[modifier.id] = detail.id;
+            }
+          }
+        }
+
         isLoading = false;
       });
     } catch (e) {
@@ -192,6 +240,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
+  bool _isFormValid() {
+    // Cek dasar
+    if (selectedVariantId == null || productDetail == null) return false;
+
+    // Cek apakah produk memiliki modifier wajib
+    bool hasRequiredModifiers =
+        productDetail!.modifiers.any((m) => m.isRequired);
+
+    // Jika ada modifier wajib tapi selectedModifierIds kosong, return false
+    if (hasRequiredModifiers && selectedModifierIds.isEmpty) {
+      print('Produk memiliki modifier wajib tapi belum dipilih');
+      return false;
+    }
+
+    // Cek setiap modifier yang required
+    for (var modifier in productDetail!.modifiers) {
+      if (modifier.isRequired &&
+          !selectedModifierIds.containsKey(modifier.id)) {
+        print('Modifier ${modifier.name} wajib dipilih');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -325,65 +399,104 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
 
             // Bottom Bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Total section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        _formatPrice(_calculateTotalPrice()),
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Button section
-                  ModernButton(
-                    text: 'Tambah ke Keranjang',
-                    onPressed: selectedVariantId == null ? null : _addToCart,
-                    icon: Icons.shopping_cart,
-                  ),
-                ],
-              ),
-            ),
+            _buildBottomBar(),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                _formatPrice(_calculateTotalPrice()),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ModernButton(
+            text: widget.isEditing ? 'Perbarui' : 'Tambah ke Keranjang',
+            onPressed: _isFormValid()
+                ? (widget.isEditing ? _updateCartItem : _addToCart)
+                : null,
+            icon: widget.isEditing ? Icons.save : Icons.shopping_cart,
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _addToCart() async {
-    if (productDetail == null || selectedVariantId == null) return;
+    // Validasi awal
+    if (productDetail == null || selectedVariantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data produk tidak lengkap')),
+      );
+      return;
+    }
+
+    // Validasi modifier wajib
+    bool hasRequiredModifiers =
+        productDetail!.modifiers.any((m) => m.isRequired);
+    if (hasRequiredModifiers) {
+      if (selectedModifierIds.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mohon pilih modifier yang wajib')),
+        );
+        return;
+      }
+
+      // Cek setiap modifier yang required
+      for (var modifier in productDetail!.modifiers) {
+        if (modifier.isRequired &&
+            !selectedModifierIds.containsKey(modifier.id)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Mohon pilih ${modifier.name}')),
+          );
+          return;
+        }
+      }
+    }
 
     try {
-      // Format modifier sesuai dengan API
       final modifiers = selectedModifierIds.entries
           .map((e) => {
                 'modifier_id': e.key,
                 'modifier_detail_id': e.value,
               })
           .toList();
+
+      // Jika tidak ada modifier yang dipilih dan ada modifier wajib, hentikan proses
+      if (modifiers.isEmpty && hasRequiredModifiers) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mohon pilih modifier yang wajib')),
+        );
+        return;
+      }
 
       final cartData = {
         'product_id': productDetail!.id,
@@ -395,9 +508,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
       // Log untuk debugging
       print('Cart data being sent: $cartData');
-
       final productService = ProductService();
-      await productService.addToCart(cartData);
+      await productService.addToCart(cartData, context);
 
       // Update cart counter
       if (!mounted) return;
@@ -411,6 +523,47 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menambahkan ke keranjang: $e')),
+      );
+    }
+  }
+
+  Future<void> _updateCartItem() async {
+    if (!_isFormValid()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Mohon pilih semua varian dan modifier yang wajib')),
+      );
+      return;
+    }
+
+    if (productDetail == null || selectedVariantId == null) return;
+
+    try {
+      final productService = ProductService();
+
+      final payload = {
+        'quantity': quantity,
+        'notes': notesController.text,
+        'variant_id': selectedVariantId,
+        'modifiers': selectedModifierIds.entries
+            .map((e) => {
+                  'modifier_id': e.key,
+                  'modifier_detail_id': e.value,
+                })
+            .toList(),
+      };
+
+      await productService.updateCart(widget.cartItem!.id, payload);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Berhasil memperbarui item')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
       );
     }
   }

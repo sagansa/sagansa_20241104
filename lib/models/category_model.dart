@@ -21,7 +21,6 @@ class CategoryModel {
     return {
       'id': id,
       'name': name,
-      'description': description,
     };
   }
 }

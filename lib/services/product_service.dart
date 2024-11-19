@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import '../models/product_model.dart';
-import '../models/category_model.dart';
+import '../models/category_model.dart' as category;
 import '../utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_detail_model.dart' as detail;
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 
 class ProductService {
   final String? token;
@@ -15,26 +18,41 @@ class ProductService {
     try {
       final token = await _getToken();
 
+      final url = Uri.parse('${ApiConstants.baseUrl}/products');
+
+      print('Fetching products with URL: $url');
+
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/products'),
+        url,
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
         },
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
-        return ProductResponse.fromJson(jsonResponse);
+        final Map<String, dynamic> data = json.decode(response.body);
+        print('Decoded JSON data: $data');
+
+        print('Status: ${data['status']}');
+        print('Cart count: ${data['cart_count']}');
+        print('Data type: ${data['data'].runtimeType}');
+
+        return ProductResponse.fromJson(data);
       } else {
-        throw Exception('HTTP Error ${response.statusCode}: ${response.body}');
+        throw Exception('Failed to load products');
       }
-    } catch (e) {
-      throw Exception('Error: $e');
+    } catch (e, stackTrace) {
+      print('Error in getProducts: $e');
+      print('Stack trace: $stackTrace');
+      throw Exception('Error loading products: $e');
     }
   }
 
-  Future<List<CategoryModel>> getCategories() async {
+  Future<List<category.CategoryModel>> getCategories() async {
     try {
       final token = await _getToken();
 
@@ -52,7 +70,7 @@ class ProductService {
         if (jsonResponse['status'] == 'success') {
           final List<dynamic> categoriesJson = jsonResponse['data'];
           return categoriesJson
-              .map((json) => CategoryModel.fromJson(json))
+              .map((json) => category.CategoryModel.fromJson(json))
               .toList();
         } else {
           throw Exception('Status bukan success: ${jsonResponse['status']}');
@@ -100,7 +118,8 @@ class ProductService {
     }
   }
 
-  Future<void> addToCart(Map<String, dynamic> cartData) async {
+  Future<void> addToCart(
+      Map<String, dynamic> cartData, BuildContext context) async {
     try {
       final token = await _getToken();
 
@@ -113,8 +132,35 @@ class ProductService {
         body: json.encode(cartData),
       );
 
-      if (response.statusCode != 200) {
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['cart_count'] != null) {
+          Provider.of<CartProvider>(context, listen: false)
+              .setCartCount(jsonResponse['cart_count']);
+        }
+      } else {
         throw Exception('Gagal menambahkan ke keranjang: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+  Future<void> updateCart(int cartItemId, Map<String, dynamic> payload) async {
+    try {
+      final token = await _getToken();
+
+      final response = await http.put(
+        Uri.parse('${ApiConstants.baseUrl}/carts/$cartItemId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(payload),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Gagal memperbarui keranjang: ${response.body}');
       }
     } catch (e) {
       throw Exception('Error: $e');

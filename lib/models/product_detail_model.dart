@@ -91,11 +91,13 @@ class Variant {
 class Modifier {
   final int id;
   final String name;
+  final bool isRequired;
   final List<ModifierDetail> details;
 
   Modifier({
     required this.id,
     required this.name,
+    required this.isRequired,
     required this.details,
   });
 
@@ -103,8 +105,9 @@ class Modifier {
     return Modifier(
       id: json['id'],
       name: json['name'],
+      isRequired: json['is_required'] ?? false,
       details: (json['details'] as List)
-          .map((d) => ModifierDetail.fromJson(d))
+          .map((detail) => ModifierDetail.fromJson(detail))
           .toList(),
     );
   }
@@ -113,6 +116,7 @@ class Modifier {
     return {
       'id': id,
       'name': name,
+      'is_required': isRequired,
       'details': details.map((d) => d.toJson()).toList(),
     };
   }

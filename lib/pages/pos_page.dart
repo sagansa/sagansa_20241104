@@ -127,7 +127,7 @@ class _PosPageState extends State<POSPage> {
             ),
             ListTile(
               leading: Icon(Icons.history),
-              title: Text('Riwayat Transaksi'),
+              title: Text('Transaction History'),
               onTap: () {
                 Navigator.pop(context); // Tutup drawer
                 Navigator.pushNamed(context, '/transaction-history');
@@ -140,6 +140,14 @@ class _PosPageState extends State<POSPage> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/profile');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
               },
             ),
             ListTile(

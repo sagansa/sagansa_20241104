@@ -5,7 +5,7 @@ import '../models/payment_method_model.dart';
 import '../utils/constants.dart';
 
 class PaymentMethodService {
-  Future<List<PaymentMethod>> getPaymentMethods() async {
+  Future<List<PaymentMethodModel>> getPaymentMethods() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');

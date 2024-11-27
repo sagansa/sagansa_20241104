@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/leave_model.dart';
-import '../models/presence_today_model.dart';
-import '../services/global_service.dart';
 import '../services/leave_service.dart';
-import '../utils/constants.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'leave_form_page.dart';
 import '../widgets/modern_fab.dart';
@@ -23,24 +19,13 @@ class LeavePage extends StatefulWidget {
 }
 
 class _LeavePageState extends State<LeavePage> {
-  late GlobalService _globalService;
   List<LeaveModel> _leaves = [];
   bool _isLoading = true;
-  bool _hasPresenceToday = false;
 
   @override
   void initState() {
     super.initState();
     _loadLeaves();
-    _checkPresenceToday();
-    _initializeService();
-  }
-
-  Future<void> _initializeService() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    _globalService = GlobalService(token: token);
-    await _checkPresenceToday();
   }
 
   Future<void> _loadLeaves() async {
@@ -55,25 +40,6 @@ class _LeavePageState extends State<LeavePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memuat data cuti')),
       );
-    }
-  }
-
-  Future<void> _checkPresenceToday() async {
-    try {
-      final PresenceTodayModel presenceToday =
-          await _globalService.getPresenceToday();
-      if (mounted) {
-        setState(() {
-          _hasPresenceToday = presenceToday.hasPresence;
-        });
-      }
-    } catch (e) {
-      print('Error checking presence: $e');
-      if (mounted) {
-        setState(() {
-          _hasPresenceToday = false;
-        });
-      }
     }
   }
 
@@ -226,21 +192,7 @@ class _LeavePageState extends State<LeavePage> {
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: ModernBottomNav(
             currentIndex: 1,
-            onTap: (index) {
-              if (index == 2) {
-                if (_hasPresenceToday) {
-                  Navigator.pushNamed(context, '/pos');
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content:
-                          Text('Anda harus melakukan presensi terlebih dahulu'),
-                    ),
-                  );
-                }
-              }
-            },
-            hasPresenceToday: _hasPresenceToday,
+            onTap: (index) {},
           ),
         );
       },

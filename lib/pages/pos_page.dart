@@ -24,6 +24,7 @@ class _PosPageState extends State<POSPage> {
   String _userName = '';
   String _storeName = '';
   bool _isGridView = true;
+  bool isCheckedOut = false;
 
   @override
   void initState() {
@@ -79,6 +80,12 @@ class _PosPageState extends State<POSPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isCheckedOut) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       drawer: Drawer(
         child: ListView(
@@ -305,42 +312,56 @@ class _PosPageState extends State<POSPage> {
 
   Widget _buildGridItem(ProductModel product) {
     return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: product.image?.isNotEmpty == true
-                ? CachedNetworkImage(
-                    imageUrl: product.image!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                    errorWidget: (context, url, error) =>
-                        const _DefaultProductImage(),
-                  )
-                : const _DefaultProductImage(),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-              ],
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailPage(
+                productId: product.id,
+              ),
             ),
-          ),
-        ],
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: product.image?.isNotEmpty == true
+                  ? CachedNetworkImage(
+                      imageUrl: product.image!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const _DefaultProductImage(),
+                    )
+                  : const _DefaultProductImage(),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

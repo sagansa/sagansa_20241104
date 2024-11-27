@@ -20,8 +20,6 @@ class ProductService {
 
       final url = Uri.parse('${ApiConstants.baseUrl}/products');
 
-      print('Fetching products with URL: $url');
-
       final response = await http.get(
         url,
         headers: {
@@ -30,16 +28,8 @@ class ProductService {
         },
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        print('Decoded JSON data: $data');
-
-        print('Status: ${data['status']}');
-        print('Cart count: ${data['cart_count']}');
-        print('Data type: ${data['data'].runtimeType}');
 
         return ProductResponse.fromJson(data);
       } else {

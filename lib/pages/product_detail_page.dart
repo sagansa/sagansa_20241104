@@ -29,17 +29,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Map<int, int> selectedModifierIds = {};
   int quantity = 1;
   final TextEditingController notesController = TextEditingController();
-  final TextEditingController quantityController = TextEditingController();
+  final TextEditingController quantityController =
+      TextEditingController(text: '1');
 
   // Tambahkan state untuk menyimpan data produk
   ProductDetailModel? productDetail;
   bool isLoading = true;
   String? error;
+  bool isCheckedOut = false;
 
   @override
   void initState() {
     super.initState();
-
+    // Hapus panggilan ke _checkPresenceStatus
+    // _checkPresenceStatus();
     // Inisialisasi data jika dalam mode edit
     if (widget.isEditing && widget.cartItem != null) {
       quantity = widget.cartItem!.quantity;
@@ -48,6 +51,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
 
     _loadProductDetail();
+  }
+
+  // Hapus metode _checkPresenceStatus
+  // Future<void> _checkPresenceStatus() async {
+  //   // Asumsikan ada fungsi untuk mendapatkan status presensi
+  //   final presenceStatus = await _getPresenceStatus();
+
+  //   if (presenceStatus == 'checked_out') {
+  //     setState(() {
+  //       isCheckedOut = true;
+  //     });
+
+  //     // Arahkan ke home_page.dart
+  //     Navigator.pushReplacementNamed(context, '/home');
+  //   }
+  // }
+
+  Future<String> _getPresenceStatus() async {
+    // Implementasikan logika untuk mendapatkan status presensi
+    // Misalnya, panggil API atau baca dari penyimpanan lokal
+    return 'checked_out'; // Contoh status
   }
 
   Future<void> _loadProductDetail() async {
@@ -268,6 +292,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isCheckedOut) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),

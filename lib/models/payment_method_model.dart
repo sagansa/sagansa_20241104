@@ -1,6 +1,6 @@
 class PaymentMethodResponse {
   final String status;
-  final List<PaymentMethod> data;
+  final List<PaymentMethodModel> data;
 
   PaymentMethodResponse({
     required this.status,
@@ -11,27 +11,27 @@ class PaymentMethodResponse {
     return PaymentMethodResponse(
       status: json['status'],
       data: (json['data'] as List)
-          .map((item) => PaymentMethod.fromJson(item))
+          .map((item) => PaymentMethodModel.fromJson(item))
           .toList(),
     );
   }
 }
 
-class PaymentMethod {
+class PaymentMethodModel {
   final int id;
   final String name;
   final String type;
   final String? image;
 
-  PaymentMethod({
+  PaymentMethodModel({
     required this.id,
     required this.name,
     required this.type,
     this.image,
   });
 
-  factory PaymentMethod.fromJson(Map<String, dynamic> json) {
-    return PaymentMethod(
+  factory PaymentMethodModel.fromJson(Map<String, dynamic> json) {
+    return PaymentMethodModel(
       id: json['id'],
       name: json['name'],
       type: json['type'],

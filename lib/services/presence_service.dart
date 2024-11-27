@@ -7,6 +7,7 @@ import '../models/shift_store_model.dart';
 import 'dart:io';
 import '../utils/constants.dart';
 import '../models/presence_model.dart';
+import '../models/presence_status_model.dart';
 
 class PresenceService {
   static const String tokenKey = 'token';
@@ -212,6 +213,29 @@ class PresenceService {
       }
     } catch (e) {
       throw Exception('Error: $e');
+    }
+  }
+
+  static Future<PresenceStatusModel> hasCheckedInToday() async {
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/has-checked-in-today'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        return PresenceStatusModel.fromJson(jsonResponse);
+      } else {
+        throw Exception('Gagal memeriksa status check-in hari ini');
+      }
+    } catch (e) {
+      print('Error in hasCheckedInToday: $e');
+      throw Exception('Gagal memeriksa status check-in hari ini: $e');
     }
   }
 }

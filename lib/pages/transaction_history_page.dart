@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_history_model.dart';
 import '../services/transaction_service.dart';
+import 'transaction_detail_page.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   @override
@@ -12,8 +13,8 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   final TransactionService _transactionService = TransactionService();
   DateTime? startDate;
   DateTime? endDate;
-  String selectedStatus = 'Semua';
-  List<TransactionHistory> transactions = [];
+  String selectedPaymentMethod = 'Semua';
+  List<TransactionHistoryModel> transactions = [];
   bool isLoading = true;
 
   @override
@@ -113,41 +114,75 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: DropdownButtonFormField<String>(
-        value: selectedStatus,
+        value: selectedPaymentMethod,
         decoration: InputDecoration(
-          labelText: 'Status',
+          labelText: 'Metode Pembayaran',
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 12),
         ),
-        items: ['Semua', 'Selesai', 'Menunggu', 'Dibatalkan']
-            .map((status) => DropdownMenuItem(
-                  value: status,
-                  child: Text(status),
+        items: ['Semua', 'Cash', 'QRIS', 'Debit', 'Credit Card', 'E-Wallet']
+            .map((method) => DropdownMenuItem(
+                  value: method,
+                  child: Text(method),
                 ))
             .toList(),
         onChanged: (value) {
           setState(() {
-            selectedStatus = value!;
+            selectedPaymentMethod = value!;
           });
         },
       ),
     );
   }
 
-  Widget _buildTransactionCard(TransactionHistory transaction) {
+  Widget _buildTransactionCard(TransactionHistoryModel transaction) {
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ExpansionTile(
-        title: Text(
-          transaction.transactionNumber,
-          style: TextStyle(fontWeight: FontWeight.bold),
+      child: ListTile(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransactionDetailPage(
+                transactionId: transaction.id.toString(),
+              ),
+            ),
+          );
+        },
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              transaction.transactionNumber,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: transaction.paymentStatus.toLowerCase() == 'paid'
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                transaction.paymentStatus.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: transaction.paymentStatus.toLowerCase() == 'paid'
+                      ? Colors.green
+                      : Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 4),
             Text(
-              DateFormat('dd MMM yyyy HH:mm')
+              DateFormat('dd MMM yyyy HH:mm:ss')
                   .format(DateTime.parse(transaction.createdAt)),
               style: TextStyle(fontSize: 12),
             ),
@@ -162,67 +197,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             ),
           ],
         ),
-        trailing: _buildStatusChip(transaction.status),
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    'Metode Pembayaran: ${transaction.formattedPaymentMethod}'),
-                Text('Jumlah Item: ${transaction.itemsCount}'),
-                SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    OutlinedButton.icon(
-                      icon: Icon(Icons.print),
-                      label: Text('Cetak'),
-                      onPressed: () {
-                        // TODO: Implement print functionality
-                      },
-                    ),
-                    OutlinedButton.icon(
-                      icon: Icon(Icons.share),
-                      label: Text('Bagikan'),
-                      onPressed: () {
-                        // TODO: Implement share functionality
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
-    );
-  }
-
-  Widget _buildStatusChip(String status) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'selesai':
-        color = Colors.green;
-        break;
-      case 'menunggu':
-        color = Colors.orange;
-        break;
-      case 'dibatalkan':
-        color = Colors.red;
-        break;
-      default:
-        color = Colors.grey;
-    }
-
-    return Chip(
-      label: Text(
-        status,
-        style: TextStyle(color: Colors.white, fontSize: 12),
-      ),
-      backgroundColor: color,
-      padding: EdgeInsets.symmetric(horizontal: 8),
     );
   }
 

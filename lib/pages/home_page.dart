@@ -7,12 +7,10 @@ import '../models/presence_model.dart';
 import 'presence_page.dart';
 import '../services/auth_service.dart';
 import 'calendar_page.dart';
-import 'leave_page.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
 import '../utils/constants.dart';
 import '../controllers/home_controller.dart';
-import 'salary_page.dart';
 import 'package:provider/provider.dart';
 import '../providers/presence_provider.dart';
 
@@ -443,34 +441,22 @@ class HomePageState extends State<HomePage> {
         // Sudah di home, tidak perlu navigasi
         break;
       case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LeavePage(
-              todayPresence: todayPresence,
-            ),
-          ),
-        );
+        Navigator.pushNamed(context, '/leave');
         break;
       case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CalendarPage(),
-          ),
-        );
-        break;
-      case 3:
-        if (todayPresence == null || todayPresence!.checkIn.isEmpty) {
+        if (todayPresence != null && todayPresence!.checkIn.isNotEmpty) {
+          Navigator.pushNamed(context, '/pos');
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Silakan lakukan presensi terlebih dahulu')),
           );
-          return;
         }
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => SalaryPage()),
-        );
+        break;
+      case 3:
+        Navigator.pushNamed(context, '/calendar');
+        break;
+      case 4:
+        Navigator.pushNamed(context, '/salary');
         break;
     }
   }
@@ -538,6 +524,15 @@ class HomePageState extends State<HomePage> {
         centerTitle: true,
         title: Text('Home'),
         actions: [
+          if (_hasActiveLeave) // Menampilkan ikon atau pesan jika ada cuti aktif
+            IconButton(
+              icon: Icon(Icons.warning, color: Colors.orange),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Anda memiliki cuti yang aktif')),
+                );
+              },
+            ),
           IconButton(
             icon: Icon(Icons.logout),
             onPressed: () async {
@@ -704,20 +699,21 @@ class HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      floatingActionButton: CustomFAB(
-        onPressed: _navigateToPresencePage,
-        icon: todayPresence?.checkOut == null
-            ? Icons.fingerprint_outlined // icon untuk checkout
-            : Icons.fingerprint_outlined, // icon untuk checkin
-        backgroundColor: todayPresence?.checkOut == null
-            ? Colors.green // warna untuk checkout
-            : Colors.red, // warna untuk checkin
-        tooltip: todayPresence?.checkOut == null ? 'Check Out' : 'Check In',
-      ),
+      floatingActionButton: todayPresence?.checkOut == null
+          ? CustomFAB(
+              onPressed: _navigateToPresencePage,
+              icon: todayPresence == null
+                  ? Icons.fingerprint_outlined // icon untuk checkout
+                  : Icons.fingerprint_outlined, // icon untuk checkin
+              backgroundColor: todayPresence == null
+                  ? Colors.green // warna untuk checkout
+                  : Colors.red, // warna untuk checkin
+              tooltip: todayPresence == null ? 'Check Out' : 'Check In',
+            )
+          : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        hasPresenceToday: todayPresence != null,
       ),
     );
   }

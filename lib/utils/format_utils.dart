@@ -10,4 +10,9 @@ class FormatUtils {
   static String formatCurrency(int number) {
     return 'Rp ${formatNumber(number)}';
   }
+
+  static String formatDate(DateTime date) {
+    // Implementasi format tanggal, misalnya:
+    return '${date.day}-${date.month}-${date.year}';
+  }
 }

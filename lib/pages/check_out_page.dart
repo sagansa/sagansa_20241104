@@ -6,6 +6,7 @@ import 'payment_success_page.dart';
 import '../services/transaction_service.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
+import '../services/printer_service.dart';
 
 class CheckOutPage extends StatefulWidget {
   final int finalTotal;
@@ -20,11 +21,11 @@ class CheckOutPage extends StatefulWidget {
 }
 
 class _CheckOutPageState extends State<CheckOutPage> {
-  PaymentMethod? selectedPayment;
+  PaymentMethodModel? selectedPayment;
   final TextEditingController _cashController = TextEditingController();
   int? _cashAmount;
   final PaymentMethodService _paymentMethodService = PaymentMethodService();
-  List<PaymentMethod> paymentMethods = [];
+  List<PaymentMethodModel> paymentMethods = [];
   bool isLoading = true;
   CustomerModel? selectedCustomer;
   final CustomerService _customerService = CustomerService();
@@ -272,7 +273,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                     ...paymentMethods
                         .map((method) => Card(
                               margin: EdgeInsets.only(bottom: 8),
-                              child: RadioListTile<PaymentMethod>(
+                              child: RadioListTile<PaymentMethodModel>(
                                 title: Row(
                                   children: [
                                     Icon(_getIconForType(method.type)),
@@ -536,6 +537,36 @@ class _CheckOutPageState extends State<CheckOutPage> {
                           Navigator.pop(context);
 
                           if (result['status'] == 'success') {
+                            // Cetak struk
+                            try {
+                              final printers =
+                                  await PrinterService.getPrinters();
+
+                              // Cari printer yang bisa mencetak struk
+                              final receiptPrinter = printers.firstWhere(
+                                (printer) =>
+                                    printer['printReceiptAndBills'] == true,
+                                orElse: () => throw Exception(
+                                    'Printer struk belum dikonfigurasi'),
+                              );
+
+                              // Gunakan receiptPrinter untuk mencetak struk
+                              await PrinterService.connectAndPrint(
+                                  receiptPrinter);
+                            } catch (e) {
+                              print('Error printing: $e');
+                              // Lanjutkan ke halaman sukses meskipun print gagal
+                            }
+                            // Cari printer yang bisa mencetak pesanan
+                            // final orderPrinter = printers.firstWhere(
+                            //   (printer) => printer['printOrders'] == true,
+                            //   orElse: () => throw Exception(
+                            //       'Printer pesanan belum dikonfigurasi'),
+                            // );
+
+                            // Implementasi pencetakan pesanan
+                            // await PrinterService.connectAndPrint(orderPrinter);
+
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
@@ -573,5 +604,44 @@ class _CheckOutPageState extends State<CheckOutPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _printReceipt() async {
+    try {
+      final printers = await PrinterService.getPrinters();
+
+      // Cari printer yang bisa mencetak struk
+      final receiptPrinter = printers.firstWhere(
+        (printer) => printer['printReceiptAndBills'] == true,
+        orElse: () => throw Exception('Printer struk belum dikonfigurasi'),
+      );
+
+      // Gunakan receiptPrinter untuk mencetak struk
+      await PrinterService.connectAndPrint(receiptPrinter);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencetak: $e')),
+      );
+    }
+  }
+
+  Future<void> _printOrder() async {
+    try {
+      // Mendapatkan daftar printer
+      final printers = await PrinterService.getPrinters();
+
+      // Cari printer yang bisa mencetak pesanan
+      final orderPrinter = printers.firstWhere(
+        (printer) => printer['printOrders'] == true,
+        orElse: () => throw Exception('Printer pesanan belum dikonfigurasi'),
+      );
+
+      // Implementasi pencetakan pesanan
+      await PrinterService.connectAndPrint(orderPrinter);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencetak: $e')),
+      );
+    }
   }
 }

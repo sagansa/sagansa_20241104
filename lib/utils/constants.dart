@@ -33,6 +33,9 @@ class ApiConstants {
   // Transaction Endpoints
   static const String transactions = '$baseUrl/transactions';
 
+  // Salary Endpoints
+  static const String salaries = '$baseUrl/salaries';
+
   static Map<String, String> headers(String? token) {
     return {
       'Content-Type': 'application/json',

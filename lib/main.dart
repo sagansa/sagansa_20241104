@@ -10,6 +10,11 @@ import '../pages/leave_page.dart';
 import '../pages/calendar_page.dart';
 import '../pages/salary_page.dart';
 import 'providers/cart_provider.dart';
+import 'pages/transaction_history_page.dart';
+import 'pages/transaction_detail_page.dart';
+import '../pages/settings_page.dart';
+import '../pages/settings_printer_page.dart';
+import '../pages/pos_page.dart';
 
 void main() {
   runApp(MultiProvider(
@@ -54,6 +59,10 @@ void main() {
         '/leave': (context) => LeavePage(),
         '/calendar': (context) => CalendarPage(),
         '/salary': (context) => SalaryPage(),
+        '/transaction-history': (context) => TransactionHistoryPage(),
+        '/pos': (context) => POSPage(),
+        '/settings': (context) => const SettingsPage(),
+        '/settings/printer': (context) => const SettingsPrinterPage(),
       },
       localizationsDelegates: [
         GlobalMaterialLocalizations.delegate,
@@ -66,6 +75,17 @@ void main() {
         const Locale('en'),
       ],
       locale: const Locale('id'),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/transaction-detail') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => TransactionDetailPage(
+              transactionId: args['transactionId'],
+            ),
+          );
+        }
+        return null;
+      },
     ),
   ));
 }

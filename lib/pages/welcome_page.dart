@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sagansa_20241104/pages/login_page.dart';
+import '../pages/login_page.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({Key? key}) : super(key: key);
@@ -39,10 +39,6 @@ class _WelcomePageState extends State<WelcomePage> {
               height: 200,
             ),
             const SizedBox(height: 20),
-            // Loading indicator
-            const CircularProgressIndicator(
-              color: Colors.white,
-            ),
           ],
         ),
       ),

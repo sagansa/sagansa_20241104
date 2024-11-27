@@ -1,4 +1,4 @@
-class TransactionHistory {
+class TransactionHistoryModel {
   final int id;
   final String transactionNumber;
   final int totalAmount;
@@ -8,7 +8,7 @@ class TransactionHistory {
   final int itemsCount;
   final String createdAt;
 
-  TransactionHistory({
+  TransactionHistoryModel({
     required this.id,
     required this.transactionNumber,
     required this.totalAmount,
@@ -19,8 +19,8 @@ class TransactionHistory {
     required this.createdAt,
   });
 
-  factory TransactionHistory.fromJson(Map<String, dynamic> json) {
-    return TransactionHistory(
+  factory TransactionHistoryModel.fromJson(Map<String, dynamic> json) {
+    return TransactionHistoryModel(
       id: json['id'],
       transactionNumber: json['transaction_number'],
       totalAmount: json['total_amount'],

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/calendar_model.dart';
-import '../models/presence_today_model.dart';
 import '../services/calendar_service.dart';
-import '../services/global_service.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../utils/constants.dart';
 
@@ -17,13 +15,11 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage> {
   late CalendarService _calendarService;
-  late GlobalService _globalService;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   CalendarModel? _calendarData;
   bool _isLoading = true;
-  bool _hasPresenceToday = false;
 
   @override
   void initState() {
@@ -35,9 +31,7 @@ class _CalendarPageState extends State<CalendarPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
     _calendarService = CalendarService(token: token);
-    _globalService = GlobalService(token: token);
     await _loadCalendarData();
-    await _checkPresenceToday();
   }
 
   Future<void> _loadCalendarData() async {
@@ -56,25 +50,6 @@ class _CalendarPageState extends State<CalendarPage> {
           SnackBar(
               content: Text('Gagal memuat data kalender: ${e.toString()}')),
         );
-      }
-    }
-  }
-
-  Future<void> _checkPresenceToday() async {
-    try {
-      final PresenceTodayModel presenceToday =
-          await _globalService.getPresenceToday();
-      if (mounted) {
-        setState(() {
-          _hasPresenceToday = presenceToday.hasPresence;
-        });
-      }
-    } catch (e) {
-      print('Error checking presence: $e');
-      if (mounted) {
-        setState(() {
-          _hasPresenceToday = false;
-        });
       }
     }
   }
@@ -154,21 +129,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 3,
-        onTap: (index) {
-          if (index == 1) {
-            if (_hasPresenceToday) {
-              Navigator.pushNamed(context, '/pos');
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content:
-                      Text('Anda harus melakukan presensi terlebih dahulu'),
-                ),
-              );
-            }
-          }
-        },
-        hasPresenceToday: _hasPresenceToday,
+        onTap: (index) {},
       ),
     );
   }

@@ -1,10 +1,10 @@
-import 'package:bluetooth_thermal_printer/bluetooth_thermal_printer.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transaction_detail_model.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 class PrinterService {
   static const String _key = 'printers';
@@ -30,7 +30,7 @@ class PrinterService {
 
   Future<List?> getBondedDevices() async {
     try {
-      final List? devices = await BluetoothThermalPrinter.getBluetooths;
+      final List? devices = await PrintBluetoothThermal.pairedBluetooths;
       return devices;
     } catch (e) {
       print('Error getting bonded devices: $e');
@@ -40,8 +40,9 @@ class PrinterService {
 
   Future<bool> connectPrinter(String address) async {
     try {
-      final String? result = await BluetoothThermalPrinter.connect(address);
-      return result == "true";
+      final bool result =
+          await PrintBluetoothThermal.connect(macPrinterAddress: address);
+      return result;
     } catch (e) {
       print('Error connecting to printer: $e');
       return false;
@@ -49,8 +50,8 @@ class PrinterService {
   }
 
   Future<bool> isConnected() async {
-    final String? status = await BluetoothThermalPrinter.connectionStatus;
-    return status == "true";
+    final bool? status = await PrintBluetoothThermal.connectionStatus;
+    return status ?? false;
   }
 
   Future<void> printReceipt(TransactionDetail transaction) async {
@@ -67,8 +68,8 @@ class PrinterService {
       final List<int> bytes = await _generateReceiptContent(transaction);
 
       // Print
-      final result = await BluetoothThermalPrinter.writeBytes(bytes);
-      if (result == null) {
+      final result = await PrintBluetoothThermal.writeBytes(bytes);
+      if (!result) {
         throw Exception('Gagal mencetak struk');
       }
     } catch (e) {
@@ -207,5 +208,12 @@ class PrinterService {
     // Contoh:
     print('Connecting to printer: ${printer['name']}');
     // Lakukan koneksi dan pencetakan di sini
+  }
+
+  Future<List<BluetoothInfo>> getBluetoots() async {
+    // Gunakan pairedBluetooths bukan bluetooths
+    final List<BluetoothInfo> listResult =
+        await PrintBluetoothThermal.pairedBluetooths;
+    return listResult;
   }
 }

@@ -53,5 +53,13 @@
 	<string>Aplikasi ini membutuhkan akses lokasi untuk fitur pencarian lokasi terdekat</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Aplikasi membutuhkan akses kamera untuk mengambil foto presensi</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Need BLE permission</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Need BLE permission</string>
+	<key>UISupportedExternalAccessoryProtocols</key>
+	<array>
+		<string>com.honeywell.scanner</string>
+	</array>
 </dict>
 </plist>

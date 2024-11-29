@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
+import '../models/printer_bluetooth.dart';
 
 class PrinterFormPage extends StatefulWidget {
   final Map<String, dynamic>? printerData;
@@ -16,10 +17,10 @@ class _PrinterFormPageState extends State<PrinterFormPage> {
   late final TextEditingController _ipAddressController;
   String? _selectedPrinterModel;
   String _connectionType = 'bluetooth'; // 'bluetooth' atau 'lan'
-  BluetoothDevice? _selectedBluetoothDevice;
+  PrinterBluetooth? _selectedBluetoothDevice;
   bool _printReceiptAndBills = false;
   bool _printOrders = false;
-  List<BluetoothDevice> _bluetoothDevices = [];
+  List<PrinterBluetooth> _bluetoothDevices = [];
   bool get isEditMode => widget.printerData != null;
 
   final List<String> _printerModels = [
@@ -54,26 +55,26 @@ class _PrinterFormPageState extends State<PrinterFormPage> {
 
   Future<void> _loadBluetoothDevices() async {
     try {
-      final bluetoothState = await FlutterBluetoothSerial.instance.state;
-
-      if (bluetoothState == BluetoothState.STATE_ON) {
-        final bondedDevices =
-            await FlutterBluetoothSerial.instance.getBondedDevices();
+      final bool isBluetoothOn = await PrintBluetoothThermal.bluetoothEnabled;
+      if (isBluetoothOn) {
+        final List<dynamic> devices =
+            await PrintBluetoothThermal.pairedBluetooths;
         setState(() {
-          _bluetoothDevices = bondedDevices;
+          _bluetoothDevices = devices
+              .map((device) => PrinterBluetooth.fromMap(device))
+              .toList();
           if (isEditMode && _connectionType == 'bluetooth') {
-            _selectedBluetoothDevice = bondedDevices.firstWhere(
+            _selectedBluetoothDevice = devices.firstWhere(
               (device) =>
                   device.address == widget.printerData!['bluetoothAddress'],
-              orElse: () => BluetoothDevice(
-                  address: '', name: '', type: BluetoothDeviceType.unknown),
+              orElse: () => PrinterBluetooth(name: '', address: ''),
             );
           }
         });
       }
     } catch (e) {
       // Handle error
-    } finally {}
+    }
   }
 
   @override
@@ -163,7 +164,7 @@ class _PrinterFormPageState extends State<PrinterFormPage> {
 
             // Connection Settings
             if (_connectionType == 'bluetooth') ...[
-              DropdownButtonFormField<BluetoothDevice>(
+              DropdownButtonFormField<PrinterBluetooth>(
                 decoration: const InputDecoration(
                   labelText: 'Pilih Printer Bluetooth',
                   border: OutlineInputBorder(),
@@ -172,7 +173,7 @@ class _PrinterFormPageState extends State<PrinterFormPage> {
                 items: _bluetoothDevices.map((device) {
                   return DropdownMenuItem(
                     value: device,
-                    child: Text(device.name ?? 'Unknown Device'),
+                    child: Text(device.name),
                   );
                 }).toList(),
                 onChanged: (value) {

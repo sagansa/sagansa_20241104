@@ -1,4 +1,0 @@
--keep class com.yourpackage.** { *; }
--keepclassmembers class com.yourpackage.** { *; }
--keep class io.flutter.** { *; }
--keep class io.flutter.plugins.** { *; } 

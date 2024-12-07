@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 buildscript {
     ext.kotlin_version = '1.9.22'
     ext.java_version = JavaVersion.VERSION_17
@@ -16,6 +17,8 @@ buildscript {
     }
 }
 
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 allprojects {
     repositories {
         google()

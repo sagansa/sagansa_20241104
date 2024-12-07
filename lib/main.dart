@@ -17,6 +17,7 @@ import '../pages/settings_printer_page.dart';
 import '../pages/pos_page.dart';
 
 void main() {
+<<<<<<< HEAD
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => PresenceProvider()),
@@ -88,4 +89,24 @@ void main() {
       },
     ),
   ));
+=======
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sagansa App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => LoginPage(),
+        '/home': (context) => HomePage(),
+      },
+    );
+  }
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 }

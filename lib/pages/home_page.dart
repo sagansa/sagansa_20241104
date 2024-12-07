@@ -597,6 +597,7 @@ class HomePageState extends State<HomePage> {
                 _buildUserProfile(),
                 SizedBox(height: 24),
                 todayPresence != null
+<<<<<<< HEAD
                     ? Column(
                         children: [
                           _buildPresenceCard(todayPresence!),
@@ -638,6 +639,19 @@ class HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
+=======
+                    ? _buildPresenceCard(todayPresence!)
+                    : Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: const Text(
+                          'Belum ada presensi untuk hari ini',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey,
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
                           ),
                         ],
                       ),

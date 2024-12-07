@@ -73,6 +73,7 @@ class _LoginPageState extends State<LoginPage> {
         centerTitle: true,
       ),
 <<<<<<< HEAD
+<<<<<<< HEAD
       body: SafeArea(
         child: Column(
           children: [
@@ -145,6 +146,8 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
 =======
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
       body: Stack(
         children: [
           Padding(
@@ -210,6 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
+<<<<<<< HEAD
                 ),
               ],
             ),
@@ -295,6 +299,53 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
 =======
+          ),
+        ],
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+                ),
+              ],
+            ),
+          ),
+          // Tombol login dan teks register di bottom
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 32,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Belum punya akun? ',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        print('Register clicked');
+                      },
+                      child: Text(
+                        'Daftar Sekarang',
+                        style: TextStyle(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                ModernButton(
+                  text: 'Login',
+                  onPressed: _login,
+                  isLoading: isLoading,
+                ),
+              ],
+            ),
           ),
         ],
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)

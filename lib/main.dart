@@ -18,6 +18,7 @@ import '../pages/pos_page.dart';
 
 void main() {
 <<<<<<< HEAD
+<<<<<<< HEAD
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => PresenceProvider()),
@@ -90,6 +91,8 @@ void main() {
     ),
   ));
 =======
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   runApp(MyApp());
 }
 
@@ -108,5 +111,8 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+<<<<<<< HEAD
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 }

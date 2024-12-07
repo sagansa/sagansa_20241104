@@ -99,6 +99,9 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.4"
+<<<<<<< HEAD
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   crypto:
     dependency: transitive
@@ -125,6 +128,7 @@ packages:
     source: hosted
     version: "1.0.8"
 <<<<<<< HEAD
+<<<<<<< HEAD
   dart_earcut:
     dependency: transitive
     description:
@@ -136,6 +140,8 @@ packages:
   esc_pos_utils_plus:
     dependency: "direct main"
 =======
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   dbus:
     dependency: transitive
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
@@ -215,6 +221,7 @@ packages:
     source: sdk
     version: "0.0.0"
 <<<<<<< HEAD
+<<<<<<< HEAD
   flutter_cache_manager:
     dependency: transitive
     description:
@@ -231,6 +238,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.14.1"
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   flutter_lints:
@@ -262,6 +271,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
 <<<<<<< HEAD
+<<<<<<< HEAD
     version: "7.0.2"
   flutter_plugin_android_lifecycle:
     dependency: transitive
@@ -271,6 +281,9 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.23"
+=======
+    version: "5.0.0"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
     version: "5.0.0"
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
@@ -289,10 +302,17 @@ packages:
     description:
       name: geolocator
 <<<<<<< HEAD
+<<<<<<< HEAD
       sha256: d2ec66329cab29cb297d51d96c067d457ca519dca8589665fa0b82ebacb7dbe4
       url: "https://pub.dev"
     source: hosted
     version: "13.0.2"
+=======
+      sha256: "5c23f3613f50586c0bbb2b8f970240ae66b3bd992088cf60dd5ee2e6f7dde3a8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.0.2"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
       sha256: "5c23f3613f50586c0bbb2b8f970240ae66b3bd992088cf60dd5ee2e6f7dde3a8"
       url: "https://pub.dev"
@@ -372,6 +392,7 @@ packages:
     source: hosted
     version: "4.0.2"
 <<<<<<< HEAD
+<<<<<<< HEAD
   image:
     dependency: "direct main"
     description:
@@ -446,6 +467,8 @@ packages:
     version: "0.2.1+1"
 =======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   intl:
     dependency: "direct main"
     description:
@@ -511,6 +534,7 @@ packages:
     source: hosted
     version: "1.0.1"
 <<<<<<< HEAD
+<<<<<<< HEAD
   logger:
     dependency: transitive
     description:
@@ -527,6 +551,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.3"
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   matcher:
@@ -907,10 +933,17 @@ packages:
     description:
       name: syncfusion_flutter_calendar
 <<<<<<< HEAD
+<<<<<<< HEAD
       sha256: "948934cecada4fd977a1097a3ac6c69857b1838b26438da1b2d58e667fa81f45"
       url: "https://pub.dev"
     source: hosted
     version: "27.2.4"
+=======
+      sha256: "57cca039b31d49844de6681ad039216dd098da7b9e7acffeee5e7075a4978416"
+      url: "https://pub.dev"
+    source: hosted
+    version: "24.2.9"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
       sha256: "57cca039b31d49844de6681ad039216dd098da7b9e7acffeee5e7075a4978416"
       url: "https://pub.dev"
@@ -922,6 +955,7 @@ packages:
     description:
       name: syncfusion_flutter_core
 <<<<<<< HEAD
+<<<<<<< HEAD
       sha256: "795530addc930b3b06f4f2fe99a039de276860af505fcf54c4516fbcb838a3cb"
       url: "https://pub.dev"
     source: hosted
@@ -932,10 +966,17 @@ packages:
     source: hosted
     version: "24.2.9"
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+      sha256: "7666506885ebc8f62bb928ad4588a73e20caaff2b2cf2b2b56f67d98f4113525"
+      url: "https://pub.dev"
+    source: hosted
+    version: "24.2.9"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   syncfusion_flutter_datepicker:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_datepicker
+<<<<<<< HEAD
 <<<<<<< HEAD
       sha256: eafdcb6084a3c50d482cf846a59dac86bee3cc3511f62f3b69fea14133ab57be
       url: "https://pub.dev"
@@ -965,6 +1006,12 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+=======
+      sha256: c010440ccef2beecb988684af3557c57ade8ea300d1177536f01059e3a16ce5d
+      url: "https://pub.dev"
+    source: hosted
+    version: "24.2.9"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
       sha256: c010440ccef2beecb988684af3557c57ade8ea300d1177536f01059e3a16ce5d
       url: "https://pub.dev"

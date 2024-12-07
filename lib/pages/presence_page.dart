@@ -239,6 +239,7 @@ class _PresencePageState extends State<PresencePage> {
                 }
               };
 
+<<<<<<< HEAD
               print('Saving store data to SharedPreferences:');
               print(jsonEncode(storeData));
 
@@ -275,6 +276,8 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   @override
   Widget build(BuildContext context) {
     bool isButtonEnabled =

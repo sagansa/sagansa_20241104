@@ -21,7 +21,11 @@ if (flutterVersionCode == null) {
 
 def flutterVersionName = localProperties.getProperty("flutter.versionName")
 if (flutterVersionName == null) {
+<<<<<<< HEAD
     flutterVersionName = "1.0.4"
+=======
+    flutterVersionName = "1.0"
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 }
 
 android {
@@ -47,7 +51,10 @@ android {
         targetSdkVersion 34
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+<<<<<<< HEAD
         vectorDrawables.useSupportLibrary = true
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
     }
 
     buildTypes {

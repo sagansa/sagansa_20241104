@@ -651,6 +651,9 @@ class HomePageState extends State<HomePage> {
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                             color: Colors.grey,
+<<<<<<< HEAD
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
                           ),
                         ],

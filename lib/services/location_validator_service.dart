@@ -1,29 +1,15 @@
-import 'package:trust_location/trust_location.dart';
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 
 class LocationValidatorService {
+  static const platform = MethodChannel('com.example.app/location');
+
   Future<bool> validateLocation() async {
-    bool isMockLocation = false;
-
     try {
-      // Inisialisasi TrustLocation
-      TrustLocation.start(1000);
-
-      // Listen untuk mock location updates
-      TrustLocation.onChange.listen((event) {
-        isMockLocation = event.isMockLocation ?? false;
-      });
-
       // Cek akurasi lokasi
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
-      // Jika terdeteksi mock location, return false
-      if (isMockLocation) {
-        return false;
-      }
 
       // Jika akurasi terlalu rendah (>50 meter), lokasi mungkin tidak valid
       if (position.accuracy > 50) {
@@ -55,20 +41,17 @@ class LocationValidatorService {
     } catch (e) {
       print('Error validating location: $e');
       return false;
-    } finally {
-      // Stop TrustLocation service
-      TrustLocation.stop();
     }
   }
 
   Future<void> showLocationSettings() async {
-    final AndroidIntent intent = AndroidIntent(
-      action: 'android.settings.LOCATION_SOURCE_SETTINGS',
-    );
-    await intent.launch();
+    try {
+      await platform.invokeMethod('openLocationSettings');
+    } on PlatformException catch (e) {
+      print("Failed to open location settings: '${e.message}'.");
+    }
   }
 
-  // Tambahkan method untuk menyimpan riwayat lokasi
   Future<void> logLocationHistory(Position position) async {
     // Simpan ke local storage atau server
     // Berguna untuk analisis pola lokasi yang mencurigakan

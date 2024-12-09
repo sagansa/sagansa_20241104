@@ -1,51 +1,76 @@
 import 'package:flutter/material.dart';
-import '../models/presence_model.dart';
-import '../pages/home_page.dart';
-import '../pages/leave_page.dart';
-import '../pages/calendar_page.dart';
-import '../pages/salary_page.dart';
+import '../services/presence_service.dart';
 
-class ModernBottomNav extends StatelessWidget {
+class ModernBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
-  final List<PresenceModel>? presences;
 
   const ModernBottomNav({
     Key? key,
     required this.currentIndex,
     required this.onTap,
-    this.presences,
   }) : super(key: key);
 
-  void _handleNavigation(BuildContext context, int index) {
-    if (index == currentIndex) return;
+  @override
+  _ModernBottomNavState createState() => _ModernBottomNavState();
+}
+
+class _ModernBottomNavState extends State<ModernBottomNav> {
+  bool hasPresenceToday = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPresenceStatus();
+  }
+
+  void _fetchPresenceStatus() async {
+    try {
+      final presenceStatus = await PresenceService.hasCheckedInToday();
+      setState(() {
+        hasPresenceToday = presenceStatus.hasCheckedIn;
+      });
+      print('Has presence today: $hasPresenceToday');
+    } catch (e) {
+      print('Error fetching presence status: $e');
+    }
+  }
+
+  void _handleNavigation(BuildContext context, int index) async {
+    print('Navigating to index: $index, hasPresenceToday: $hasPresenceToday');
+
+    if (index == widget.currentIndex) return;
+
+    if (index == 2 && !hasPresenceToday) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Anda harus melakukan presensi terlebih dahulu'),
+        ),
+      );
+      return;
+    }
+
+    if (index == 2 && hasPresenceToday) {
+      Navigator.pushNamedAndRemoveUntil(context, '/pos', (route) => false);
+      return;
+    }
 
     switch (index) {
       case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         break;
       case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LeavePage()),
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/leave', (route) => false);
         break;
       case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CalendarPage(presences: presences ?? []),
-          ),
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/pos', (route) => false);
         break;
       case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => SalaryPage()),
-        );
+        Navigator.pushNamedAndRemoveUntil(
+            context, '/calendar', (route) => false);
+        break;
+      case 4:
+        Navigator.pushNamedAndRemoveUntil(context, '/salary', (route) => false);
         break;
     }
   }
@@ -53,28 +78,55 @@ class ModernBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
+      currentIndex: widget.currentIndex,
+      onTap: (index) => _handleNavigation(context, index),
       type: BottomNavigationBarType.fixed,
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
+      selectedItemColor: Colors.black,
+      unselectedItemColor: Colors.grey,
+      items: [
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home),
           label: 'Home',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.event_busy),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today_outlined),
+          activeIcon: Icon(Icons.calendar_today),
           label: 'Leave',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_month),
+          icon: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.qr_code_scanner,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          label: 'POS',
+        ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.event_note_outlined),
+          activeIcon: Icon(Icons.event_note),
           label: 'Calendar',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance_wallet),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance_wallet_outlined),
+          activeIcon: Icon(Icons.account_balance_wallet),
           label: 'Salary',
         ),
       ],
-      currentIndex: currentIndex,
-      selectedItemColor: Colors.black,
-      onTap: (index) => _handleNavigation(context, index),
     );
   }
 }

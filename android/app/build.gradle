@@ -3,6 +3,7 @@ plugins {
     id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
 }
 
 def localProperties = new Properties()
@@ -15,18 +16,16 @@ if (localPropertiesFile.exists()) {
 
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
 if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
+    flutterVersionCode = "4"
 }
 
 def flutterVersionName = localProperties.getProperty("flutter.versionName")
 if (flutterVersionName == null) {
+<<<<<<< HEAD
+    flutterVersionName = "1.0.4"
+=======
     flutterVersionName = "1.0"
-}
-
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 }
 
 android {
@@ -53,22 +52,36 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
-    }
-
-    signingConfigs {
-        release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-        }
+<<<<<<< HEAD
+        vectorDrawables.useSupportLibrary = true
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.debug
         }
     }
+
+    lintOptions {
+        disable 'MockLocation'
+        // atau gunakan baseline
+        baseline file("lint-baseline.xml")
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    // Tambahkan dependency AndroidX
+    implementation 'androidx.core:core:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 }
 
 flutter {

@@ -7,7 +7,7 @@ import '../widgets/modern_date_range_picker.dart';
 import '../controllers/leave_controller.dart';
 
 class LeaveFormPage extends StatefulWidget {
-  final Leave? leave;
+  final LeaveModel? leave;
 
   const LeaveFormPage({Key? key, this.leave}) : super(key: key);
 

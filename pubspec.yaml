@@ -1,5 +1,5 @@
-name: sagansa_20241104
-description: "A new Flutter project."
+name: sagansa
+description: "Presensi dan POS"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,15 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+2
+<<<<<<< HEAD
+<<<<<<< HEAD
+version: 1.0.4+4
+=======
+version: 1.0.0+1
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+version: 1.0.0+1
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 
 environment:
   sdk: ">=3.4.3 <4.0.0"
@@ -33,20 +41,46 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  get: ^4.6.1
+  get: ^4.6.6
   http: ^1.2.2
-  shared_preferences: ^2.3.2
+<<<<<<< HEAD
+<<<<<<< HEAD
+  shared_preferences: ^2.3.3 #error
+  cupertino_icons: ^1.0.8
+  intl: ^0.19.0
+  geolocator: ^13.0.2
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  syncfusion_flutter_calendar: ^27.2.4
+  syncfusion_flutter_datepicker: ^27.2.4
+  syncfusion_localizations: ^27.2.4
+  flutter_localization: ^0.2.2 #error
+  image_picker: ^1.1.2 #error
+  image: ^4.3.0
+  path_provider: ^2.1.5 #error
+  lottie: ^3.1.3
+  provider: ^6.1.2
+  table_calendar: ^3.0.9
+  cached_network_image: ^3.4.1 #error
+  print_bluetooth_thermal: ^1.1.4 #error
+  esc_pos_utils_plus: ^2.0.4
+  permission_handler: ^11.3.1 #error
+=======
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+  shared_preferences: ^2.0.8
   cupertino_icons: ^1.0.8
   intl: ^0.19.0 # Atau versi terbaru
-  # connectivity_plus: ^6.1.0 # Atau versi terbaru
-  geolocator: ^13.0.2yes
+  connectivity_plus: ^6.1.0 # Atau versi terbaru
+  geolocator: ^13.0.1
   flutter_map: ^7.0.2 # Versi terbaru saat ini
   latlong2: ^0.9.1
   syncfusion_flutter_calendar: ^27.1.57
   syncfusion_flutter_datepicker: ^27.1.58
   syncfusion_localizations: ^27.1.58
   flutter_localization: ^0.2.2
-  shared_preferences_android: ^2.3.4
+  trust_location: ^2.0.13
+  android_intent_plus: ^4.0.3
 
 dev_dependencies:
   flutter_test:
@@ -57,8 +91,15 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
+<<<<<<< HEAD
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+=======
   flutter_lints: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
+<<<<<<< HEAD
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -103,8 +144,16 @@ flutter:
 
   assets:
     - assets/images/logo.png
+<<<<<<< HEAD
+<<<<<<< HEAD
+    - assets/lottie/payment-success.json
+    - assets/images/no_image.jpg
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon/logo.png"
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)

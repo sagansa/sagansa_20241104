@@ -11,35 +11,26 @@ class LocationValidatorService {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Jika akurasi terlalu rendah (>50 meter), lokasi mungkin tidak valid
-      if (position.accuracy > 50) {
+      // Cek permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return false;
+        }
+      }
+
+      // Cek apakah permission diblokir permanen
+      if (permission == LocationPermission.deniedForever) {
         return false;
       }
 
-      // Cek kecepatan perubahan lokasi
-      Position lastPosition = position;
-      await Future.delayed(Duration(seconds: 2));
-      Position currentPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // Dapatkan posisi saat ini
+      Position position = await Geolocator.getCurrentPosition();
 
-      // Hitung kecepatan perpindahan (dalam m/s)
-      double distance = Geolocator.distanceBetween(
-        lastPosition.latitude,
-        lastPosition.longitude,
-        currentPosition.latitude,
-        currentPosition.longitude,
-      );
-      double speed = distance / 2; // waktu 2 detik
-
-      // Jika kecepatan terlalu tinggi (>100 m/s), mungkin fake
-      if (speed > 100) {
-        return false;
-      }
-
-      return true;
+      // Return false jika lokasi palsu terdeteksi
+      return !position.isMocked;
     } catch (e) {
-      print('Error validating location: $e');
       return false;
     }
   }

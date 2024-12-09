@@ -3,16 +3,23 @@ import 'package:intl/intl.dart';
 import '../models/leave_model.dart';
 import '../services/leave_service.dart';
 import '../widgets/modern_bottom_nav.dart';
-import '../widgets/modern_fab.dart';
 import 'leave_form_page.dart';
+import '../widgets/modern_fab.dart';
+import '../models/presence_model.dart';
+import 'package:provider/provider.dart';
+import '../providers/presence_provider.dart';
 
 class LeavePage extends StatefulWidget {
+  final PresenceModel? todayPresence;
+
+  const LeavePage({Key? key, this.todayPresence}) : super(key: key);
+
   @override
   _LeavePageState createState() => _LeavePageState();
 }
 
 class _LeavePageState extends State<LeavePage> {
-  List<Leave> _leaves = [];
+  List<LeaveModel> _leaves = [];
   bool _isLoading = true;
 
   @override
@@ -51,140 +58,144 @@ class _LeavePageState extends State<LeavePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Leave'),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadLeaves,
-              child: ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: _leaves.length,
-                itemBuilder: (context, index) {
-                  final leave = _leaves[index];
-                  return Card(
-                    elevation: 2,
-                    margin: EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      onTap: () async {
-                        if (leave.status == 1) {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LeaveFormPage(leave: leave),
-                            ),
-                          );
-                          if (result == true) {
-                            _loadLeaves();
-                          }
-                        }
-                      },
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Consumer<PresenceProvider>(
+      builder: (context, presenceProvider, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Leave'),
+            centerTitle: true,
+          ),
+          body: _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadLeaves,
+                  child: ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _leaves.length,
+                    itemBuilder: (context, index) {
+                      final leave = _leaves[index];
+                      return Card(
+                        elevation: 2,
+                        margin: EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: InkWell(
+                          onTap: () async {
+                            if (leave.status == 1) {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      LeaveFormPage(leave: leave),
+                                ),
+                              );
+                              if (result == true) {
+                                _loadLeaves();
+                              }
+                            }
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    leave.reasonText,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        leave.reasonText,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(leave.status),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    leave.statusText,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(leave.status),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        leave.statusText,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Icon(Icons.date_range,
-                                    size: 16, color: Colors.grey),
-                                SizedBox(width: 8),
-                                Text(
-                                  '${DateFormat('dd MMM yyyy').format(leave.fromDate)} - ${DateFormat('dd MMM yyyy').format(leave.untilDate)}',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (leave.notes != null &&
-                                leave.notes!.isNotEmpty) ...[
-                              SizedBox(height: 8),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.notes,
-                                      size: 16, color: Colors.grey),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      leave.notes!,
+                                SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(Icons.date_range,
+                                        size: 16, color: Colors.grey),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      '${DateFormat('dd MMM yyyy').format(leave.fromDate)} - ${DateFormat('dd MMM yyyy').format(leave.untilDate)}',
                                       style: TextStyle(
                                         color: Colors.grey[700],
                                       ),
                                     ),
+                                  ],
+                                ),
+                                if (leave.notes != null &&
+                                    leave.notes!.isNotEmpty) ...[
+                                  SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.notes,
+                                          size: 16, color: Colors.grey),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          leave.notes!,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                              ),
-                            ],
-                          ],
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-      bottomNavigationBar: ModernBottomNav(
-        currentIndex: 1,
-        onTap: (index) {
-          if (index != 1) {
-            Navigator.pop(context);
-          }
-        },
-      ),
-      floatingActionButton: CustomFAB(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => LeaveFormPage()),
-          );
-          if (result == true) {
-            _loadLeaves();
-          }
-        },
-        icon: Icons.event_busy,
-        tooltip: 'Tambah Cuti',
-      ),
+                      );
+                    },
+                  ),
+                ),
+          floatingActionButton: CustomFAB(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LeaveFormPage()),
+              );
+              if (result == true) {
+                _loadLeaves();
+              }
+            },
+            icon: Icons.event_busy,
+            tooltip: 'Tambah Cuti',
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          bottomNavigationBar: ModernBottomNav(
+            currentIndex: 1,
+            onTap: (index) {},
+          ),
+        );
+      },
     );
   }
 }

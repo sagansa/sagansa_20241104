@@ -1,22 +1,31 @@
+<<<<<<< HEAD
+<<<<<<< HEAD
 buildscript {
-    ext {
-        kotlin_version = '1.9.20'
-        agp_version = '8.9'
-    }
+    ext.kotlin_version = '1.7.10'
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath "com.android.tools.build:gradle:$agp_version"
+        classpath 'com.android.tools.build:gradle:7.3.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+
+    tasks.withType(JavaCompile) {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 

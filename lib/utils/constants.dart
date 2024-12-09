@@ -1,6 +1,6 @@
 class ApiConstants {
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
   // static const String baseUrl =
   //     String.fromEnvironment('API_URL', defaultValue: 'https://api.sagansa.id');
   static const String baseUrl =

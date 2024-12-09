@@ -9,8 +9,8 @@ PODS:
     - Flutter
   - geolocator_apple (1.2.0):
     - Flutter
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
   - image_picker_ios (0.0.1):
     - Flutter
   - path_provider_foundation (0.0.1):
@@ -32,8 +32,8 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
   - bluetooth_thermal_printer (from `.symlinks/plugins/bluetooth_thermal_printer/ios`)
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/darwin`)
 =======
@@ -82,8 +82,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
 
 SPEC CHECKSUMS:
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
   bluetooth_thermal_printer: 65b8304b3a1d8c67d466642a28cc2b4984409346
   connectivity_plus: 4c41c08fc6d7c91f63bc7aec70ffe3730b04f563
 =======
@@ -95,8 +95,8 @@ SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_localization: f43b18844a2b3d2c71fd64f04ffd6b1e64dd54d4
   geolocator_apple: 6cbaf322953988e009e5ecb481f07efece75c450
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
   image_picker_ios: c560581cceedb403a6ff17f2f816d7fea1421fc1
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2

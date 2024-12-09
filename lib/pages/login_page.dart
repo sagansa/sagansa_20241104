@@ -72,8 +72,8 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         centerTitle: true,
       ),
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
       body: SafeArea(
         child: Column(
           children: [
@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-<<<<<<< HEAD
+
                 ),
               ],
             ),
@@ -258,7 +258,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ],
             ),
-<<<<<<< HEAD
+
             Container(
               padding: const EdgeInsets.all(16.0),
               child: Column(

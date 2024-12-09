@@ -1,5 +1,5 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
 buildscript {
     ext.kotlin_version = '1.9.22'
     ext.java_version = JavaVersion.VERSION_17

@@ -46,8 +46,8 @@ class PresenceModel {
       store: json['store'] ?? '',
       shiftStore: json['shift_store'] ?? '',
       status: json['status']?.toString() ?? '0',
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
       checkIn: json['check_in']?.toString() ?? '',
       checkOut: json['check_out']?.toString(),
       latitudeIn: (json['latitude_in'] != null)
@@ -86,7 +86,7 @@ class PresenceModel {
       shiftEndTime: json['shift_end_time'] ?? '',
       checkInStatus: json['check_in_status'] ?? '',
       checkOutStatus: json['check_out_status'],
-<<<<<<< HEAD
+
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 =======
 >>>>>>> parent of 1f06ce8 (version: 1.0.0+2)

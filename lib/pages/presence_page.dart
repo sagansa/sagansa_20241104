@@ -239,7 +239,7 @@ class _PresencePageState extends State<PresencePage> {
                 }
               };
 
-<<<<<<< HEAD
+
               print('Saving store data to SharedPreferences:');
               print(jsonEncode(storeData));
 

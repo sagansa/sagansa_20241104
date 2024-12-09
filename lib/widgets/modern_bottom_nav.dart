@@ -6,10 +6,10 @@ class ModernBottomNav extends StatefulWidget {
   final Function(int) onTap;
 
   const ModernBottomNav({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   _ModernBottomNavState createState() => _ModernBottomNavState();
@@ -96,7 +96,7 @@ class _ModernBottomNavState extends State<ModernBottomNav> {
         ),
         BottomNavigationBarItem(
           icon: Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.black,
               shape: BoxShape.circle,
@@ -104,11 +104,11 @@ class _ModernBottomNavState extends State<ModernBottomNav> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
                   blurRadius: 8,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Icon(
+            child: const Icon(
               Icons.qr_code_scanner,
               color: Colors.white,
               size: 28,

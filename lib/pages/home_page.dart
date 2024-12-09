@@ -15,6 +15,8 @@ import 'package:provider/provider.dart';
 import '../providers/presence_provider.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   State<HomePage> createState() => HomePageState();
 }
@@ -27,7 +29,7 @@ class HomePageState extends State<HomePage> {
   List<PresenceModel> previousPresences = [];
   final int initialDisplayCount = 7;
   bool isLoading = false;
-  int _selectedIndex = 0;
+  final int _selectedIndex = 0;
   bool _hasActiveLeave = false;
 
   @override
@@ -157,7 +159,7 @@ class HomePageState extends State<HomePage> {
     } catch (e) {
       print('Error refreshing data: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui data')),
+        const SnackBar(content: Text('Gagal memperbarui data')),
       );
     } finally {
       setState(() {
@@ -254,7 +256,7 @@ class HomePageState extends State<HomePage> {
           children: [
             // Store dan Shift info di tengah
             Text(presence.store,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -265,7 +267,7 @@ class HomePageState extends State<HomePage> {
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -274,15 +276,15 @@ class HomePageState extends State<HomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Check In',
+                      const Text('Check In',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           )),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: presence
                               .getStatusColor(presence.checkInStatus)
@@ -298,18 +300,18 @@ class HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.calendar_today, size: 14),
+                          const SizedBox(width: 4),
                           Text(checkInDateTime['date']!),
                         ],
                       ),
                       Row(
                         children: [
-                          Icon(Icons.access_time, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.access_time, size: 14),
+                          const SizedBox(width: 4),
                           Text(checkInDateTime['time']!),
                         ],
                       ),
@@ -320,23 +322,23 @@ class HomePageState extends State<HomePage> {
                   height: 80,
                   width: 1,
                   color: Colors.grey[300],
-                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
                 ),
                 // Check Out Column
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('Check Out',
+                      const Text('Check Out',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           )),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Builder(builder: (context) {
                         if (checkOutDateTime != null) {
                           return Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: presence
@@ -359,7 +361,7 @@ class HomePageState extends State<HomePage> {
                           String status = presence.checkOutStatus ?? '-';
                           if (status == 'tidak_absen') {
                             return Container(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: presence
@@ -377,7 +379,7 @@ class HomePageState extends State<HomePage> {
                             );
                           }
                           return Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             child: Text('-',
                                 style: TextStyle(
@@ -387,20 +389,20 @@ class HomePageState extends State<HomePage> {
                           );
                         }
                       }),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Icon(Icons.calendar_today, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.calendar_today, size: 14),
+                          const SizedBox(width: 4),
                           Text(checkOutDateTime?['date'] ?? '-'),
                         ],
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Icon(Icons.access_time, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.access_time, size: 14),
+                          const SizedBox(width: 4),
                           Text(checkOutDateTime?['time'] ?? '-'),
                         ],
                       ),
@@ -448,7 +450,8 @@ class HomePageState extends State<HomePage> {
           Navigator.pushNamed(context, '/pos');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Silakan lakukan presensi terlebih dahulu')),
+            const SnackBar(
+                content: Text('Silakan lakukan presensi terlebih dahulu')),
           );
         }
         break;
@@ -475,14 +478,14 @@ class HomePageState extends State<HomePage> {
                   backgroundColor: Colors.grey[200],
                   child: Icon(Icons.person, color: Colors.grey[800]),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         userName.isNotEmpty ? userName : 'Loading...',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -511,7 +514,7 @@ class HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CalendarPage(),
+        builder: (context) => const CalendarPage(),
       ),
     );
   }
@@ -522,33 +525,34 @@ class HomePageState extends State<HomePage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         centerTitle: true,
-        title: Text('Home'),
+        title: const Text('Home'),
         actions: [
           if (_hasActiveLeave) // Menampilkan ikon atau pesan jika ada cuti aktif
             IconButton(
-              icon: Icon(Icons.warning, color: Colors.orange),
+              icon: const Icon(Icons.warning, color: Colors.orange),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Anda memiliki cuti yang aktif')),
+                  const SnackBar(
+                      content: Text('Anda memiliki cuti yang aktif')),
                 );
               },
             ),
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
               // Tampilkan dialog konfirmasi
               final shouldLogout = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: Text('Konfirmasi Logout'),
-                  content: Text('Apakah Anda yakin ingin keluar?'),
+                  title: const Text('Konfirmasi Logout'),
+                  content: const Text('Apakah Anda yakin ingin keluar?'),
                   actions: [
                     TextButton(
-                      child: Text('Batal'),
+                      child: const Text('Batal'),
                       onPressed: () => Navigator.pop(context, false),
                     ),
                     TextButton(
-                      child: Text('Logout'),
+                      child: const Text('Logout'),
                       onPressed: () => Navigator.pop(context, true),
                     ),
                   ],
@@ -588,27 +592,26 @@ class HomePageState extends State<HomePage> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildUserProfile(),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 todayPresence != null
-
                     ? Column(
                         children: [
                           _buildPresenceCard(todayPresence!),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                         ],
                       )
                     : Column(
                         children: [
                           Card(
                             child: Container(
-                              padding: EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(24),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -617,7 +620,7 @@ class HomePageState extends State<HomePage> {
                                     size: 48,
                                     color: Colors.grey[400],
                                   ),
-                                  SizedBox(height: 16),
+                                  const SizedBox(height: 16),
                                   Text(
                                     'Belum ada presensi untuk hari ini',
                                     textAlign: TextAlign.center,
@@ -627,7 +630,7 @@ class HomePageState extends State<HomePage> {
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   Text(
                                     'Silakan lakukan presensi dengan menekan tombol di kanan bawah',
                                     textAlign: TextAlign.center,
@@ -639,45 +642,29 @@ class HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-=======
-                    ? _buildPresenceCard(todayPresence!)
-                    : Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: const Text(
-                          'Belum ada presensi untuk hari ini',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey,
-
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
                           ),
                         ],
                       ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Riwayat Presensi:',
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     TextButton(
                       onPressed: _showAllPresenceHistory,
-                      child: Text('Lihat Semua'),
+                      child: const Text('Lihat Semua'),
                     ),
                   ],
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 previousPresences.isNotEmpty
                     ? ListView.builder(
                         shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount:
                             previousPresences.length > initialDisplayCount
                                 ? initialDisplayCount
@@ -686,7 +673,7 @@ class HomePageState extends State<HomePage> {
                           return _buildPresenceCard(previousPresences[index]);
                         },
                       )
-                    : Container(
+                    : SizedBox(
                         width: double.infinity,
                         height: 200, // Memberikan tinggi tetap
                         child: Center(
@@ -698,7 +685,7 @@ class HomePageState extends State<HomePage> {
                                 size: 48,
                                 color: Colors.grey[400],
                               ),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               Text(
                                 'Belum ada riwayat presensi',
                                 style: TextStyle(

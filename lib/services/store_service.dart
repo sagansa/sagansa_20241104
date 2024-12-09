@@ -11,9 +11,13 @@ class StoreService {
 
   Future<List<StoreModel>> getStores() async {
     try {
+      final token = await _authService.getToken();
+      if (token == null) {
+        throw Exception('Token not found');
+      }
       final response = await http.get(
         Uri.parse(ApiConstants.stores),
-        headers: ApiConstants.headers(await _authService.getToken()),
+        headers: ApiConstants.headers(token),
       );
 
       if (response.statusCode == 200) {

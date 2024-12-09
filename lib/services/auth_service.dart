@@ -5,6 +5,7 @@ import '../utils/constants.dart';
 
 class AuthService {
   static const String tokenKey = 'token';
+  static const String _tokenKey = 'authToken';
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -62,5 +63,10 @@ class AuthService {
       print('Error during logout: $e');
       throw Exception('Gagal melakukan logout');
     }
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
   }
 }

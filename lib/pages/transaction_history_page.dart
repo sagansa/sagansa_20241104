@@ -5,6 +5,8 @@ import '../services/transaction_service.dart';
 import 'transaction_detail_page.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
+  const TransactionHistoryPage({super.key});
+
   @override
   _TransactionHistoryPageState createState() => _TransactionHistoryPageState();
 }
@@ -45,10 +47,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Riwayat Transaksi'),
+        title: const Text('Riwayat Transaksi'),
         actions: [
           IconButton(
-            icon: Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,
           ),
         ],
@@ -59,9 +61,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
           _buildStatusFilter(),
           Expanded(
             child: isLoading
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : transactions.isEmpty
-                    ? Center(child: Text('Tidak ada transaksi'))
+                    ? const Center(child: Text('Tidak ada transaksi'))
                     : RefreshIndicator(
                         onRefresh: _loadTransactions,
                         child: ListView.builder(
@@ -80,7 +82,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   Widget _buildFilterChips() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.all(8),
+      padding: const EdgeInsets.all(8),
       child: Row(
         children: [
           _buildFilterChip('Hari Ini', () {
@@ -89,21 +91,21 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
               endDate = DateTime.now();
             });
           }),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           _buildFilterChip('7 Hari', () {
             setState(() {
-              startDate = DateTime.now().subtract(Duration(days: 7));
+              startDate = DateTime.now().subtract(const Duration(days: 7));
               endDate = DateTime.now();
             });
           }),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           _buildFilterChip('30 Hari', () {
             setState(() {
-              startDate = DateTime.now().subtract(Duration(days: 30));
+              startDate = DateTime.now().subtract(const Duration(days: 30));
               endDate = DateTime.now();
             });
           }),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           _buildFilterChip('Custom', _showDateRangePicker),
         ],
       ),
@@ -112,10 +114,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   Widget _buildStatusFilter() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: DropdownButtonFormField<String>(
         value: selectedPaymentMethod,
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           labelText: 'Metode Pembayaran',
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 12),
@@ -137,7 +139,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   Widget _buildTransactionCard(TransactionHistoryModel transaction) {
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
         onTap: () {
           Navigator.push(
@@ -154,10 +156,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
           children: [
             Text(
               transaction.transactionNumber,
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: transaction.paymentStatus.toLowerCase() == 'paid'
                     ? Colors.green.withOpacity(0.1)
@@ -180,16 +182,16 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               DateFormat('dd MMM yyyy HH:mm:ss')
                   .format(DateTime.parse(transaction.createdAt)),
-              style: TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               formatPrice(transaction.totalAmount),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
@@ -212,8 +214,8 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Filter Transaksi'),
-        content: Column(
+        title: const Text('Filter Transaksi'),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Add your filter options here
@@ -221,11 +223,11 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         ),
         actions: [
           TextButton(
-            child: Text('Batal'),
+            child: const Text('Batal'),
             onPressed: () => Navigator.pop(context),
           ),
           TextButton(
-            child: Text('Terapkan'),
+            child: const Text('Terapkan'),
             onPressed: () {
               Navigator.pop(context);
               _loadTransactions();
@@ -242,7 +244,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: DateTimeRange(
-        start: startDate ?? DateTime.now().subtract(Duration(days: 7)),
+        start: startDate ?? DateTime.now().subtract(const Duration(days: 7)),
         end: endDate ?? DateTime.now(),
       ),
     );

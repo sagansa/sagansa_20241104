@@ -87,7 +87,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (BuildContext context) {
@@ -95,7 +95,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
           builder: (context, setState) {
             return Container(
               height: MediaQuery.of(context).size.height * 0.8,
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -104,44 +104,44 @@ class _CheckOutPageState extends State<CheckOutPage> {
                     children: [
                       Text(
                         isAddingCustomer ? 'Tambah Customer' : 'Pilih Customer',
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Row(
                         children: [
                           if (!isAddingCustomer)
                             IconButton(
-                              icon: Icon(Icons.add),
+                              icon: const Icon(Icons.add),
                               onPressed: () =>
                                   setState(() => isAddingCustomer = true),
                             ),
                           IconButton(
-                            icon: Icon(Icons.close),
+                            icon: const Icon(Icons.close),
                             onPressed: () => Navigator.pop(context),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  Divider(),
+                  const Divider(),
                   if (isAddingCustomer) ...[
                     TextField(
                       controller: nameController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Nama Customer',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: phoneController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Nomor Telepon',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.phone,
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ModernButton(
                       text: 'Simpan Customer',
                       onPressed: () async {
@@ -163,13 +163,13 @@ class _CheckOutPageState extends State<CheckOutPage> {
                         }
                       },
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     OutlinedButton(
-                      child: Text('Kembali'),
                       onPressed: () => setState(() => isAddingCustomer = false),
                       style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 45),
+                        minimumSize: const Size(double.infinity, 45),
                       ),
+                      child: Text('Kembali'),
                     ),
                   ] else
                     Expanded(
@@ -178,7 +178,8 @@ class _CheckOutPageState extends State<CheckOutPage> {
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator());
+                            return const Center(
+                                child: CircularProgressIndicator());
                           }
 
                           if (snapshot.hasError) {
@@ -222,97 +223,95 @@ class _CheckOutPageState extends State<CheckOutPage> {
   @override
   Widget build(BuildContext context) {
     // Contoh URL QR dari database
-    final String qrImageUrl = 'https://example.com/qr-codes/payment123.png';
+    const String qrImageUrl = 'https://example.com/qr-codes/payment123.png';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pembayaran'),
+        title: const Text('Pembayaran'),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Card(
                     child: ListTile(
-                      leading: Icon(Icons.person),
+                      leading: const Icon(Icons.person),
                       title: Text(selectedCustomer?.name ?? 'Pilih Customer'),
                       subtitle: selectedCustomer != null
                           ? Text(selectedCustomer!.noTelp ?? '')
                           : null,
-                      trailing: Icon(Icons.chevron_right),
+                      trailing: const Icon(Icons.chevron_right),
                       onTap: _showCustomerModal,
                     ),
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 16),
+                  const Text(
                     'Total Pembayaran',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     formatPrice(widget.finalTotal),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                     ),
                   ),
-                  SizedBox(height: 24),
-                  Text(
+                  const SizedBox(height: 24),
+                  const Text(
                     'Pilih Metode Pembayaran',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   if (isLoading)
-                    Center(child: CircularProgressIndicator())
+                    const Center(child: CircularProgressIndicator())
                   else
-                    ...paymentMethods
-                        .map((method) => Card(
-                              margin: EdgeInsets.only(bottom: 8),
-                              child: RadioListTile<PaymentMethodModel>(
-                                title: Row(
-                                  children: [
-                                    Icon(_getIconForType(method.type)),
-                                    SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            method.name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                    ...paymentMethods.map((method) => Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: RadioListTile<PaymentMethodModel>(
+                            title: Row(
+                              children: [
+                                Icon(_getIconForType(method.type)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        method.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                                value: method,
-                                groupValue: selectedPayment,
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedPayment = value;
-                                    if (value?.type != 'cash') {
-                                      _cashAmount = null;
-                                    }
-                                  });
-                                },
-                              ),
-                            ))
-                        .toList(),
+                              ],
+                            ),
+                            value: method,
+                            groupValue: selectedPayment,
+                            onChanged: (value) {
+                              setState(() {
+                                selectedPayment = value;
+                                if (value?.type != 'cash') {
+                                  _cashAmount = null;
+                                }
+                              });
+                            },
+                          ),
+                        )),
                   if (selectedPayment?.type == 'cash') ...[
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(8),
@@ -321,14 +320,14 @@ class _CheckOutPageState extends State<CheckOutPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Masukkan Nominal Uang',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           TextField(
                             controller: _cashController,
                             keyboardType: TextInputType.number,
@@ -371,21 +370,21 @@ class _CheckOutPageState extends State<CheckOutPage> {
                             },
                           ),
                           if (_cashAmount != null) ...[
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Uang Tunai:',
+                                const Text('Uang Tunai:',
                                     style: TextStyle(fontSize: 16)),
                                 Text(formatPrice(_cashAmount!),
-                                    style: TextStyle(fontSize: 16)),
+                                    style: const TextStyle(fontSize: 16)),
                               ],
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Kembalian:',
+                                const Text('Kembalian:',
                                     style: TextStyle(fontSize: 16)),
                                 Text(
                                   _cashAmount! >= widget.finalTotal
@@ -407,10 +406,10 @@ class _CheckOutPageState extends State<CheckOutPage> {
                     ),
                   ],
                   if (selectedPayment?.type == 'qr_code') ...[
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(8),
@@ -418,7 +417,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                       ),
                       child: Column(
                         children: [
-                          Text(
+                          const Text(
                             'Scan QR Code untuk membayar',
                             style: TextStyle(
                               fontSize: 16,
@@ -426,7 +425,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Container(
                             width: 200,
                             height: 200,
@@ -456,7 +455,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  return Center(
+                                  return const Center(
                                     child: Icon(
                                       Icons.error_outline,
                                       size: 50,
@@ -467,7 +466,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                               ),
                             ),
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
                             'Menunggu pembayaran...',
                             style: TextStyle(
@@ -483,8 +482,8 @@ class _CheckOutPageState extends State<CheckOutPage> {
             ),
           ),
           Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
@@ -508,7 +507,7 @@ class _CheckOutPageState extends State<CheckOutPage> {
                           showDialog(
                             context: context,
                             barrierDismissible: false,
-                            builder: (context) => Center(
+                            builder: (context) => const Center(
                               child: CircularProgressIndicator(),
                             ),
                           );

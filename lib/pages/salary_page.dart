@@ -7,7 +7,7 @@ import '../utils/format_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SalaryPage extends StatefulWidget {
-  const SalaryPage({Key? key}) : super(key: key);
+  const SalaryPage({super.key});
 
   @override
   State<SalaryPage> createState() => _SalaryPageState();

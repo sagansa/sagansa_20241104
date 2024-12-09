@@ -11,9 +11,9 @@ class CartPage extends StatefulWidget {
   final bool isEmbedded;
 
   const CartPage({
-    Key? key,
+    super.key,
     this.isEmbedded = false,
-  }) : super(key: key);
+  });
 
   @override
   _CartPageState createState() => _CartPageState();
@@ -61,7 +61,7 @@ class _CartPageState extends State<CartPage> {
           SnackBar(
             content: Text(errorMessage),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'Coba Lagi',
               textColor: Colors.white,
@@ -126,7 +126,7 @@ class _CartPageState extends State<CartPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal mengubah jumlah. Silakan coba lagi.'),
+            content: const Text('Gagal mengubah jumlah. Silakan coba lagi.'),
             backgroundColor: Colors.red,
             action: SnackBarAction(
               label: 'Coba Lagi',
@@ -183,7 +183,7 @@ class _CartPageState extends State<CartPage> {
 
     scaffoldMessenger.showSnackBar(
       SnackBar(
-        duration: Duration(days: 1),
+        duration: const Duration(days: 1),
         content: StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return Row(
@@ -198,8 +198,8 @@ class _CartPageState extends State<CartPage> {
                       filled: true,
                       fillColor: Colors.white,
                       isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -223,32 +223,34 @@ class _CartPageState extends State<CartPage> {
                     },
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 TextButton(
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.grey,
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   onPressed: () {
                     scaffoldMessenger.hideCurrentSnackBar();
                   },
-                  child: Text(
+                  child: const Text(
                     'Batal',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 TextButton(
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.green,
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   onPressed: () {
                     final value = tempController.text.replaceAll('.', '');
                     if (value.isEmpty || int.tryParse(value) == 0) {
                       scaffoldMessenger.hideCurrentSnackBar();
                       scaffoldMessenger.showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                           content:
                               Text('Nominal diskon tidak boleh kosong atau 0'),
                           backgroundColor: Colors.red,
@@ -265,7 +267,7 @@ class _CartPageState extends State<CartPage> {
                     }
                     scaffoldMessenger.hideCurrentSnackBar();
                   },
-                  child: Text(
+                  child: const Text(
                     'Terapkan',
                     style: TextStyle(color: Colors.white),
                   ),
@@ -275,7 +277,7 @@ class _CartPageState extends State<CartPage> {
           },
         ),
         backgroundColor: Colors.grey[200],
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
       ),
     );
   }
@@ -309,7 +311,7 @@ class _CartPageState extends State<CartPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Gagal mengosongkan keranjang'),
             backgroundColor: Colors.red,
           ),
@@ -374,33 +376,33 @@ class _CartPageState extends State<CartPage> {
     return Scaffold(
       appBar: widget.isEmbedded
           ? PreferredSize(
-              preferredSize: Size.fromHeight(kToolbarHeight),
+              preferredSize: const Size.fromHeight(kToolbarHeight),
               child: AppBar(
-                title: Text('Keranjang'),
+                title: const Text('Keranjang'),
                 automaticallyImplyLeading: false,
                 actions: cartItems.isNotEmpty
                     ? [
                         IconButton(
-                          icon: Icon(Icons.delete_outline),
+                          icon: const Icon(Icons.delete_outline),
                           onPressed: () {
                             // Tampilkan dialog konfirmasi
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text('Hapus Semua'),
-                                content: Text(
+                                title: const Text('Hapus Semua'),
+                                content: const Text(
                                     'Apakah Anda yakin ingin mengosongkan keranjang?'),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: Text('Batal'),
+                                    child: const Text('Batal'),
                                   ),
                                   TextButton(
                                     onPressed: () {
                                       Navigator.pop(context);
                                       _clearCart();
                                     },
-                                    child: Text(
+                                    child: const Text(
                                       'Hapus',
                                       style: TextStyle(color: Colors.red),
                                     ),
@@ -416,29 +418,29 @@ class _CartPageState extends State<CartPage> {
               ),
             )
           : AppBar(
-              title: Text('Keranjang'),
+              title: const Text('Keranjang'),
               actions: cartItems.isNotEmpty
                   ? [
                       IconButton(
-                        icon: Icon(Icons.delete_outline),
+                        icon: const Icon(Icons.delete_outline),
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: Text('Hapus Semua'),
-                              content: Text(
+                              title: const Text('Hapus Semua'),
+                              content: const Text(
                                   'Apakah Anda yakin ingin mengosongkan keranjang?'),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text('Batal'),
+                                  child: const Text('Batal'),
                                 ),
                                 TextButton(
                                   onPressed: () {
                                     Navigator.pop(context);
                                     _clearCart();
                                   },
-                                  child: Text(
+                                  child: const Text(
                                     'Hapus',
                                     style: TextStyle(color: Colors.red),
                                   ),
@@ -452,13 +454,13 @@ class _CartPageState extends State<CartPage> {
                     ]
                   : null,
             ),
-      body: Container(
+      body: SizedBox(
         height: double.infinity,
         child: Column(
           children: [
             Expanded(
               child: cartItems.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -483,8 +485,8 @@ class _CartPageState extends State<CartPage> {
             if (cartItems.isNotEmpty)
               SafeArea(
                 child: Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
@@ -500,42 +502,42 @@ class _CartPageState extends State<CartPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Subtotal:',
                             style: TextStyle(fontSize: 16),
                           ),
                           Text(
                             formatPrice(subtotal),
-                            style: TextStyle(fontSize: 16),
+                            style: const TextStyle(fontSize: 16),
                           ),
                         ],
                       ),
                       if (activeDiscount != null && activeDiscount! > 0) ...[
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
                               children: [
-                                Text(
+                                const Text(
                                   'Diskon:',
                                   style: TextStyle(fontSize: 16),
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () {
                                     setState(() {
                                       activeDiscount = null;
                                     });
                                   },
-                                  child: Icon(Icons.close,
+                                  child: const Icon(Icons.close,
                                       size: 16, color: Colors.red),
                                 ),
                               ],
                             ),
                             Text(
                               '- ${formatPrice(activeDiscount!)}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.red,
                               ),
@@ -544,25 +546,25 @@ class _CartPageState extends State<CartPage> {
                         ),
                       ],
                       if (activeDiscount == null) ...[
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: () {
                             if (mounted) {
                               _showDiscountInput(context);
                             }
                           },
-                          icon: Icon(Icons.add),
-                          label: Text('Tambah Diskon'),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Tambah Diskon'),
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                         ),
                       ],
-                      Divider(height: 16),
+                      const Divider(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Total:',
                             style: TextStyle(
                               fontSize: 18,
@@ -571,7 +573,7 @@ class _CartPageState extends State<CartPage> {
                           ),
                           Text(
                             formatPrice(finalTotal),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
@@ -579,7 +581,7 @@ class _CartPageState extends State<CartPage> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       ModernButton(
                         text: 'Proses Pesanan',
                         onPressed: () {
@@ -623,9 +625,9 @@ class _CartPageState extends State<CartPage> {
           ).then((_) => _loadCart());
         },
         child: Card(
-          margin: EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 4),
           child: Padding(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -635,7 +637,7 @@ class _CartPageState extends State<CartPage> {
                     Expanded(
                       child: Text(
                         item.productName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -643,7 +645,7 @@ class _CartPageState extends State<CartPage> {
                     ),
                     Text(
                       formatPrice(item.subtotal),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -651,7 +653,7 @@ class _CartPageState extends State<CartPage> {
                   ],
                 ),
                 if (item.variantName != null) ...[
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -673,7 +675,7 @@ class _CartPageState extends State<CartPage> {
                   ),
                 ],
                 if (item.modifiers.isNotEmpty) ...[
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   ...item.modifiers.map((modifier) {
                     final parts = modifier.split(' - ');
                     if (parts.length >= 2) {
@@ -684,7 +686,7 @@ class _CartPageState extends State<CartPage> {
                         final price = detailParts[1].replaceAll(')', '').trim();
 
                         return Padding(
-                          padding: EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: 2),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -717,7 +719,7 @@ class _CartPageState extends State<CartPage> {
                   }),
                 ],
                 if (item.notes?.isNotEmpty == true) ...[
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Catatan: ${item.notes}',
                     style: TextStyle(
@@ -727,24 +729,24 @@ class _CartPageState extends State<CartPage> {
                     ),
                   ),
                 ],
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.remove),
+                          icon: const Icon(Icons.remove),
                           onPressed: item.quantity > 1
                               ? () => _decrementQuantity(index)
                               : null,
                         ),
                         Text(
                           '${item.quantity}',
-                          style: TextStyle(fontSize: 16),
+                          style: const TextStyle(fontSize: 16),
                         ),
                         IconButton(
-                          icon: Icon(Icons.add),
+                          icon: const Icon(Icons.add),
                           onPressed: () => _incrementQuantity(index),
                         ),
                       ],
@@ -773,11 +775,11 @@ class SlidableCartItem extends StatefulWidget {
   final String itemId;
 
   const SlidableCartItem({
-    Key? key,
+    super.key,
     required this.child,
     required this.onDelete,
     required this.itemId,
-  }) : super(key: key);
+  });
 
   @override
   State<SlidableCartItem> createState() => _SlidableCartItemState();
@@ -849,14 +851,14 @@ class _SlidableCartItemState extends State<SlidableCartItem> {
                   }
                 },
                 child: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.horizontal(
                       right: Radius.circular(4),
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(
+                  child: const Icon(
                     Icons.delete_outline,
                     color: Colors.white,
                   ),

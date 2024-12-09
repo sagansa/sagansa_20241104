@@ -58,7 +58,7 @@ class PresenceService {
             Uri.parse(ApiConstants.shiftStores),
             headers: ApiConstants.headers(token),
           )
-          .timeout(Duration(seconds: 30));
+          .timeout(const Duration(seconds: 30));
 
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');

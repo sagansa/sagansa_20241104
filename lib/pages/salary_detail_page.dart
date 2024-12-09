@@ -4,7 +4,7 @@ import '../utils/format_utils.dart';
 class SalaryDetailPage extends StatelessWidget {
   final Map<String, dynamic> salary;
 
-  const SalaryDetailPage({Key? key, required this.salary}) : super(key: key);
+  const SalaryDetailPage({super.key, required this.salary});
 
   @override
   Widget build(BuildContext context) {

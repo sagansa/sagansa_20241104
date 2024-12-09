@@ -17,8 +17,6 @@ import '../pages/settings_printer_page.dart';
 import '../pages/pos_page.dart';
 
 void main() {
-
-
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => PresenceProvider()),
@@ -30,9 +28,9 @@ void main() {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.black,
           primary: Colors.black,
-          secondary: Color(0xFF00ACC1),
+          secondary: const Color(0xFF00ACC1),
         ),
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: IconThemeData(color: Colors.black),
@@ -44,9 +42,9 @@ void main() {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF1E88E5),
+            backgroundColor: const Color(0xFF1E88E5),
             foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -58,23 +56,23 @@ void main() {
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => LoginPage(),
         '/home': (context) => HomePage(),
-        '/leave': (context) => LeavePage(),
-        '/calendar': (context) => CalendarPage(),
-        '/salary': (context) => SalaryPage(),
+        '/leave': (context) => const LeavePage(),
+        '/calendar': (context) => const CalendarPage(),
+        '/salary': (context) => const SalaryPage(),
         '/transaction-history': (context) => TransactionHistoryPage(),
-        '/pos': (context) => POSPage(),
+        '/pos': (context) => const POSPage(),
         '/settings': (context) => const SettingsPage(),
         '/settings/printer': (context) => const SettingsPrinterPage(),
       },
-      localizationsDelegates: [
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
         SfGlobalLocalizations.delegate,
       ],
-      supportedLocales: [
-        const Locale('id'),
-        const Locale('en'),
+      supportedLocales: const [
+        Locale('id'),
+        Locale('en'),
       ],
       locale: const Locale('id'),
       onGenerateRoute: (settings) {
@@ -90,13 +88,12 @@ void main() {
       },
     ),
   ));
-=======
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -111,8 +108,4 @@ class MyApp extends StatelessWidget {
       },
     );
   }
-
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 }

@@ -46,8 +46,6 @@ class PresenceModel {
       store: json['store'] ?? '',
       shiftStore: json['shift_store'] ?? '',
       status: json['status']?.toString() ?? '0',
-
-
       checkIn: json['check_in']?.toString() ?? '',
       checkOut: json['check_out']?.toString(),
       latitudeIn: (json['latitude_in'] != null)
@@ -73,23 +71,6 @@ class PresenceModel {
           : null,
       shiftEndDatetime: json['shift_end_datetime']?.toString(),
       checkoutDeadline: json['checkout_deadline']?.toString(),
-=======
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
-      checkIn: json['check_in'] ?? '',
-      checkOut: json['check_out'],
-      latitudeIn: json['latitude_in'] ?? '',
-      longitudeIn: json['longitude_in'] ?? '',
-      latitudeOut: json['latitude_out'],
-      longitudeOut: json['longitude_out'],
-      shiftStartTime: json['shift_start_time'] ?? '',
-      shiftEndTime: json['shift_end_time'] ?? '',
-      checkInStatus: json['check_in_status'] ?? '',
-      checkOutStatus: json['check_out_status'],
-
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
     );
   }
 

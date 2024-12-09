@@ -8,9 +8,9 @@ class TransactionDetailPage extends StatefulWidget {
   final String transactionId;
 
   const TransactionDetailPage({
-    Key? key,
+    super.key,
     required this.transactionId,
-  }) : super(key: key);
+  });
 
   @override
   State<TransactionDetailPage> createState() => _TransactionDetailPageState();
@@ -234,24 +234,24 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))
               : RefreshIndicator(
                   onRefresh: _loadTransactionDetail,
                   child: SingleChildScrollView(
-                    physics: AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(),
                     child: _transaction != null
                         ? Column(
                             children: [
                               _buildHeader(),
-                              Divider(height: 1),
+                              const Divider(height: 1),
                               _buildItems(),
-                              Divider(height: 1),
+                              const Divider(height: 1),
                               _buildSummary(),
                             ],
                           )
-                        : SizedBox(),
+                        : const SizedBox(),
                   ),
                 ),
     );
@@ -259,24 +259,24 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       color: Colors.grey[50],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'No. Transaksi: ${_transaction!.transactionNumber}',
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Tanggal: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.parse(_transaction!.createdAt))}',
             style: TextStyle(color: Colors.grey[600]),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Metode Pembayaran: ${_transaction!.formattedPaymentMethod}',
             style: TextStyle(color: Colors.grey[600]),
@@ -288,14 +288,14 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
   Widget _buildItems() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Detail Item',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -311,9 +311,9 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           ..._transaction!.items.map((item) => Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   children: [
                     Row(
@@ -325,9 +325,10 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                             children: [
                               Text(
                                 item.productName,
-                                style: TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               if (item.variant != null)
                                 Text(
                                   item.variant!.name,
@@ -360,9 +361,10 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                           children: [
                             Text(
                               _formatPrice(item.subtotal),
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               '${item.quantity}x ${_formatPrice(item.price)}',
                               style: TextStyle(
@@ -384,41 +386,41 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
 
   Widget _buildSummary() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       color: Colors.grey[50],
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Subtotal'),
+              const Text('Subtotal'),
               Text(_formatPrice(_transaction!.subtotal)),
             ],
           ),
           // if (_transaction!.discount > 0) ...[
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Diskon'),
+              const Text('Diskon'),
               Text(
                 '- ${_formatPrice(_transaction!.discount)}',
-                style: TextStyle(color: Colors.green),
+                style: const TextStyle(color: Colors.green),
               ),
             ],
           ),
           // ],
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Total',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
                 _formatPrice(_transaction!.totalAmount),
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),

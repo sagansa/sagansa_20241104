@@ -99,21 +99,21 @@ class _PosPageState extends State<POSPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.account_circle,
                     size: 60,
                     color: Colors.white,
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     _userName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     _storeName,
                     style: TextStyle(
@@ -125,41 +125,41 @@ class _PosPageState extends State<POSPage> {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Home'),
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
               onTap: () {
                 Navigator.pop(context); // Tutup drawer
                 Navigator.pushReplacementNamed(context, '/home');
               },
             ),
             ListTile(
-              leading: Icon(Icons.history),
-              title: Text('Transaction History'),
+              leading: const Icon(Icons.history),
+              title: const Text('Transaction History'),
               onTap: () {
                 Navigator.pop(context); // Tutup drawer
                 Navigator.pushNamed(context, '/transaction-history');
               },
             ),
-            Divider(),
+            const Divider(),
             ListTile(
-              leading: Icon(Icons.person),
-              title: Text('Profil'),
+              leading: const Icon(Icons.person),
+              title: const Text('Profil'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/profile');
               },
             ),
             ListTile(
-              leading: Icon(Icons.settings),
-              title: Text('Settings'),
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/settings');
               },
             ),
             ListTile(
-              leading: Icon(Icons.logout, color: Colors.red),
-              title: Text(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
                 'Logout',
                 style: TextStyle(color: Colors.red),
               ),
@@ -167,12 +167,12 @@ class _PosPageState extends State<POSPage> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: Text('Konfirmasi Logout'),
-                    content: Text('Apakah Anda yakin ingin keluar?'),
+                    title: const Text('Konfirmasi Logout'),
+                    content: const Text('Apakah Anda yakin ingin keluar?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text('Batal'),
+                        child: const Text('Batal'),
                       ),
                       TextButton(
                         onPressed: () async {
@@ -187,7 +187,7 @@ class _PosPageState extends State<POSPage> {
                             );
                           }
                         },
-                        child: Text(
+                        child: const Text(
                           'Logout',
                           style: TextStyle(color: Colors.red),
                         ),
@@ -204,13 +204,13 @@ class _PosPageState extends State<POSPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'POS System',
               style: TextStyle(fontSize: 16),
             ),
             Text(
               _storeName,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.normal,
               ),
@@ -400,7 +400,7 @@ class _PosPageState extends State<POSPage> {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Icon(Icons.chevron_right),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }

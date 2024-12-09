@@ -7,6 +7,7 @@ class ModernButton extends StatelessWidget {
   final IconData? icon;
 
   const ModernButton({
+    super.key,
     required this.text,
     required this.onPressed,
     this.isLoading = false,
@@ -20,20 +21,20 @@ class ModernButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        minimumSize: Size(double.infinity, 45),
-        padding: EdgeInsets.symmetric(vertical: 15),
+        minimumSize: const Size(double.infinity, 45),
+        padding: const EdgeInsets.symmetric(vertical: 15),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
         ),
       ),
       child: isLoading
-          ? CircularProgressIndicator(color: Colors.white)
+          ? const CircularProgressIndicator(color: Colors.white)
           : Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(icon),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                 ],
                 Text(text),
               ],

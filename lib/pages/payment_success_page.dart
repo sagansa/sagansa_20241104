@@ -10,12 +10,12 @@ class PaymentSuccessPage extends StatelessWidget {
   final int? changeAmount;
 
   const PaymentSuccessPage({
-    Key? key,
+    super.key,
     required this.paymentMethod,
     required this.totalAmount,
     this.cashAmount,
     this.changeAmount,
-  }) : super(key: key);
+  });
 
   String formatPrice(int price) {
     return 'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
@@ -29,11 +29,11 @@ class PaymentSuccessPage extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(height: 40),
+                    const SizedBox(height: 40),
                     SizedBox(
                       width: 400,
                       height: 400,
@@ -43,7 +43,7 @@ class PaymentSuccessPage extends StatelessWidget {
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
                           print('Error loading Lottie: $error');
-                          return Icon(
+                          return const Icon(
                             Icons.check_circle,
                             size: 100,
                             color: Colors.green,
@@ -51,15 +51,15 @@ class PaymentSuccessPage extends StatelessWidget {
                         },
                       ),
                     ),
-                    SizedBox(height: 24),
-                    Text(
+                    const SizedBox(height: 24),
+                    const Text(
                       'Pembayaran Berhasil!',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Terima kasih atas pembelian Anda',
                       style: TextStyle(
@@ -67,10 +67,10 @@ class PaymentSuccessPage extends StatelessWidget {
                         fontSize: 16,
                       ),
                     ),
-                    SizedBox(height: 40),
+                    const SizedBox(height: 40),
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(8),
@@ -89,13 +89,13 @@ class PaymentSuccessPage extends StatelessWidget {
                               ),
                               Text(
                                 paymentMethod,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                          SizedBox(height: 12),
+                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -107,14 +107,14 @@ class PaymentSuccessPage extends StatelessWidget {
                               ),
                               Text(
                                 formatPrice(totalAmount),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
                           if (paymentMethod == 'Tunai') ...[
-                            SizedBox(height: 12),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -126,13 +126,13 @@ class PaymentSuccessPage extends StatelessWidget {
                                 ),
                                 Text(
                                   formatPrice(cashAmount!),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
-                            SizedBox(height: 12),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -144,7 +144,7 @@ class PaymentSuccessPage extends StatelessWidget {
                                 ),
                                 Text(
                                   formatPrice(changeAmount!),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.blue,
                                   ),
@@ -160,13 +160,13 @@ class PaymentSuccessPage extends StatelessWidget {
               ),
             ),
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: ModernButton(
                 text: 'Kembali ke POS',
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (context) => POSPage(),
+                      builder: (context) => const POSPage(),
                     ),
                     (route) => false,
                   );

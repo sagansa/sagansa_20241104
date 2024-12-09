@@ -19,7 +19,7 @@ import 'dart:convert';
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
 
-  const PresencePage({Key? key, required this.isCheckIn}) : super(key: key);
+  const PresencePage({super.key, required this.isCheckIn});
 
   @override
   _PresencePageState createState() => _PresencePageState();
@@ -136,7 +136,7 @@ class _PresencePageState extends State<PresencePage> {
 
       if (!isTimeValid) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content:
                 Text('Waktu checkout hanya diperbolehkan sampai jam 02:00'),
             backgroundColor: Colors.red,
@@ -194,7 +194,7 @@ class _PresencePageState extends State<PresencePage> {
   Future<void> _validateAndSubmitPresence() async {
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Silakan ambil foto terlebih dahulu')),
+        const SnackBar(content: Text('Silakan ambil foto terlebih dahulu')),
       );
       return;
     }
@@ -207,10 +207,10 @@ class _PresencePageState extends State<PresencePage> {
       if (!isLocationValid) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('Lokasi tidak valid atau terdeteksi penggunaan fake GPS'),
+            content: const Text(
+                'Lokasi tidak valid atau terdeteksi penggunaan fake GPS'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'Pengaturan',
               textColor: Colors.white,
@@ -238,7 +238,6 @@ class _PresencePageState extends State<PresencePage> {
                   'name': selectedStore!.nickname,
                 }
               };
-
 
               print('Saving store data to SharedPreferences:');
               print(jsonEncode(storeData));
@@ -276,8 +275,6 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
-=======
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   @override
   Widget build(BuildContext context) {
     bool isButtonEnabled =
@@ -294,7 +291,7 @@ class _PresencePageState extends State<PresencePage> {
         title: Text(widget.isCheckIn ? 'Check In' : 'Check Out'),
         actions: [
           IconButton(
-            icon: Icon(Icons.my_location),
+            icon: const Icon(Icons.my_location),
             onPressed: _getCurrentLocation,
           ),
         ],
@@ -344,7 +341,7 @@ class _PresencePageState extends State<PresencePage> {
                             }
                           },
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         if (isLocationValid)
                           ModernDropdown<ShiftStoreModel>(
                             value: selectedShiftStore,
@@ -357,26 +354,26 @@ class _PresencePageState extends State<PresencePage> {
                               });
                             },
                           ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                       ],
-                      Container(
+                      SizedBox(
                         height: 300,
                         child: Stack(
                           children: [
                             FlutterMap(
                               mapController: mapController,
                               options: MapOptions(
-                                center: currentPosition != null
+                                initialCenter: currentPosition != null
                                     ? LatLng(currentPosition!.latitude,
                                         currentPosition!.longitude)
-                                    : LatLng(-6.200000, 106.816666),
-                                zoom: 15.0,
+                                    : const LatLng(-6.200000, 106.816666),
+                                initialZoom: 15.0,
                               ),
                               children: [
                                 TileLayer(
                                   urlTemplate:
                                       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                  subdomains: ['a', 'b', 'c'],
+                                  subdomains: const ['a', 'b', 'c'],
                                 ),
                                 MarkerLayer(
                                   markers: currentPosition != null
@@ -387,10 +384,8 @@ class _PresencePageState extends State<PresencePage> {
                                             point: LatLng(
                                                 currentPosition!.latitude,
                                                 currentPosition!.longitude),
-                                            builder: (ctx) => Icon(
-                                                Icons.location_on,
-                                                color: Colors.red,
-                                                size: 40.0),
+                                            child: const Icon(Icons.location_on,
+                                                color: Colors.red, size: 40.0),
                                           ),
                                         ]
                                       : [],
@@ -400,12 +395,12 @@ class _PresencePageState extends State<PresencePage> {
                             if (isLoadingLocation)
                               Center(
                                 child: Container(
-                                  padding: EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Column(
+                                  child: const Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       CircularProgressIndicator(),
@@ -418,7 +413,7 @@ class _PresencePageState extends State<PresencePage> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       if (selectedStore != null)
                         Card(
                           child: Padding(
@@ -426,33 +421,33 @@ class _PresencePageState extends State<PresencePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Lokasi Toko:',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    Icon(Icons.store, color: Colors.grey),
-                                    SizedBox(width: 8),
+                                    const Icon(Icons.store, color: Colors.grey),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         selectedStore!.nickname,
-                                        style: TextStyle(fontSize: 15),
+                                        style: const TextStyle(fontSize: 15),
                                       ),
                                     ),
                                   ],
                                 ),
                                 if (currentPosition != null) ...[
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      Icon(Icons.location_on,
+                                      const Icon(Icons.location_on,
                                           color: Colors.grey),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'Jarak: ${Geolocator.distanceBetween(
                                           currentPosition!.latitude,
@@ -460,11 +455,11 @@ class _PresencePageState extends State<PresencePage> {
                                           selectedStore!.latitude,
                                           selectedStore!.longitude,
                                         ).toStringAsFixed(2)} meter',
-                                        style: TextStyle(fontSize: 15),
+                                        style: const TextStyle(fontSize: 15),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
                                       Icon(
@@ -475,7 +470,7 @@ class _PresencePageState extends State<PresencePage> {
                                             ? Colors.green
                                             : Colors.red,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
                                         isLocationValid
                                             ? 'Anda berada di area toko'
@@ -494,7 +489,7 @@ class _PresencePageState extends State<PresencePage> {
                             ),
                           ),
                         ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -504,12 +499,12 @@ class _PresencePageState extends State<PresencePage> {
                                 widget.isCheckIn
                                     ? 'Foto Check In'
                                     : 'Foto Check Out',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              SizedBox(height: 12),
+                              const SizedBox(height: 12),
                               if (_imageFile != null)
                                 Container(
                                   height: 200,
@@ -530,10 +525,10 @@ class _PresencePageState extends State<PresencePage> {
                                     color: Colors.grey[200],
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Icon(Icons.camera_alt,
+                                  child: const Icon(Icons.camera_alt,
                                       size: 50, color: Colors.grey),
                                 ),
-                              SizedBox(height: 12),
+                              const SizedBox(height: 12),
                               ModernButton(
                                 text: _imageFile == null
                                     ? 'Ambil Foto'
@@ -558,11 +553,11 @@ class _PresencePageState extends State<PresencePage> {
                     color: Colors.black.withOpacity(0.1),
                     spreadRadius: 0,
                     blurRadius: 10,
-                    offset: Offset(0, -5),
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: ModernButton(
                 text: widget.isCheckIn ? 'Check In' : 'Check Out',
                 onPressed: isButtonEnabled ? _validateAndSubmitPresence : null,

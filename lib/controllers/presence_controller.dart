@@ -44,7 +44,7 @@ class PresenceController {
 
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.bestForNavigation,
-      timeLimit: Duration(seconds: 30),
+      timeLimit: const Duration(seconds: 30),
       forceAndroidLocationManager: true,
     );
 

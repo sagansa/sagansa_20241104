@@ -1,18 +1,7 @@
 class ApiConstants {
-
-
   // static const String baseUrl =
   //     String.fromEnvironment('API_URL', defaultValue: 'https://api.sagansa.id');
-  static const String baseUrl =
-      String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8000');
-=======
-  // static const String baseUrl = 'http://127.0.0.1:8000/api';
   static const String baseUrl = 'https://api.sagansa.id';
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
-=======
-  // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'https://api.sagansa.id';
->>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 
   // Auth Endpoints
   static const String login = '$baseUrl/login';

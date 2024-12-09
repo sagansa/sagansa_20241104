@@ -8,13 +8,13 @@ class CustomFAB extends StatelessWidget {
   final Color? iconColor;
 
   const CustomFAB({
-    Key? key,
+    super.key,
     required this.onPressed,
     required this.icon,
     this.tooltip,
     this.backgroundColor = Colors.black,
     this.iconColor = Colors.white,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

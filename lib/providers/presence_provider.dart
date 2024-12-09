@@ -26,7 +26,7 @@ class PresenceProvider with ChangeNotifier {
       print('Presences updated in provider');
     } catch (e) {
       print('Error in fetchPresences: $e');
-      throw e;
+      rethrow;
     }
   }
 }

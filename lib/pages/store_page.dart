@@ -56,7 +56,7 @@ class _StorePageState extends State<StorePage> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => POSPage()),
+        MaterialPageRoute(builder: (context) => const POSPage()),
         (route) => false,
       );
     } catch (e) {

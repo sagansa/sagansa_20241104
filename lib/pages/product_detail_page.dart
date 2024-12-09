@@ -13,12 +13,12 @@ class ProductDetailPage extends StatefulWidget {
   final Function(Map<String, dynamic>)? onUpdateCart;
 
   const ProductDetailPage({
-    Key? key,
+    super.key,
     required this.productId,
     this.isEditing = false,
     this.cartItem,
     this.onUpdateCart,
-  }) : super(key: key);
+  });
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -200,10 +200,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             });
           },
           style: _buttonStyle.copyWith(
-            backgroundColor: MaterialStateProperty.all(
+            backgroundColor: WidgetStateProperty.all(
               isSelected ? Colors.black : Colors.grey[200],
             ),
-            foregroundColor: MaterialStateProperty.all(
+            foregroundColor: WidgetStateProperty.all(
               isSelected ? Colors.white : Colors.black,
             ),
           ),
@@ -245,10 +245,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             });
           },
           style: _buttonStyle.copyWith(
-            backgroundColor: MaterialStateProperty.all(
+            backgroundColor: WidgetStateProperty.all(
               isSelected ? Colors.black : Colors.grey[200],
             ),
-            foregroundColor: MaterialStateProperty.all(
+            foregroundColor: WidgetStateProperty.all(
               isSelected ? Colors.white : Colors.black,
             ),
           ),
@@ -439,13 +439,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
             blurRadius: 4,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),

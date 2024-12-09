@@ -30,7 +30,7 @@ class PrinterService {
 
   Future<List?> getBondedDevices() async {
     try {
-      final List? devices = await PrintBluetoothThermal.pairedBluetooths;
+      final List devices = await PrintBluetoothThermal.pairedBluetooths;
       return devices;
     } catch (e) {
       print('Error getting bonded devices: $e');
@@ -50,7 +50,7 @@ class PrinterService {
   }
 
   Future<bool> isConnected() async {
-    final bool? status = await PrintBluetoothThermal.connectionStatus;
+    final bool status = await PrintBluetoothThermal.connectionStatus;
     return status ?? false;
   }
 

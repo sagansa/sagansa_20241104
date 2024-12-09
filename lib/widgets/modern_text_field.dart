@@ -14,7 +14,7 @@ class ModernTextField extends StatelessWidget {
   final Widget? suffixIcon;
 
   const ModernTextField({
-    Key? key,
+    super.key,
     required this.labelText,
     required this.controller,
     required this.prefixIcon,
@@ -25,7 +25,7 @@ class ModernTextField extends StatelessWidget {
     this.enableSuggestions = false,
     this.inputFormatters,
     this.suffixIcon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,13 +39,14 @@ class ModernTextField extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.grey),
+          borderSide: const BorderSide(color: Colors.grey),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.black),
+          borderSide: const BorderSide(color: Colors.black),
         ),
-        contentPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
         suffixIcon: suffixIcon,
       ),
       keyboardType: keyboardType,

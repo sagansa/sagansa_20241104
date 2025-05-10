@@ -1,8 +1,18 @@
 class ApiConstants {
-  static const String baseUrl =
-      String.fromEnvironment('API_URL', defaultValue: 'https://api.sagansa.id');
+<<<<<<< HEAD
+<<<<<<< HEAD
   // static const String baseUrl =
-  //     String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8000');
+  //     String.fromEnvironment('API_URL', defaultValue: 'https://api.sagansa.id');
+  static const String baseUrl =
+      String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8000');
+=======
+  // static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'https://api.sagansa.id';
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
+=======
+  // static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'https://api.sagansa.id';
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
 
   // Auth Endpoints
   static const String login = '$baseUrl/login';
@@ -19,6 +29,22 @@ class ApiConstants {
   // Store Endpoints
   static const String stores = '$baseUrl/stores';
   static const String shiftStores = '$baseUrl/shift-stores';
+
+  // Calendar Endpoints
+  static const String calendar = '$baseUrl/calendar';
+
+  // Product Endpoints
+  static const String products = '$baseUrl/products';
+  static const String categories = '$baseUrl/products/categories';
+
+  // Cart Endpoints
+  static const String carts = '$baseUrl/carts';
+
+  // Transaction Endpoints
+  static const String transactions = '$baseUrl/transactions';
+
+  // Salary Endpoints
+  static const String salaries = '$baseUrl/salaries';
 
   static Map<String, String> headers(String? token) {
     return {

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 
 class AuthService {
-  static const List<String> allowedRoles = ['admin', 'staff', 'supervisor'];
+  static const String tokenKey = 'token';
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -17,96 +17,50 @@ class AuthService {
         }),
       );
 
+      print('Raw API response: ${response.body}'); // Debug log
       final responseData = json.decode(response.body);
+      print('Decoded response: $responseData'); // Debug log
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        final userData = responseData['data'];
-        final userRoles = List<String>.from(userData['user']['roles']);
+      if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
 
-        final hasAllowedRole =
-            userRoles.any((role) => allowedRoles.contains(role));
+        // Simpan token
+        await prefs.setString('token', responseData['data']['access_token']);
 
-        if (hasAllowedRole) {
-          await _saveUserData(userData);
-          return {'success': true, 'message': 'Login successful'};
-        } else {
-          return {
-            'success': false,
-            'message': 'Anda tidak memiliki akses ke aplikasi ini'
-          };
-        }
+        // Simpan data user
+        final userData = responseData['data']['user'];
+        await prefs.setString('user', json.encode(userData));
+
+        print('User data saved: $userData'); // Debug log
+
+        return responseData; // Kembalikan response asli dari API
+      } else {
+        print('Login failed with status: ${response.statusCode}');
+        return {
+          'status': 'error',
+          'message': responseData['message'] ?? 'Login gagal'
+        };
       }
-
-      return {
-        'success': false,
-        'message': responseData['message'] ?? 'Login gagal'
-      };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      print('Login error: $e');
+      return {'status': 'error', 'message': 'Terjadi kesalahan saat login'};
     }
-  }
-
-  Future<void> _saveUserData(Map<String, dynamic> data) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Simpan token
-    final token = data['access_token'];
-    if (token != null) {
-      await prefs.setString('token', token.toString());
-      await prefs.setString('token_type', data['token_type'] ?? 'Bearer');
-      print('Token tersimpan: $token');
-    }
-
-    // Simpan data user
-    final user = data['user'];
-    if (user != null) {
-      await prefs.setString('user', json.encode(user));
-      print('User data tersimpan: ${json.encode(user)}');
-    } else {
-      print('Data user tidak ditemukan dalam response');
-    }
-  }
-
-  Future<bool> hasRole(String roleToCheck) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userString = prefs.getString('user');
-
-    if (userString != null) {
-      final userData = json.decode(userString);
-      final userRoles = List<String>.from(userData['roles']);
-      return userRoles.contains(roleToCheck);
-    }
-
-    return false;
-  }
-
-  Future<bool> hasAnyAllowedRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userString = prefs.getString('user');
-
-    if (userString != null) {
-      final userData = json.decode(userString);
-      final userRoles = List<String>.from(userData['roles']);
-      return userRoles.any((role) => allowedRoles.contains(role));
-    }
-
-    return false;
-  }
-
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tokenType = prefs.getString('token_type');
-    final accessToken = prefs.getString('access_token');
-
-    if (tokenType != null && accessToken != null) {
-      return '$tokenType $accessToken';
-    }
-
-    return null;
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(tokenKey);
+
+      await http.post(
+        Uri.parse(ApiConstants.logout),
+        headers: ApiConstants.headers(token),
+      );
+
+      await prefs.remove(tokenKey);
+    } catch (e) {
+      print('Error during logout: $e');
+      throw Exception('Gagal melakukan logout');
+    }
   }
 }

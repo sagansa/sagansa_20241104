@@ -9,6 +9,12 @@ import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../controllers/presence_controller.dart';
 import '../services/location_validator_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
@@ -20,10 +26,10 @@ class PresencePage extends StatefulWidget {
 }
 
 class _PresencePageState extends State<PresencePage> {
-  List<Store> stores = [];
-  List<ShiftStore> shiftStores = [];
-  Store? selectedStore;
-  ShiftStore? selectedShiftStore;
+  List<StoreModel> stores = [];
+  List<ShiftStoreModel> shiftStores = [];
+  StoreModel? selectedStore;
+  ShiftStoreModel? selectedShiftStore;
   bool isLoading = false;
   Position? currentPosition;
   MapController mapController = MapController();
@@ -33,6 +39,8 @@ class _PresencePageState extends State<PresencePage> {
   late PresenceController _presenceController;
   final LocationValidatorService _locationValidator =
       LocationValidatorService();
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -68,7 +76,7 @@ class _PresencePageState extends State<PresencePage> {
         currentPosition = position;
 
         // Cari toko terdekat
-        Store? nearestStore;
+        StoreModel? nearestStore;
         double shortestDistance = double.infinity;
 
         for (var store in stores) {
@@ -138,7 +146,59 @@ class _PresencePageState extends State<PresencePage> {
     }
   }
 
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (photo != null) {
+        final File originalFile = File(photo.path);
+        final img.Image? originalImage = img.decodeImage(
+          await originalFile.readAsBytes(),
+        );
+
+        if (originalImage != null) {
+          final img.Image resizedImage = img.copyResize(
+            originalImage,
+            width: 800,
+            height: 800,
+            interpolation: img.Interpolation.linear,
+          );
+
+          final Directory tempDir = await getTemporaryDirectory();
+          final String targetPath =
+              '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final File targetFile = File(targetPath);
+
+          await targetFile.writeAsBytes(
+            img.encodeJpg(resizedImage, quality: 85),
+          );
+
+          setState(() {
+            _imageFile = targetFile;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: ${e.toString()}')),
+      );
+    }
+  }
+
   Future<void> _validateAndSubmitPresence() async {
+    if (_imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Silakan ambil foto terlebih dahulu')),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -161,13 +221,39 @@ class _PresencePageState extends State<PresencePage> {
         return;
       }
 
-      // Lanjutkan dengan proses presensi normal
       await _presenceController.submitPresence(
         isCheckIn: widget.isCheckIn,
         currentPosition: currentPosition!,
         selectedStore: selectedStore!,
         selectedShiftStore: selectedShiftStore,
-        onSuccess: () {
+        imageFile: _imageFile!,
+        onSuccess: () async {
+          // Simpan data store ke SharedPreferences saat check-in berhasil
+          if (widget.isCheckIn && selectedStore != null) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              final storeData = {
+                'store': {
+                  'id': selectedStore!.id,
+                  'name': selectedStore!.nickname,
+                }
+              };
+
+<<<<<<< HEAD
+              print('Saving store data to SharedPreferences:');
+              print(jsonEncode(storeData));
+
+              await prefs.setString('store', jsonEncode(storeData));
+
+              // Verifikasi data tersimpan
+              final savedData = prefs.getString('store');
+              print('Verified saved store data:');
+              print(savedData);
+            } catch (e) {
+              print('Error saving store data: $e');
+            }
+          }
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => HomePage()),
@@ -181,42 +267,17 @@ class _PresencePageState extends State<PresencePage> {
         },
       );
     } catch (e) {
-      // ... handle error
+      print('Error in validateAndSubmitPresence: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  void _updateMapView() {
-    if (selectedStore != null && currentPosition != null) {
-      // Hitung titik tengah antara user dan store
-      final centerLat =
-          (currentPosition!.latitude + selectedStore!.latitude) / 2;
-      final centerLng =
-          (currentPosition!.longitude + selectedStore!.longitude) / 2;
-
-      // Hitung zoom yang sesuai berdasarkan jarak
-      final distance = Geolocator.distanceBetween(
-        currentPosition!.latitude,
-        currentPosition!.longitude,
-        selectedStore!.latitude,
-        selectedStore!.longitude,
-      );
-
-      // Sesuaikan zoom berdasarkan jarak
-      double zoom = 18.0;
-      if (distance > 1000)
-        zoom = 14.0;
-      else if (distance > 500)
-        zoom = 15.0;
-      else if (distance > 200)
-        zoom = 16.0;
-      else if (distance > 100) zoom = 17.0;
-
-      mapController.move(LatLng(centerLat, centerLng), zoom);
-    }
-  }
-
+=======
+>>>>>>> parent of 1f06ce8 (version: 1.0.0+2)
   @override
   Widget build(BuildContext context) {
     bool isButtonEnabled =
@@ -248,7 +309,7 @@ class _PresencePageState extends State<PresencePage> {
                   child: Column(
                     children: [
                       if (widget.isCheckIn) ...[
-                        ModernDropdown<Store>(
+                        ModernDropdown<StoreModel>(
                           value: selectedStore,
                           hint: 'Pilih Toko',
                           items: stores,
@@ -281,13 +342,11 @@ class _PresencePageState extends State<PresencePage> {
                                 );
                               }
                             }
-
-                            _updateMapView();
                           },
                         ),
                         SizedBox(height: 16),
                         if (isLocationValid)
-                          ModernDropdown<ShiftStore>(
+                          ModernDropdown<ShiftStoreModel>(
                             value: selectedShiftStore,
                             hint: 'Pilih Shift',
                             items: shiftStores,
@@ -307,11 +366,11 @@ class _PresencePageState extends State<PresencePage> {
                             FlutterMap(
                               mapController: mapController,
                               options: MapOptions(
-                                initialCenter: LatLng(
-                                  currentPosition?.latitude ?? -6.200000,
-                                  currentPosition?.longitude ?? 106.816666,
-                                ),
-                                initialZoom: 15.0,
+                                center: currentPosition != null
+                                    ? LatLng(currentPosition!.latitude,
+                                        currentPosition!.longitude)
+                                    : LatLng(-6.200000, 106.816666),
+                                zoom: 15.0,
                               ),
                               children: [
                                 TileLayer(
@@ -319,39 +378,22 @@ class _PresencePageState extends State<PresencePage> {
                                       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                                   subdomains: ['a', 'b', 'c'],
                                 ),
-                                if (selectedStore != null)
-                                  CircleLayer(
-                                    circles: [
-                                      CircleMarker(
-                                        point: LatLng(selectedStore!.latitude,
-                                            selectedStore!.longitude),
-                                        radius: selectedStore!.radius
-                                            .toDouble(), // dalam meter
-                                        color: Colors.blue.withOpacity(0.2),
-                                        borderColor: Colors.blue,
-                                        borderStrokeWidth: 2,
-                                      ),
-                                    ],
-                                  ),
                                 MarkerLayer(
-                                  markers: [
-                                    // Marker untuk posisi user
-                                    if (currentPosition != null)
-                                      Marker(
-                                        point: LatLng(currentPosition!.latitude,
-                                            currentPosition!.longitude),
-                                        child: Icon(Icons.person_pin_circle,
-                                            color: Colors.red, size: 40.0),
-                                      ),
-                                    // Marker untuk store yang dipilih
-                                    if (selectedStore != null)
-                                      Marker(
-                                        point: LatLng(selectedStore!.latitude,
-                                            selectedStore!.longitude),
-                                        child: Icon(Icons.store,
-                                            color: Colors.blue, size: 40.0),
-                                      ),
-                                  ],
+                                  markers: currentPosition != null
+                                      ? [
+                                          Marker(
+                                            width: 40.0,
+                                            height: 40.0,
+                                            point: LatLng(
+                                                currentPosition!.latitude,
+                                                currentPosition!.longitude),
+                                            builder: (ctx) => Icon(
+                                                Icons.location_on,
+                                                color: Colors.red,
+                                                size: 40.0),
+                                          ),
+                                        ]
+                                      : [],
                                 ),
                               ],
                             ),
@@ -452,6 +494,57 @@ class _PresencePageState extends State<PresencePage> {
                             ),
                           ),
                         ),
+                      SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            children: [
+                              Text(
+                                widget.isCheckIn
+                                    ? 'Foto Check In'
+                                    : 'Foto Check Out',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 12),
+                              if (_imageFile != null)
+                                Container(
+                                  height: 200,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: FileImage(_imageFile!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  height: 200,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.camera_alt,
+                                      size: 50, color: Colors.grey),
+                                ),
+                              SizedBox(height: 12),
+                              ModernButton(
+                                text: _imageFile == null
+                                    ? 'Ambil Foto'
+                                    : 'Ambil Ulang',
+                                onPressed: _takePhoto,
+                                icon: Icons.camera_alt,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

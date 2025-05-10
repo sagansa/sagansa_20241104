@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 import '../models/store_model.dart';
 import '../models/shift_store_model.dart';
 import '../services/presence_service.dart';
@@ -49,7 +51,7 @@ class PresenceController {
     return position;
   }
 
-  bool validateStoreLocation(Position position, Store store) {
+  bool validateStoreLocation(Position position, StoreModel store) {
     double distance = Geolocator.distanceBetween(
       position.latitude,
       position.longitude,
@@ -62,9 +64,10 @@ class PresenceController {
   Future<void> submitPresence({
     required bool isCheckIn,
     required Position currentPosition,
-    required Store selectedStore,
-    ShiftStore? selectedShiftStore,
-    required Function onSuccess,
+    required StoreModel selectedStore,
+    ShiftStoreModel? selectedShiftStore,
+    required File imageFile,
+    required VoidCallback onSuccess,
     required Function(String) onError,
   }) async {
     try {
@@ -95,7 +98,7 @@ class PresenceController {
 
       print('Sending presence data: $presenceData');
 
-      await PresenceService.submitPresence(presenceData, isCheckIn, null);
+      await PresenceService.submitPresence(presenceData, isCheckIn, imageFile);
       onSuccess();
     } catch (e) {
       print('Error in submitPresence controller: $e');

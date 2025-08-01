@@ -1,28 +1,62 @@
 import 'package:flutter/material.dart';
-import '../pages/login_page.dart';
-import '../pages/home_page.dart';
-import '../pages/welcome_page.dart';
-import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 import 'package:provider/provider.dart';
+import 'pages/login_page.dart';
+import 'pages/home_page.dart';
+import 'pages/welcome_page.dart';
+import 'pages/leave_page.dart';
+import 'pages/calendar_page.dart';
+// import 'pages/salary_page.dart';
 import 'providers/presence_provider.dart';
-import '../pages/leave_page.dart';
-import '../pages/calendar_page.dart';
-import '../pages/salary_page.dart';
-import 'providers/cart_provider.dart';
-import 'pages/transaction_history_page.dart';
-import 'pages/transaction_detail_page.dart';
-import '../pages/settings_page.dart';
-import '../pages/settings_printer_page.dart';
-import '../pages/pos_page.dart';
+import 'providers/auth_provider.dart';
 
 void main() {
-  runApp(MultiProvider(
-    providers: [
-      ChangeNotifierProvider(create: (_) => PresenceProvider()),
-      ChangeNotifierProvider(create: (_) => CartProvider()),
-    ],
-    child: MaterialApp(
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Add error handling for uncaught exceptions
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    print('Flutter Error: ${details.exception}');
+    print('Stack trace: ${details.stack}');
+  };
+
+  try {
+    print('Starting Sagansa App...');
+    runApp(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) {
+          print('Creating AuthProvider...');
+          return AuthProvider();
+        }),
+        ChangeNotifierProvider(create: (_) {
+          print('Creating PresenceProvider...');
+          return PresenceProvider();
+        }),
+      ],
+      child: const MyApp(),
+    ));
+    print('App started successfully');
+  } catch (e, stackTrace) {
+    print('Error in main: $e');
+    print('Stack trace: $stackTrace');
+    // Fallback app
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('Error: $e'),
+        ),
+      ),
+    ));
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: 'Sagansa App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -51,18 +85,14 @@ void main() {
           ),
         ),
       ),
-      initialRoute: '/welcome',
+      home: const AuthWrapper(),
       routes: {
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => LoginPage(),
         '/home': (context) => HomePage(),
         '/leave': (context) => const LeavePage(),
         '/calendar': (context) => const CalendarPage(),
-        '/salary': (context) => const SalaryPage(),
-        '/transaction-history': (context) => TransactionHistoryPage(),
-        '/pos': (context) => const POSPage(),
-        '/settings': (context) => const SettingsPage(),
-        '/settings/printer': (context) => const SettingsPrinterPage(),
+        // '/salary': (context) => const SalaryPage(),
       },
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -74,37 +104,61 @@ void main() {
         Locale('id'),
         Locale('en'),
       ],
-      locale: const Locale('id'),
-      onGenerateRoute: (settings) {
-        if (settings.name == '/transaction-detail') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (context) => TransactionDetailPage(
-              transactionId: args['transactionId'],
-            ),
-          );
-        }
-        return null;
-      },
-    ),
-  ));
-  runApp(MyApp());
+    );
+  }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sagansa App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      initialRoute: '/login',
-      routes: {
-        '/login': (context) => LoginPage(),
-        '/home': (context) => HomePage(),
+    print('AuthWrapper build called');
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        print('AuthWrapper Consumer builder called');
+        print('Auth state: ${authProvider.authState}');
+        print('Is authenticated: ${authProvider.isAuthenticated}');
+
+        try {
+          // Show loading screen while checking authentication
+          if (authProvider.authState == AuthState.loading) {
+            print('Showing loading screen');
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (authProvider.isAuthenticated) {
+            print('User authenticated, showing HomePage');
+            return HomePage();
+          } else {
+            print('User not authenticated, showing LoginPage');
+            return LoginPage();
+          }
+        } catch (e) {
+          print('Error in AuthWrapper: $e');
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Error loading app'),
+                  Text('$e'),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Try to restart
+                      Navigator.pushReplacementNamed(context, '/login');
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
       },
     );
   }

@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import '../models/presence_model.dart';
 import 'presence_page.dart';
-import '../services/auth_service.dart';
+
 import 'calendar_page.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
@@ -13,6 +13,7 @@ import '../utils/constants.dart';
 import '../controllers/home_controller.dart';
 import 'package:provider/provider.dart';
 import '../providers/presence_provider.dart';
+import '../providers/auth_provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -42,31 +43,24 @@ class HomePageState extends State<HomePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userString = prefs.getString('user');
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userData = authProvider.userData;
 
-      print(
-          'Raw user string from SharedPreferences: $userString'); // Tambah log
-
-      if (userString != null) {
-        final userData = json.decode(userString);
-        print('Decoded user data: $userData'); // Tambah log
-
+      if (userData != null) {
         setState(() {
           userName = userData['name'] ?? '';
           if (userData['company'] != null) {
-            print('Company data: ${userData['company']}'); // Tambah log
             companyName = userData['company']['name'] ?? 'SAGANSA';
           }
         });
-
-        // Log nilai setelah setState
-        print('Updated values - Name: $userName, Company: $companyName');
       } else {
-        print('No user data found in SharedPreferences');
+        // If no user data, try to refresh auth
+        await authProvider.refreshAuth();
       }
     } catch (e) {
-      print('Error in _loadUserData: $e');
+      // Handle error by refreshing auth
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.refreshAuth();
     }
   }
 
@@ -117,20 +111,22 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> _logout() async {
-    try {
-      await _controller.logout();
-      if (mounted) {
+    if (!mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.logout();
+
+    if (mounted) {
+      if (success) {
         Navigator.pushNamedAndRemoveUntil(
           context,
-          '/login',
+          '/welcome',
           (route) => false,
         );
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(authProvider.errorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -446,19 +442,9 @@ class HomePageState extends State<HomePage> {
         Navigator.pushNamed(context, '/leave');
         break;
       case 2:
-        if (todayPresence != null && todayPresence!.checkIn.isNotEmpty) {
-          Navigator.pushNamed(context, '/pos');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Silakan lakukan presensi terlebih dahulu')),
-          );
-        }
-        break;
-      case 3:
         Navigator.pushNamed(context, '/calendar');
         break;
-      case 4:
+      case 3:
         Navigator.pushNamed(context, '/salary');
         break;
     }
@@ -560,25 +546,23 @@ class HomePageState extends State<HomePage> {
               );
 
               // Jika user menekan tombol logout
-              if (shouldLogout == true) {
-                try {
-                  final authService = AuthService();
-                  await authService.logout();
+              if (shouldLogout == true && mounted) {
+                final authProvider =
+                    Provider.of<AuthProvider>(context, listen: false);
+                final success = await authProvider.logout();
 
-                  // Kembali ke halaman login
-                  if (mounted) {
+                if (mounted) {
+                  if (success) {
+                    // Navigation will be handled by AuthWrapper
                     Navigator.pushNamedAndRemoveUntil(
                       context,
-                      '/login', // Pastikan route ini sudah didefinisikan
+                      '/welcome',
                       (route) => false,
                     );
-                  }
-                } catch (e) {
-                  if (mounted) {
+                  } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            Text(e.toString().replaceAll('Exception: ', '')),
+                        content: Text(authProvider.errorMessage),
                         backgroundColor: Colors.red,
                       ),
                     );

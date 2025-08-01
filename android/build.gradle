@@ -1,17 +1,12 @@
 buildscript {
     ext.kotlin_version = '1.9.22'
-    ext.java_version = JavaVersion.VERSION_17
-    ext.compileSdkVersion = 34
-    ext.minSdkVersion = 21
-    ext.targetSdkVersion = 34
-
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath 'com.android.tools.build:gradle:8.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -20,6 +15,15 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+subprojects {
+    project.configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            // Let Flutter handle most dependencies naturally
+            // Only force specific problematic ones if needed
+        }
     }
 }
 

@@ -12,6 +12,7 @@ class ModernTextField extends StatelessWidget {
   final bool enableSuggestions;
   final List<TextInputFormatter>? inputFormatters;
   final Widget? suffixIcon;
+  final bool enabled;
 
   const ModernTextField({
     super.key,
@@ -25,36 +26,56 @@ class ModernTextField extends StatelessWidget {
     this.enableSuggestions = false,
     this.inputFormatters,
     this.suffixIcon,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: labelText,
-        prefixIcon: Icon(prefixIcon),
-        border: OutlineInputBorder(
+    try {
+      return TextField(
+        controller: controller,
+        enabled: enabled,
+        decoration: InputDecoration(
+          labelText: labelText,
+          prefixIcon: Icon(prefixIcon),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.black),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+          suffixIcon: suffixIcon,
+        ),
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        textCapitalization: textCapitalization,
+        autocorrect: autocorrect,
+        enableSuggestions: enableSuggestions,
+        inputFormatters: inputFormatters,
+      );
+    } catch (e) {
+      print('Error in ModernTextField: $e');
+      return Container(
+        height: 56,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.red),
           borderRadius: BorderRadius.circular(15),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.grey),
+        child: Center(
+          child: Text('TextField Error: $e'),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.black),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
-        suffixIcon: suffixIcon,
-      ),
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      textCapitalization: textCapitalization,
-      autocorrect: autocorrect,
-      enableSuggestions: enableSuggestions,
-      inputFormatters: inputFormatters,
-    );
+      );
+    }
   }
 }

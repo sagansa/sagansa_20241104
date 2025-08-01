@@ -10,10 +10,10 @@ class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
 
   @override
-  _CalendarPageState createState() => _CalendarPageState();
+  CalendarPageState createState() => CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class CalendarPageState extends State<CalendarPage> {
   late CalendarService _calendarService;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -36,19 +36,41 @@ class _CalendarPageState extends State<CalendarPage> {
 
   Future<void> _loadCalendarData() async {
     try {
+      debugPrint('Loading calendar data...');
       final calendarData = await _calendarService.getCalendarData();
       if (mounted) {
         setState(() {
           _calendarData = calendarData;
           _isLoading = false;
         });
+        debugPrint('Calendar data loaded successfully');
       }
     } catch (e) {
+      debugPrint('Error loading calendar data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+
+        // Show more detailed error message
+        String errorMessage = 'Gagal memuat data kalender';
+        if (e.toString().contains('Token tidak valid')) {
+          errorMessage = 'Sesi telah berakhir, silakan login kembali';
+        } else if (e.toString().contains('Status: 404')) {
+          errorMessage = 'Endpoint kalender tidak ditemukan';
+        } else if (e.toString().contains('Status: 500')) {
+          errorMessage = 'Server error, coba lagi nanti';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Gagal memuat data kalender: ${e.toString()}')),
+            content: Text(errorMessage),
+            action: SnackBarAction(
+              label: 'Coba Lagi',
+              onPressed: () {
+                setState(() => _isLoading = true);
+                _loadCalendarData();
+              },
+            ),
+          ),
         );
       }
     }
@@ -63,8 +85,24 @@ class _CalendarPageState extends State<CalendarPage> {
         return isSameDay(eventDate, day);
       }).toList();
     } catch (e) {
-      print('Error getting events for day: $e');
+      debugPrint('Error getting events for day: $e');
       return [];
+    }
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 2) return; // Already on calendar page
+
+    switch (index) {
+      case 0:
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        break;
+      case 1:
+        Navigator.pushNamedAndRemoveUntil(context, '/leave', (route) => false);
+        break;
+      case 3:
+        Navigator.pushNamedAndRemoveUntil(context, '/salary', (route) => false);
+        break;
     }
   }
 
@@ -86,7 +124,31 @@ class _CalendarPageState extends State<CalendarPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _calendarData == null
-              ? const Center(child: Text('Tidak ada data kalender'))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Tidak ada data kalender',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() => _isLoading = true);
+                          _loadCalendarData();
+                        },
+                        child: const Text('Muat Ulang'),
+                      ),
+                    ],
+                  ),
+                )
               : Column(
                   children: [
                     TableCalendar(
@@ -128,8 +190,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   ],
                 ),
       bottomNavigationBar: ModernBottomNav(
-        currentIndex: 3,
-        onTap: (index) {},
+        currentIndex: 2,
+        onTap: _onItemTapped,
       ),
     );
   }

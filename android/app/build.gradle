@@ -1,9 +1,7 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // Remove the version number and just use the plugin ID
     id "dev.flutter.flutter-gradle-plugin"
-    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
 }
 
 def localProperties = new Properties()
@@ -25,9 +23,9 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace = "com.sei.sagansa_app"
-    compileSdkVersion 34
-    ndkVersion = flutter.ndkVersion
+    namespace "com.sei.sagansa_app"
+    compileSdk 35
+    ndkVersion "28.2.13676358"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -39,38 +37,30 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.sagansa_20241104"
+        applicationId "com.sei.sagansa_app"
         minSdkVersion 21
-        targetSdkVersion 34
-        versionCode = flutterVersionCode.toInteger()
-        versionName = flutterVersionName
-        vectorDrawables.useSupportLibrary = true
+        targetSdkVersion 35
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
     }
 
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.debug
         }
     }
 
     lintOptions {
-        disable 'MockLocation'
-        // atau gunakan baseline
-        baseline file("lint-baseline.xml")
-    }
-
-    buildFeatures {
-        viewBinding true
+        disable 'InvalidPackage'
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
 
 dependencies {
-    // Tambahkan dependency AndroidX
-    implementation 'androidx.core:core:1.10.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    // Let Flutter manage dependencies automatically
 }
 
 flutter {

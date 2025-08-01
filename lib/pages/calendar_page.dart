@@ -192,6 +192,7 @@ class CalendarPageState extends State<CalendarPage> {
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: _onItemTapped,
+        items: DefaultBottomNavItems.items,
       ),
     );
   }

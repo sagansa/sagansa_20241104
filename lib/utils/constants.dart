@@ -1,39 +1,57 @@
 class ApiConstants {
-  // static const String baseUrl =
-  //     String.fromEnvironment('API_URL', defaultValue: 'https://api.sagansa.id');
+  // Primary API URL
   static const String baseUrl = 'https://api.sagansa.id';
 
+  // Fallback API URL (jika primary tidak bisa diakses)
+  static const String fallbackBaseUrl = 'https://153.92.13.250';
+
+  // Development/testing flags
+  static const bool bypassNetworkCheck = bool.fromEnvironment(
+      'BYPASS_NETWORK_CHECK',
+      defaultValue: true); // Default true untuk bypass
+  static const bool enableDetailedLogging = bool.fromEnvironment(
+      'DETAILED_LOGGING',
+      defaultValue: false); // Disable by default
+  static const bool aggressiveMode = bool.fromEnvironment('AGGRESSIVE_MODE',
+      defaultValue: true); // Skip semua network check
+
+  // Get base URL with fallback logic
+  static String getBaseUrl() {
+    return const String.fromEnvironment('API_URL', defaultValue: baseUrl);
+  }
+
   // Auth Endpoints
-  static const String login = '$baseUrl/login';
-  static const String logout = '$baseUrl/logout';
+  static String get login => '${getBaseUrl()}/login';
+  static String get logout => '${getBaseUrl()}/logout';
 
   // Presence Endpoints
-  static const String userPresence = '$baseUrl/user-presence';
-  static const String leaves = '$baseUrl/leaves';
-  static const String checkIn = '$baseUrl/check-in';
-  static const String checkOut = '$baseUrl/check-out';
-  static const String todayPresenceEndpoint = '$baseUrl/presences/today';
-  static const String historyPresenceEndpoint = '$baseUrl/presences/history';
+  static String get userPresence => '${getBaseUrl()}/user-presence';
+  static String get leaves => '${getBaseUrl()}/leaves';
+  static String get checkIn => '${getBaseUrl()}/check-in';
+  static String get checkOut => '${getBaseUrl()}/check-out';
+  static String get todayPresenceEndpoint => '${getBaseUrl()}/presences/today';
+  static String get historyPresenceEndpoint =>
+      '${getBaseUrl()}/presences/history';
 
   // Store Endpoints
-  static const String stores = '$baseUrl/stores';
-  static const String shiftStores = '$baseUrl/shift-stores';
+  static String get stores => '${getBaseUrl()}/stores';
+  static String get shiftStores => '${getBaseUrl()}/shift-stores';
 
   // Calendar Endpoints
-  static const String calendar = '$baseUrl/calendar';
+  static String get calendar => '${getBaseUrl()}/calendar';
 
   // Product Endpoints
-  static const String products = '$baseUrl/products';
-  static const String categories = '$baseUrl/products/categories';
+  static String get products => '${getBaseUrl()}/products';
+  static String get categories => '${getBaseUrl()}/products/categories';
 
   // Cart Endpoints
-  static const String carts = '$baseUrl/carts';
+  static String get carts => '${getBaseUrl()}/carts';
 
   // Transaction Endpoints
-  static const String transactions = '$baseUrl/transactions';
+  static String get transactions => '${getBaseUrl()}/transactions';
 
   // Salary Endpoints
-  static const String salaries = '$baseUrl/salaries';
+  static String get salaries => '${getBaseUrl()}/salaries';
 
   static Map<String, String> headers(String? token) {
     return {

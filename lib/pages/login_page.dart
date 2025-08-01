@@ -48,6 +48,12 @@ class _LoginPageState extends State<LoginPage> {
     final email = emailController.text.trim();
     final password = passwordController.text;
 
+    // Basic validation
+    if (email.isEmpty || password.isEmpty) {
+      _showErrorDialog('Email dan password tidak boleh kosong');
+      return;
+    }
+
     final success = await authProvider.login(email, password);
 
     if (!mounted) return;
@@ -65,19 +71,123 @@ class _LoginPageState extends State<LoginPage> {
     } else {
       // Cancel autofill context on failed login
       await GoogleAutofillService.cancelAutofillContext();
+
+      // Show simple error dialog
       _showErrorDialog(authProvider.errorMessage);
     }
   }
 
-  void _showErrorDialog(String message) {
+  void _showErrorDialogWithTroubleshooting(String message) {
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Login Error'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.isNotEmpty ? message : 'Terjadi kesalahan saat login.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            if (message.contains('terhubung') || message.contains('server'))
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Solusi yang bisa dicoba:',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('• Periksa koneksi internet Anda'),
+                  const Text('• Coba gunakan WiFi atau data seluler'),
+                  const Text('• Restart aplikasi'),
+                  const Text('• Coba lagi dalam beberapa saat'),
+                ],
+              ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: const Text('OK'),
+          ),
+          if (message.contains('terhubung') || message.contains('server'))
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _retryLogin();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text('Coba Lagi'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _retryLogin() {
+    // Clear any existing errors
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    authProvider.clearError();
+
+    // Retry login
+    _login();
+  }
+
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Login Error'),
+          ],
+        ),
+        content: Text(
+          message.isNotEmpty
+              ? message
+              : 'Terjadi kesalahan saat login. Silakan coba lagi.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
             child: const Text('OK'),
           ),
         ],
@@ -130,7 +240,8 @@ class _LoginPageState extends State<LoginPage> {
                             key: const Key('email_field'),
                             controller: emailController,
                             labelText: 'Email',
-                            prefixIcon: Icons.email,
+                            hintText: 'Masukkan email Anda',
+                            prefixIcon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
                             autocorrect: false,
                             enableSuggestions: false,
@@ -143,20 +254,26 @@ class _LoginPageState extends State<LoginPage> {
                             key: const Key('password_field'),
                             controller: passwordController,
                             labelText: 'Password',
-                            prefixIcon: Icons.lock,
+                            hintText: 'Masukkan password Anda',
+                            prefixIcon: Icons.lock_outlined,
                             obscureText: !_passwordVisible,
                             enabled: !authProvider.isLoading,
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _passwordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _passwordVisible = !_passwordVisible;
-                                });
-                              },
+                              onPressed: authProvider.isLoading
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _passwordVisible = !_passwordVisible;
+                                      });
+                                    },
                             ),
                             autocorrect: false,
                             enableSuggestions: false,
@@ -164,6 +281,7 @@ class _LoginPageState extends State<LoginPage> {
                                 GoogleAutofillService.passwordAutofillHints,
                           ),
                         ],
+                        const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
@@ -171,37 +289,64 @@ class _LoginPageState extends State<LoginPage> {
                                 ? null
                                 : () {
                                     // TODO: Implement forgot password
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Fitur lupa password akan segera tersedia'),
+                                      ),
+                                    );
                                   },
-                            child: Text(
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                            ),
+                            child: const Text(
                               'Lupa Password?',
                               style: TextStyle(
-                                color: authProvider.isLoading
-                                    ? Colors.grey
-                                    : Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ),
+                        const SizedBox(height: 24),
                         // Show error message if any
                         if (authProvider.authState == AuthState.error)
                           Container(
-                            margin: const EdgeInsets.only(top: 16),
-                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.shade200),
+                              color:
+                                  Theme.of(context).colorScheme.errorContainer,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .error
+                                    .withOpacity(0.3),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline,
-                                    color: Colors.red.shade600),
-                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    authProvider.errorMessage,
-                                    style:
-                                        TextStyle(color: Colors.red.shade600),
+                                    authProvider.errorMessage.isNotEmpty
+                                        ? authProvider.errorMessage
+                                        : 'Terjadi kesalahan saat login',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onErrorContainer,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -224,23 +369,37 @@ class _LoginPageState extends State<LoginPage> {
                         children: [
                           Text(
                             'Belum punya akun? ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
                           ),
-                          GestureDetector(
-                            onTap: authProvider.isLoading
+                          TextButton(
+                            onPressed: authProvider.isLoading
                                 ? null
                                 : () {
                                     // TODO: Implement registration
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Fitur registrasi akan segera tersedia'),
+                                      ),
+                                    );
                                   },
-                            child: Text(
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            child: const Text(
                               'Daftar Sekarang',
                               style: TextStyle(
-                                color: authProvider.isLoading
-                                    ? Colors.grey
-                                    : Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),

@@ -176,7 +176,7 @@ class _LeavePageState extends State<LeavePage> {
                     },
                   ),
                 ),
-          floatingActionButton: CustomFAB(
+          floatingActionButton: ModernFAB(
             onPressed: () async {
               final result = await Navigator.push(
                 context,
@@ -193,6 +193,7 @@ class _LeavePageState extends State<LeavePage> {
           bottomNavigationBar: ModernBottomNav(
             currentIndex: 1,
             onTap: (index) {},
+            items: DefaultBottomNavItems.items,
           ),
         );
       },

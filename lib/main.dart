@@ -7,9 +7,11 @@ import 'pages/home_page.dart';
 import 'pages/welcome_page.dart';
 import 'pages/leave_page.dart';
 import 'pages/calendar_page.dart';
+import 'pages/design_demo_page.dart';
 // import 'pages/salary_page.dart';
 import 'providers/presence_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,24 +24,30 @@ void main() {
   };
 
   try {
-    print('Starting Sagansa App...');
+    debugPrint('Starting Sagansa App...');
     runApp(MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) {
-          print('Creating AuthProvider...');
+          debugPrint('Creating ThemeProvider...');
+          final themeProvider = ThemeProvider();
+          themeProvider.initialize();
+          return themeProvider;
+        }),
+        ChangeNotifierProvider(create: (_) {
+          debugPrint('Creating AuthProvider...');
           return AuthProvider();
         }),
         ChangeNotifierProvider(create: (_) {
-          print('Creating PresenceProvider...');
+          debugPrint('Creating PresenceProvider...');
           return PresenceProvider();
         }),
       ],
       child: const MyApp(),
     ));
-    print('App started successfully');
+    debugPrint('App started successfully');
   } catch (e, stackTrace) {
-    print('Error in main: $e');
-    print('Stack trace: $stackTrace');
+    debugPrint('Error in main: $e');
+    debugPrint('Stack trace: $stackTrace');
     // Fallback app
     runApp(MaterialApp(
       home: Scaffold(
@@ -56,54 +64,35 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sagansa App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.black,
-          primary: Colors.black,
-          secondary: const Color(0xFF00ACC1),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: IconThemeData(color: Colors.black),
-          titleTextStyle: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E88E5),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ),
-      home: const AuthWrapper(),
-      routes: {
-        '/welcome': (context) => const WelcomePage(),
-        '/login': (context) => LoginPage(),
-        '/home': (context) => HomePage(),
-        '/leave': (context) => const LeavePage(),
-        '/calendar': (context) => const CalendarPage(),
-        // '/salary': (context) => const SalaryPage(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'Sagansa App',
+          theme: ThemeProvider.lightTheme,
+          darkTheme: ThemeProvider.darkTheme,
+          themeMode: themeProvider.themeMode,
+          home: const AuthWrapper(),
+          routes: {
+            '/welcome': (context) => const WelcomePage(),
+            '/login': (context) => LoginPage(),
+            '/home': (context) => HomePage(),
+            '/leave': (context) => const LeavePage(),
+            '/calendar': (context) => const CalendarPage(),
+            '/design-demo': (context) => const DesignDemoPage(),
+            // '/salary': (context) => const SalaryPage(),
+          },
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            SfGlobalLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('id'),
+            Locale('en'),
+          ],
+        );
       },
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        SfGlobalLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('id'),
-        Locale('en'),
-      ],
     );
   }
 }
@@ -120,14 +109,19 @@ class AuthWrapper extends StatelessWidget {
           if (authProvider.authState == AuthState.checking ||
               authProvider.authState == AuthState.loading ||
               !authProvider.hasInitialized) {
-            return const Scaffold(
+            return Scaffold(
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Loading...'),
+                    CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading...',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
               ),
@@ -142,10 +136,20 @@ class AuthWrapper extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error, size: 64, color: Colors.red),
+                    Icon(
+                      Icons.error,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     const SizedBox(height: 16),
-                    const Text('Failed to initialize app'),
-                    Text(authProvider.errorMessage),
+                    Text(
+                      'Failed to initialize app',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    Text(
+                      authProvider.errorMessage,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
@@ -171,8 +175,15 @@ class AuthWrapper extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Error loading app'),
-                  Text('$e'),
+                  Text(
+                    'Error loading app',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  Text(
+                    '$e',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/login');

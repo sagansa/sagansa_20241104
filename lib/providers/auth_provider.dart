@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
@@ -140,19 +141,43 @@ class AuthProvider with ChangeNotifier {
 
   /// Login user with email and password
   Future<bool> login(String email, String password) async {
+    // Validate input
+    if (email.trim().isEmpty || password.isEmpty) {
+      _authState = AuthState.error;
+      _errorMessage = 'Email dan password tidak boleh kosong';
+      notifyListeners();
+      return false;
+    }
+
     _setLoading(true);
     _authState = AuthState.loading;
     _errorMessage = '';
     notifyListeners();
 
     try {
+      debugPrint('AuthProvider: Attempting login for email: $email');
       final result = await _authService.login(email, password);
+
+      debugPrint('AuthProvider: Login result status: ${result['status']}');
 
       if (result['status'] == 'error') {
         _authState = AuthState.error;
-        _errorMessage = result['message'] ?? 'Login failed';
+        _errorMessage = result['message'] ?? 'Login gagal';
         _setLoading(false);
         notifyListeners();
+        debugPrint('AuthProvider: Login failed: ${_errorMessage}');
+        return false;
+      }
+
+      // Validate response data
+      if (result['data'] == null ||
+          result['data']['access_token'] == null ||
+          result['data']['user'] == null) {
+        _authState = AuthState.error;
+        _errorMessage = 'Response data tidak valid';
+        _setLoading(false);
+        notifyListeners();
+        debugPrint('AuthProvider: Invalid response data');
         return false;
       }
 
@@ -162,12 +187,16 @@ class AuthProvider with ChangeNotifier {
       _authState = AuthState.success;
       _setLoading(false);
       notifyListeners();
+      debugPrint(
+          'AuthProvider: Login successful for user: ${_userData?['name']}');
       return true;
     } catch (e) {
       _authState = AuthState.error;
-      _errorMessage = 'Terjadi kesalahan saat login';
+      _errorMessage =
+          'Terjadi kesalahan saat login. Periksa koneksi internet Anda.';
       _setLoading(false);
       notifyListeners();
+      debugPrint('AuthProvider: Login exception: $e');
       return false;
     }
   }

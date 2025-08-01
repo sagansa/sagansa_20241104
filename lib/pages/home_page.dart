@@ -688,7 +688,7 @@ class HomePageState extends State<HomePage> {
         ),
       ),
       floatingActionButton: todayPresence?.checkOut == null
-          ? CustomFAB(
+          ? ModernFAB(
               onPressed: _navigateToPresencePage,
               icon: todayPresence == null
                   ? Icons.fingerprint_outlined // icon untuk checkout
@@ -702,6 +702,7 @@ class HomePageState extends State<HomePage> {
       bottomNavigationBar: ModernBottomNav(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        items: DefaultBottomNavItems.items,
       ),
     );
   }

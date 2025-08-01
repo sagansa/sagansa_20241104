@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/constants.dart';
 
@@ -19,19 +22,97 @@ class AuthService {
 
   /// Login user and store persistent token securely
   Future<Map<String, dynamic>> login(String email, String password) async {
+    debugPrint('AuthService: Starting login process');
+
+    // Skip network check completely - just try login directly
+    return await _attemptLoginWithFallback(email, password);
+  }
+
+  /// Attempt login with fallback mechanism
+  Future<Map<String, dynamic>> _attemptLoginWithFallback(
+      String email, String password) async {
+    // Try primary URL first
     try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.login),
-        headers: ApiConstants.headers(null),
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      );
+      debugPrint('AuthService: Attempting login to ${ApiConstants.login}');
 
-      final responseData = json.decode(response.body);
+      final response = await http
+          .post(
+            Uri.parse(ApiConstants.login),
+            headers: ApiConstants.headers(null),
+            body: json.encode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
+      debugPrint('AuthService: Response status: ${response.statusCode}');
+      if (ApiConstants.enableDetailedLogging) {
+        debugPrint('AuthService: Response body: ${response.body}');
+      }
+
+      return await _processLoginResponse(response);
+    } on SocketException catch (e) {
+      debugPrint('AuthService: Socket error with primary URL: $e');
+      return await _attemptLoginWithIP(email, password);
+    } on TimeoutException catch (e) {
+      debugPrint('AuthService: Timeout with primary URL: $e');
+      return await _attemptLoginWithIP(email, password);
+    } catch (e) {
+      debugPrint('AuthService: Error with primary URL: $e');
+      return await _attemptLoginWithIP(email, password);
+    }
+  }
+
+  /// Attempt login using IP address as fallback
+  Future<Map<String, dynamic>> _attemptLoginWithIP(
+      String email, String password) async {
+    try {
+      debugPrint('AuthService: Attempting login with fallback IP');
+
+      final response = await http
+          .post(
+            Uri.parse('${ApiConstants.fallbackBaseUrl}/login'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Host': 'api.sagansa.id', // Important: keep original host header
+            },
+            body: json.encode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      debugPrint(
+          'AuthService: Fallback response status: ${response.statusCode}');
+
+      return await _processLoginResponse(response);
+    } catch (e) {
+      debugPrint('AuthService: Fallback also failed: $e');
+      return {
+        'status': 'error',
+        'message':
+            'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'
+      };
+    }
+  }
+
+  /// Process login response
+  Future<Map<String, dynamic>> _processLoginResponse(
+      http.Response response) async {
+    try {
       if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+
+        // Validate response structure
+        if (responseData['data'] == null ||
+            responseData['data']['access_token'] == null ||
+            responseData['data']['user'] == null) {
+          return {'status': 'error', 'message': 'Format response tidak valid'};
+        }
+
         // Store token securely
         final token = responseData['data']['access_token'];
         await _secureStorage.write(key: tokenKey, value: token);
@@ -41,15 +122,44 @@ class AuthService {
         await _secureStorage.write(
             key: userDataKey, value: json.encode(userData));
 
+        debugPrint('AuthService: Login successful, token stored');
         return responseData;
       } else {
-        return {
-          'status': 'error',
-          'message': responseData['message'] ?? 'Login gagal'
-        };
+        // Try to parse error message from response
+        try {
+          final responseData = json.decode(response.body);
+          final errorMessage = responseData['message'] ?? 'Login gagal';
+
+          if (response.statusCode == 401) {
+            return {'status': 'error', 'message': 'Email atau password salah'};
+          } else if (response.statusCode == 422) {
+            return {
+              'status': 'error',
+              'message': 'Data yang dimasukkan tidak valid'
+            };
+          } else {
+            return {'status': 'error', 'message': errorMessage};
+          }
+        } catch (e) {
+          return {
+            'status': 'error',
+            'message': 'Server error (${response.statusCode})'
+          };
+        }
       }
+    } on http.ClientException catch (e) {
+      debugPrint('AuthService: Network error: $e');
+      return {
+        'status': 'error',
+        'message':
+            'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'
+      };
+    } on FormatException catch (e) {
+      debugPrint('AuthService: JSON parsing error: $e');
+      return {'status': 'error', 'message': 'Response server tidak valid'};
     } catch (e) {
-      return {'status': 'error', 'message': 'Terjadi kesalahan saat login'};
+      debugPrint('AuthService: Unexpected error: $e');
+      return {'status': 'error', 'message': 'Terjadi kesalahan tidak terduga'};
     }
   }
 

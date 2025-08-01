@@ -13,6 +13,7 @@ class ModernTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final Widget? suffixIcon;
   final bool enabled;
+  final List<String>? autofillHints;
 
   const ModernTextField({
     super.key,
@@ -27,6 +28,7 @@ class ModernTextField extends StatelessWidget {
     this.inputFormatters,
     this.suffixIcon,
     this.enabled = true,
+    this.autofillHints,
   });
 
   @override
@@ -63,6 +65,7 @@ class ModernTextField extends StatelessWidget {
         autocorrect: autocorrect,
         enableSuggestions: enableSuggestions,
         inputFormatters: inputFormatters,
+        autofillHints: autofillHints,
       );
     } catch (e) {
       print('Error in ModernTextField: $e');

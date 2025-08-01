@@ -54,9 +54,12 @@ dependencies:
   provider: ^6.1.2
   table_calendar: ^3.0.9
   cached_network_image: ^3.4.1
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -110,10 +113,12 @@ flutter:
 
   assets:
     - assets/images/logo.png
-    - assets/lottie/payment-success.json
-    - assets/images/no_image.jpg
+    - assets/images/new_logo.png
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
-  image_path: "assets/icon/logo.png"
+  image_path: "assets/images/new_logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/new_logo.png"

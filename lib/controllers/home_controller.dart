@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
 import '../services/leave_service.dart';
 import '../services/presence_service.dart';
 import '../utils/constants.dart';
@@ -53,10 +54,10 @@ class HomeController {
     }
   }
 
-  Future<void> logout() async {
+  Future<bool> logout() async {
     try {
-      final authService = AuthService();
-      await authService.logout();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      return await authProvider.logout();
     } catch (e) {
       throw Exception(e.toString());
     }

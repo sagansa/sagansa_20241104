@@ -113,33 +113,59 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('AuthWrapper build called');
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        print('AuthWrapper Consumer builder called');
-        print('Auth state: ${authProvider.authState}');
-        print('Is authenticated: ${authProvider.isAuthenticated}');
-
         try {
-          // Show loading screen while checking authentication
-          if (authProvider.authState == AuthState.loading) {
-            print('Showing loading screen');
+          // Show loading screen while checking authentication or during login
+          if (authProvider.authState == AuthState.checking ||
+              authProvider.authState == AuthState.loading ||
+              !authProvider.hasInitialized) {
             return const Scaffold(
               body: Center(
-                child: CircularProgressIndicator(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading...'),
+                  ],
+                ),
               ),
             );
           }
 
+          // Show error screen if initialization failed
+          if (authProvider.authState == AuthState.error &&
+              authProvider.errorMessage.contains('initialize')) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    const Text('Failed to initialize app'),
+                    Text(authProvider.errorMessage),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        authProvider.reinitialize();
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Navigate based on authentication status
           if (authProvider.isAuthenticated) {
-            print('User authenticated, showing HomePage');
             return HomePage();
           } else {
-            print('User not authenticated, showing LoginPage');
             return LoginPage();
           }
         } catch (e) {
-          print('Error in AuthWrapper: $e');
           return Scaffold(
             body: Center(
               child: Column(
@@ -149,7 +175,6 @@ class AuthWrapper extends StatelessWidget {
                   Text('$e'),
                   ElevatedButton(
                     onPressed: () {
-                      // Try to restart
                       Navigator.pushReplacementNamed(context, '/login');
                     },
                     child: const Text('Retry'),

@@ -1,26 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+<<<<<<< HEAD
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+=======
+import 'package:shared_preferences/shared_preferences.dart';
+>>>>>>> parent of f54562b (update token, password remember, logo)
 import '../utils/constants.dart';
 
 class AuthService {
-  static const String tokenKey = 'auth_token';
-  static const String userDataKey = 'user_data';
+  static const String tokenKey = 'token';
+  static const String _tokenKey = 'authToken';
 
-  // Configure secure storage with encryption
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
-
-  /// Login user and store persistent token securely
   Future<Map<String, dynamic>> login(String email, String password) async {
     debugPrint('AuthService: Starting login process');
 
@@ -35,6 +28,7 @@ class AuthService {
     try {
       debugPrint('AuthService: Attempting login to ${ApiConstants.login}');
 
+<<<<<<< HEAD
       final response = await http
           .post(
             Uri.parse(ApiConstants.login),
@@ -45,6 +39,11 @@ class AuthService {
             }),
           )
           .timeout(const Duration(seconds: 30));
+=======
+      print('Raw API response: ${response.body}'); // Debug log
+      final responseData = json.decode(response.body);
+      print('Decoded response: $responseData'); // Debug log
+>>>>>>> parent of f54562b (update token, password remember, logo)
 
       debugPrint('AuthService: Response status: ${response.statusCode}');
       if (ApiConstants.enableDetailedLogging) {
@@ -104,6 +103,7 @@ class AuthService {
       http.Response response) async {
     try {
       if (response.statusCode == 200) {
+<<<<<<< HEAD
         final responseData = json.decode(response.body);
 
         // Validate response structure
@@ -116,12 +116,18 @@ class AuthService {
         // Store token securely
         final token = responseData['data']['access_token'];
         await _secureStorage.write(key: tokenKey, value: token);
+=======
+        final prefs = await SharedPreferences.getInstance();
+>>>>>>> parent of f54562b (update token, password remember, logo)
 
-        // Store user data securely
+        // Simpan token
+        await prefs.setString('token', responseData['data']['access_token']);
+
+        // Simpan data user
         final userData = responseData['data']['user'];
-        await _secureStorage.write(
-            key: userDataKey, value: json.encode(userData));
+        await prefs.setString('user', json.encode(userData));
 
+<<<<<<< HEAD
         debugPrint('AuthService: Login successful, token stored');
         return responseData;
       } else {
@@ -146,6 +152,17 @@ class AuthService {
             'message': 'Server error (${response.statusCode})'
           };
         }
+=======
+        print('User data saved: $userData'); // Debug log
+
+        return responseData; // Kembalikan response asli dari API
+      } else {
+        print('Login failed with status: ${response.statusCode}');
+        return {
+          'status': 'error',
+          'message': responseData['message'] ?? 'Login gagal'
+        };
+>>>>>>> parent of f54562b (update token, password remember, logo)
       }
     } on http.ClientException catch (e) {
       debugPrint('AuthService: Network error: $e');
@@ -158,105 +175,35 @@ class AuthService {
       debugPrint('AuthService: JSON parsing error: $e');
       return {'status': 'error', 'message': 'Response server tidak valid'};
     } catch (e) {
+<<<<<<< HEAD
       debugPrint('AuthService: Unexpected error: $e');
       return {'status': 'error', 'message': 'Terjadi kesalahan tidak terduga'};
+=======
+      print('Login error: $e');
+      return {'status': 'error', 'message': 'Terjadi kesalahan saat login'};
+>>>>>>> parent of f54562b (update token, password remember, logo)
     }
   }
 
-  /// Logout user and clean up tokens from both server and local storage
   Future<void> logout() async {
     try {
-      final token = await getToken();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(tokenKey);
 
-      // Call logout API to invalidate token on server
-      if (token != null) {
-        await http.post(
-          Uri.parse(ApiConstants.logout),
-          headers: ApiConstants.headers(token),
-        );
-      }
+      await http.post(
+        Uri.parse(ApiConstants.logout),
+        headers: ApiConstants.headers(token),
+      );
 
-      // Clear all stored authentication data
-      await _secureStorage.delete(key: tokenKey);
-      await _secureStorage.delete(key: userDataKey);
+      await prefs.remove(tokenKey);
     } catch (e) {
-      // Even if API call fails, clear local storage
-      await _secureStorage.delete(key: tokenKey);
-      await _secureStorage.delete(key: userDataKey);
+      print('Error during logout: $e');
       throw Exception('Gagal melakukan logout');
     }
   }
 
-  /// Get stored token from secure storage
   Future<String?> getToken() async {
-    try {
-      final token = await _secureStorage.read(key: tokenKey);
-      print(
-          'AuthService: Retrieved token: ${token != null ? 'exists' : 'null'}');
-      return token;
-    } catch (e) {
-      print('AuthService: Error reading token: $e');
-      return null;
-    }
-  }
-
-  /// Get stored user data from secure storage
-  Future<Map<String, dynamic>?> getUserData() async {
-    try {
-      final userDataString = await _secureStorage.read(key: userDataKey);
-      if (userDataString != null) {
-        final userData = json.decode(userDataString);
-        print(
-            'AuthService: Retrieved user data: ${userData['name'] ?? 'unknown'}');
-        return userData;
-      }
-      print('AuthService: No user data found');
-      return null;
-    } catch (e) {
-      print('AuthService: Error reading user data: $e');
-      return null;
-    }
-  }
-
-  /// Validate token with server using user-presence endpoint
-  Future<bool> validateToken() async {
-    try {
-      final token = await getToken();
-      if (token == null) return false;
-
-      // Use existing user-presence endpoint to validate token
-      final response = await http.get(
-        Uri.parse(ApiConstants.userPresence),
-        headers: ApiConstants.headers(token),
-      );
-
-      // Return true for success, false only for 401 (unauthorized)
-      if (response.statusCode == 200) {
-        return true;
-      } else if (response.statusCode == 401) {
-        return false;
-      } else {
-        // For other errors (network, server error), assume token is still valid
-        return true;
-      }
-    } catch (e) {
-      // Network error or other exception - assume token is still valid
-      return true;
-    }
-  }
-
-  /// Check if user has valid authentication
-  Future<bool> isAuthenticated() async {
-    final token = await getToken();
-    if (token == null) return false;
-
-    // Validate token with server
-    return await validateToken();
-  }
-
-  /// Clear all authentication data (for emergency cleanup)
-  Future<void> clearAuthData() async {
-    await _secureStorage.delete(key: tokenKey);
-    await _secureStorage.delete(key: userDataKey);
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
   }
 }

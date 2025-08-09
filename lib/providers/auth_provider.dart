@@ -102,7 +102,6 @@ class AuthProvider with ChangeNotifier {
         debugPrint('AuthProvider: Invalid response data');
         return false;
       }
-
       // Success
       _token = result['data']['access_token'];
       _userData = result['data']['user'];
@@ -175,5 +174,30 @@ class AuthProvider with ChangeNotifier {
     _errorMessage = '';
     _authState = AuthState.idle;
     notifyListeners();
+  }
+
+  /// Reinitialize the auth provider (retry initialization)
+  Future<void> reinitialize() async {
+    if (kDebugMode) {
+      debugPrint('AuthProvider: Reinitializing...');
+    }
+    
+    _authState = AuthState.loading;
+    _errorMessage = '';
+    notifyListeners();
+    
+    try {
+      await _loadToken();
+      if (kDebugMode) {
+        debugPrint('AuthProvider: Reinitialization complete');
+      }
+    } catch (e) {
+      _authState = AuthState.error;
+      _errorMessage = 'Failed to reinitialize: $e';
+      notifyListeners();
+      if (kDebugMode) {
+        debugPrint('AuthProvider: Reinitialization failed: $e');
+      }
+    }
   }
 }

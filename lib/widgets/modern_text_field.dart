@@ -19,6 +19,7 @@ class ModernTextField extends StatefulWidget {
   final bool enableSuggestions;
   final List<TextInputFormatter>? inputFormatters;
   final bool enabled;
+<<<<<<< HEAD
   final List<String>? autofillHints;
   final String? errorText;
   final String? helperText;
@@ -30,6 +31,8 @@ class ModernTextField extends StatefulWidget {
   final Function(String)? onSubmitted;
   final FocusNode? focusNode;
   final bool readOnly;
+=======
+>>>>>>> parent of f54562b (update token, password remember, logo)
 
   const ModernTextField({
     super.key,
@@ -46,6 +49,7 @@ class ModernTextField extends StatefulWidget {
     this.enableSuggestions = false,
     this.inputFormatters,
     this.enabled = true,
+<<<<<<< HEAD
     this.autofillHints,
     this.errorText,
     this.helperText,
@@ -57,6 +61,8 @@ class ModernTextField extends StatefulWidget {
     this.onSubmitted,
     this.focusNode,
     this.readOnly = false,
+=======
+>>>>>>> parent of f54562b (update token, password remember, logo)
   });
 
   @override
@@ -248,7 +254,32 @@ class _ModernTextFieldState extends State<ModernTextField>
               );
             },
           ),
+<<<<<<< HEAD
         ],
+=======
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.black),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+          suffixIcon: suffixIcon,
+        ),
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        textCapitalization: textCapitalization,
+        autocorrect: autocorrect,
+        enableSuggestions: enableSuggestions,
+        inputFormatters: inputFormatters,
+>>>>>>> parent of f54562b (update token, password remember, logo)
       );
     } catch (e) {
       debugPrint('Error in ModernTextField: $e');

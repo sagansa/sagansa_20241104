@@ -102,9 +102,15 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('AuthWrapper build called');
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
+        print('AuthWrapper Consumer builder called');
+        print('Auth state: ${authProvider.authState}');
+        print('Is authenticated: ${authProvider.isAuthenticated}');
+
         try {
+<<<<<<< HEAD
           // Show loading screen while checking authentication or during login
           if (authProvider.authState == AuthState.checking ||
               authProvider.authState == AuthState.loading ||
@@ -124,10 +130,19 @@ class AuthWrapper extends StatelessWidget {
                     ),
                   ],
                 ),
+=======
+          // Show loading screen while checking authentication
+          if (authProvider.authState == AuthState.loading) {
+            print('Showing loading screen');
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+>>>>>>> parent of f54562b (update token, password remember, logo)
               ),
             );
           }
 
+<<<<<<< HEAD
           // Show error screen if initialization failed
           if (authProvider.authState == AuthState.error &&
               authProvider.errorMessage.contains('initialize')) {
@@ -164,12 +179,17 @@ class AuthWrapper extends StatelessWidget {
           }
 
           // Navigate based on authentication status
+=======
+>>>>>>> parent of f54562b (update token, password remember, logo)
           if (authProvider.isAuthenticated) {
+            print('User authenticated, showing HomePage');
             return HomePage();
           } else {
+            print('User not authenticated, showing LoginPage');
             return LoginPage();
           }
         } catch (e) {
+          print('Error in AuthWrapper: $e');
           return Scaffold(
             body: Center(
               child: Column(
@@ -186,6 +206,7 @@ class AuthWrapper extends StatelessWidget {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
+                      // Try to restart
                       Navigator.pushReplacementNamed(context, '/login');
                     },
                     child: const Text('Retry'),

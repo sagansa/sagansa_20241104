@@ -1,24 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../services/auth_service.dart';
-import '../services/google_autofill_service.dart';
-import '../utils/constants.dart';
 
-enum AuthState { idle, loading, success, error, checking }
+enum AuthState { idle, loading, success, error }
 
 class AuthProvider with ChangeNotifier {
   String _token = '';
   Map<String, dynamic>? _userData;
-  AuthState _authState = AuthState.checking;
+  AuthState _authState = AuthState.idle;
   String _errorMessage = '';
   bool _isLoading = false;
-  bool _hasInitialized = false;
 
   final AuthService _authService = AuthService();
-
-  // Set to false to disable token validation for testing
-  static const bool enableTokenValidation = true;
 
   // Getters
   String get token => _token;
@@ -26,120 +21,47 @@ class AuthProvider with ChangeNotifier {
   AuthState get authState => _authState;
   String get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
-  bool get isAuthenticated =>
-      _token.isNotEmpty && _authState == AuthState.success;
-  bool get hasInitialized => _hasInitialized;
+  bool get isAuthenticated => _token.isNotEmpty;
 
   AuthProvider() {
-    _initializeAuth();
+    print('AuthProvider constructor called');
+    _loadToken();
   }
 
-  /// Initialize authentication on app startup with auto-login
-  Future<void> _initializeAuth() async {
-    print('AuthProvider: Starting initialization...');
-    _authState = AuthState.checking;
-    notifyListeners();
-
+  Future<void> _loadToken() async {
     try {
-      // Try to load stored token and user data
-      final token = await _authService.getToken();
-      final userData = await _authService.getUserData();
+      print('Loading token...');
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('token') ?? '';
+      print('Token loaded: ${_token.isNotEmpty ? 'exists' : 'empty'}');
 
-      print('AuthProvider: Token exists: ${token != null}');
-      print('AuthProvider: UserData exists: ${userData != null}');
-
-      if (token != null && userData != null) {
-        // Auto-login with stored credentials
-        _token = token;
-        _userData = userData;
-        _authState = AuthState.success;
-        print('AuthProvider: Auto-login successful');
-
-        // Validate token in background (don't block auto-login)
-        if (enableTokenValidation) {
-          _validateTokenInBackground();
-        } else {
-          print('AuthProvider: Token validation disabled for testing');
-        }
-      } else {
-        // No stored credentials
-        _token = '';
-        _userData = null;
-        _authState = AuthState.idle;
-        print('AuthProvider: No stored credentials found');
-      }
-    } catch (e) {
-      print('AuthProvider: Error during initialization: $e');
-      // Error during initialization - still try to use stored data if available
-      final token = await _authService.getToken();
-      final userData = await _authService.getUserData();
-
-      if (token != null && userData != null) {
-        _token = token;
-        _userData = userData;
-        _authState = AuthState.success;
-        print('AuthProvider: Fallback auto-login successful');
-      } else {
-        _token = '';
-        _userData = null;
-        _authState = AuthState.idle;
-        print('AuthProvider: Fallback - no credentials');
-      }
-    }
-
-    _hasInitialized = true;
-    print('AuthProvider: Initialization complete. State: $_authState');
-    notifyListeners();
-  }
-
-  /// Validate token in background without blocking auto-login
-  Future<void> _validateTokenInBackground() async {
-    print('AuthProvider: Starting background token validation...');
-    try {
-      final isValid = await _authService.validateToken();
-      print('AuthProvider: Token validation result: $isValid');
-
-      if (!isValid) {
-        // Only clear auth if we get a definitive invalid response (401)
-        // Don't clear on network errors
-        final token = await _authService.getToken();
-        if (token != null) {
+      // Load user data if token exists
+      if (_token.isNotEmpty) {
+        final userDataString = prefs.getString('user');
+        if (userDataString != null) {
           try {
-            final response = await http.get(
-              Uri.parse(ApiConstants.userPresence),
-              headers: ApiConstants.headers(token),
-            );
-
-            print(
-                'AuthProvider: Validation response status: ${response.statusCode}');
-
-            if (response.statusCode == 401) {
-              // Token definitely invalid, clear auth
-              print('AuthProvider: Token invalid (401), clearing auth data');
-              await _authService.clearAuthData();
-              _token = '';
-              _userData = null;
-              _authState = AuthState.idle;
-              notifyListeners();
-            } else {
-              print(
-                  'AuthProvider: Token validation inconclusive, keeping user logged in');
-            }
+            _userData = json.decode(userDataString);
+            print('User data loaded successfully');
           } catch (e) {
-            print(
-                'AuthProvider: Network error during validation, keeping user logged in: $e');
+            print('Error parsing user data: $e');
+            _userData = null;
           }
         }
-      } else {
-        print('AuthProvider: Token is valid');
       }
+
+      _authState = AuthState.idle;
+      notifyListeners();
+      print('Token loading completed');
     } catch (e) {
-      print(
-          'AuthProvider: Background validation error, keeping user logged in: $e');
+      print('Error loading token: $e');
+      _token = '';
+      _userData = null;
+      _authState = AuthState.error;
+      _errorMessage = 'Failed to load authentication data';
+      notifyListeners();
     }
   }
 
-  /// Login user with email and password
   Future<bool> login(String email, String password) async {
     // Validate input
     if (email.trim().isEmpty || password.isEmpty) {
@@ -181,7 +103,7 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Success - update state with new data
+      // Success
       _token = result['data']['access_token'];
       _userData = result['data']['user'];
       _authState = AuthState.success;
@@ -201,98 +123,48 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Logout user and clean up all authentication data
-  Future<bool> logout({bool clearCredentials = false}) async {
+  Future<bool> logout() async {
     _setLoading(true);
     notifyListeners();
 
     try {
-      // Call logout service to clean up both server and local storage
       await _authService.logout();
-
-      // Handle autofill cleanup
-      await GoogleAutofillService.handleLogout(
-        clearCredentials: clearCredentials,
-      );
-
-      // Clear local state
       _token = '';
       _userData = null;
       _authState = AuthState.idle;
       _errorMessage = '';
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('user');
+
       _setLoading(false);
       notifyListeners();
       return true;
     } catch (e) {
-      // Even if logout fails, clear local state
-      _token = '';
-      _userData = null;
-      _authState = AuthState.idle;
       _errorMessage = 'Gagal melakukan logout';
-
-      // Still try to cleanup autofill
-      try {
-        await GoogleAutofillService.handleLogout(
-          clearCredentials: clearCredentials,
-        );
-      } catch (autofillError) {
-        // Ignore autofill cleanup errors
-      }
-
       _setLoading(false);
       notifyListeners();
       return false;
     }
   }
 
-  /// Validate current token with server
-  Future<bool> validateCurrentToken() async {
-    if (_token.isEmpty) return false;
-
-    try {
-      final isValid = await _authService.validateToken();
-
-      if (!isValid) {
-        // Token invalid, clear authentication
-        await _authService.clearAuthData();
-        _token = '';
-        _userData = null;
-        _authState = AuthState.idle;
-        notifyListeners();
-      }
-
-      return isValid;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Refresh authentication state (re-validate token)
   Future<void> refreshAuth() async {
     _setLoading(true);
     notifyListeners();
 
-    try {
-      final isValid = await validateCurrentToken();
-
-      if (!isValid) {
-        _authState = AuthState.idle;
-        _errorMessage = 'Session expired. Please login again.';
-      }
-    } catch (e) {
-      _authState = AuthState.error;
-      _errorMessage = 'Failed to refresh authentication';
-    }
+    // Simulate refresh - in real app, you'd call an API to refresh token
+    await Future.delayed(const Duration(seconds: 1));
 
     _setLoading(false);
     notifyListeners();
   }
 
-  /// Force re-initialization (useful for testing or error recovery)
-  Future<void> reinitialize() async {
-    _hasInitialized = false;
-    await _initializeAuth();
+  Future<void> updateToken(String newToken) async {
+    _token = newToken;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', newToken);
+    notifyListeners();
   }
 
   void _setLoading(bool loading) {
@@ -301,9 +173,7 @@ class AuthProvider with ChangeNotifier {
 
   void clearError() {
     _errorMessage = '';
-    if (_authState == AuthState.error) {
-      _authState = AuthState.idle;
-    }
+    _authState = AuthState.idle;
     notifyListeners();
   }
 }

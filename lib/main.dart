@@ -210,7 +210,8 @@ class AuthWrapper extends StatelessWidget {
                       const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: () {
-                          authProvider.reinitialize();
+                          // Restart app by navigating to login
+                          Navigator.pushReplacementNamed(context, '/login');
                         },
                         child: const Text('Retry'),
                       ),

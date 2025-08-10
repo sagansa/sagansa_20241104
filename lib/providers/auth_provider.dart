@@ -102,14 +102,14 @@ class AuthProvider with ChangeNotifier {
         debugPrint('AuthProvider: Invalid response data');
         return false;
       }
+
       // Success
       _token = result['data']['access_token'];
       _userData = result['data']['user'];
       _authState = AuthState.success;
       _setLoading(false);
       notifyListeners();
-      debugPrint(
-          'AuthProvider: Login successful for user: ${_userData?['name']}');
+      debugPrint('AuthProvider: Login successful for user: ${_userData?['name']}');
       return true;
     } catch (e) {
       _authState = AuthState.error;
@@ -200,4 +200,7 @@ class AuthProvider with ChangeNotifier {
       }
     }
   }
+
+  /// Check if the provider has been initialized
+  bool get hasInitialized => _authState != AuthState.loading;
 }

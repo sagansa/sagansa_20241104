@@ -29,7 +29,7 @@ class ModernTextField extends StatefulWidget {
   final String? Function(String?)? validator;
 
   const ModernTextField({
-    Key? key,
+    super.key,
     required this.labelText,
     required this.controller,
     this.hintText,
@@ -55,7 +55,7 @@ class ModernTextField extends StatefulWidget {
     this.focusNode,
     this.readOnly = false,
     this.validator,
-  }) : super(key: key);
+  });
 
   @override
   State<ModernTextField> createState() => _ModernTextFieldState();
@@ -104,9 +104,7 @@ class _ModernTextFieldState extends State<ModernTextField> {
             errorText: widget.errorText,
             helperText: widget.helperText,
             filled: true,
-            fillColor: widget.enabled 
-                ? Colors.grey[50] 
-                : Colors.grey[100],
+            fillColor: widget.enabled ? Colors.grey[50] : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(

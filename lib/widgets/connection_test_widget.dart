@@ -4,7 +4,6 @@ import '../utils/constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ConnectionTestWidget extends StatefulWidget {
   const ConnectionTestWidget({super.key});
@@ -15,7 +14,7 @@ class ConnectionTestWidget extends StatefulWidget {
 
 class _ConnectionTestWidgetState extends State<ConnectionTestWidget> {
   bool _isTestingConnection = false;
-  List<String> _testResults = [];
+  final List<String> _testResults = [];
 
   Future<void> _runConnectionTest() async {
     setState(() {
@@ -147,7 +146,7 @@ class _ConnectionTestWidgetState extends State<ConnectionTestWidget> {
                 decoration: BoxDecoration(
                   color: Theme.of(context)
                       .colorScheme
-                      .surfaceVariant
+                      .surfaceContainerHighest
                       .withOpacity(0.3),
                   borderRadius: AppSpacing.borderRadiusSM,
                   border: Border.all(

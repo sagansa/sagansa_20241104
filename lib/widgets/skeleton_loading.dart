@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../theme/app_animations.dart';
 
 /// Skeleton loading widget for better UX during data loading
 class SkeletonLoading extends StatefulWidget {

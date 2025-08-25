@@ -301,7 +301,7 @@ class _ModernSpeedDialState extends State<ModernSpeedDial>
               ),
             ),
           );
-        }).toList(),
+        }),
         ModernFAB(
           onPressed: _toggle,
           icon: widget.activeIcon ?? widget.icon,

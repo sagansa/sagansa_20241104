@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/auth_service.dart';
@@ -87,7 +86,7 @@ class AuthProvider with ChangeNotifier {
         _errorMessage = result['message'] ?? 'Login gagal';
         _setLoading(false);
         notifyListeners();
-        debugPrint('AuthProvider: Login failed: ${_errorMessage}');
+        debugPrint('AuthProvider: Login failed: $_errorMessage');
         return false;
       }
 
@@ -109,7 +108,8 @@ class AuthProvider with ChangeNotifier {
       _authState = AuthState.success;
       _setLoading(false);
       notifyListeners();
-      debugPrint('AuthProvider: Login successful for user: ${_userData?['name']}');
+      debugPrint(
+          'AuthProvider: Login successful for user: ${_userData?['name']}');
       return true;
     } catch (e) {
       _authState = AuthState.error;
@@ -181,11 +181,11 @@ class AuthProvider with ChangeNotifier {
     if (kDebugMode) {
       debugPrint('AuthProvider: Reinitializing...');
     }
-    
+
     _authState = AuthState.loading;
     _errorMessage = '';
     notifyListeners();
-    
+
     try {
       await _loadToken();
       if (kDebugMode) {

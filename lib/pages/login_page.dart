@@ -8,7 +8,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -20,11 +20,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  
+
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -42,7 +42,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       parent: _fadeController,
       curve: Curves.easeInOut,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       parent: _slideController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _fadeController.forward();
     _slideController.forward();
   }
@@ -76,7 +76,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Future<void> _handleLogin() async {
     FocusScope.of(context).unfocus();
-    
+
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
       return;
@@ -90,7 +90,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.clearError();
-    
+
     try {
       final success = await authProvider.login(
         emailController.text.trim(),
@@ -104,7 +104,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
         if (success) {
           HapticFeedback.mediumImpact();
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Login berhasil!'),
@@ -116,7 +116,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ),
           );
-          
+
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/home');
@@ -145,7 +145,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
@@ -162,7 +162,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     SizedBox(height: MediaQuery.of(context).size.height * 0.1),
-                    
                     Center(
                       child: TweenAnimationBuilder<double>(
                         duration: const Duration(milliseconds: 1200),
@@ -174,7 +173,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               width: 100,
                               height: 100,
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.1),
+                                color:
+                                    theme.colorScheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(
@@ -188,7 +188,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       ),
                     ),
                     AppSpacing.gapVerticalLG,
-                    
                     Text(
                       'Sagansa App',
                       textAlign: TextAlign.center,
@@ -206,7 +205,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(height: 48),
-
                     ModernTextField(
                       labelText: 'Email',
                       hintText: 'Masukkan email Anda',
@@ -220,14 +218,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         if (value == null || value.isEmpty) {
                           return 'Email tidak boleh kosong';
                         }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
                           return 'Format email tidak valid';
                         }
                         return null;
                       },
                     ),
                     AppSpacing.gapVerticalMD,
-
                     ModernTextField(
                       labelText: 'Password',
                       hintText: 'Masukkan password Anda',
@@ -237,7 +235,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       prefixIcon: Icons.lock_outlined,
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         onPressed: _togglePasswordVisibility,
@@ -253,7 +253,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         return null;
                       },
                     ),
-                    
                     AppSpacing.gapVerticalMD,
                     Row(
                       children: [
@@ -278,7 +277,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Fitur lupa password akan segera hadir'),
+                                content: Text(
+                                    'Fitur lupa password akan segera hadir'),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -294,19 +294,19 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       ],
                     ),
                     AppSpacing.gapVerticalXL,
-
                     Consumer<AuthProvider>(
                       builder: (context, authProvider, child) {
                         return ModernButton(
                           text: 'Masuk',
-                          onPressed: (_isLoading || authProvider.isLoading) ? null : _handleLogin,
+                          onPressed: (_isLoading || authProvider.isLoading)
+                              ? null
+                              : _handleLogin,
                           isLoading: _isLoading || authProvider.isLoading,
                           icon: Icons.login,
                         );
                       },
                     ),
                     AppSpacing.gapVerticalMD,
-
                     Consumer<AuthProvider>(
                       builder: (context, authProvider, child) {
                         if (authProvider.authState == AuthState.error) {
@@ -322,7 +322,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                     color: theme.colorScheme.errorContainer,
                                     borderRadius: AppSpacing.borderRadiusSM,
                                     border: Border.all(
-                                      color: theme.colorScheme.error.withOpacity(0.3),
+                                      color: theme.colorScheme.error
+                                          .withOpacity(0.3),
                                     ),
                                   ),
                                   child: Row(
@@ -336,8 +337,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       Expanded(
                                         child: Text(
                                           authProvider.errorMessage,
-                                          style: AppTypography.bodyMedium.copyWith(
-                                            color: theme.colorScheme.onErrorContainer,
+                                          style:
+                                              AppTypography.bodyMedium.copyWith(
+                                            color: theme
+                                                .colorScheme.onErrorContainer,
                                           ),
                                         ),
                                       ),
@@ -347,7 +350,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           size: 18,
                                           color: theme.colorScheme.error,
                                         ),
-                                        onPressed: () => authProvider.clearError(),
+                                        onPressed: () =>
+                                            authProvider.clearError(),
                                       ),
                                     ],
                                   ),
@@ -359,7 +363,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         return const SizedBox.shrink();
                       },
                     ),
-                    
                     SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                   ],
                 ),

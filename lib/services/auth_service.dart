@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,14 +9,16 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.login),
-        headers: ApiConstants.headers(null),
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse(ApiConstants.login),
+            headers: ApiConstants.headers(null),
+            body: json.encode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       final responseData = json.decode(response.body);
 
@@ -28,7 +29,7 @@ class AuthService {
 
           if (token != null && userData != null) {
             await _storeAuthData(token, userData);
-            
+
             return {
               'status': 'success',
               'data': responseData['data'],
@@ -37,10 +38,7 @@ class AuthService {
           }
         }
 
-        return {
-          'status': 'error',
-          'message': 'Data login tidak valid'
-        };
+        return {'status': 'error', 'message': 'Data login tidak valid'};
       } else {
         return {
           'status': 'error',
@@ -48,14 +46,12 @@ class AuthService {
         };
       }
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Terjadi kesalahan saat login'
-      };
+      return {'status': 'error', 'message': 'Terjadi kesalahan saat login'};
     }
   }
 
-  Future<void> _storeAuthData(String token, Map<String, dynamic> userData) async {
+  Future<void> _storeAuthData(
+      String token, Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(tokenKey, token);
     await prefs.setString(userKey, json.encode(userData));

@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import '../services/presence_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class PresenceStatusCard extends StatelessWidget {
   const PresenceStatusCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Cek apakah sudah lewat jam 6 pagi hari ini
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final now = DateTime.now();
     final sixAM = DateTime(now.year, now.month, now.day, 6, 0);
     final isAfterSixAM = now.isAfter(sixAM);
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: AppSpacing.paddingMD,
         child: FutureBuilder<Map<String, dynamic>>(
           future: PresenceService.getUserPresence(),
           builder: (context, snapshot) {
@@ -22,64 +26,77 @@ class PresenceStatusCard extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return const Center(
+              return Center(
                 child: Text(
                   'Gagal memuat status presensi',
-                  style: TextStyle(color: Colors.red),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.error,
+                  ),
                 ),
               );
             }
 
             if (!snapshot.hasData || snapshot.data == null) {
-              return const Center(child: Text('Tidak ada data presensi'));
+              return Center(
+                child: Text(
+                  'Tidak ada data presensi',
+                  style: textTheme.bodyMedium,
+                ),
+              );
             }
 
             final today = snapshot.data!['today'];
             final hasCheckIn = today != null && today['check_in'] != null;
 
-            // Jika belum jam 6 pagi dan tidak ada check-in, tampilkan pesan khusus
             if (!isAfterSixAM && !hasCheckIn) {
-              return const Center(
+              return Center(
                 child: Text(
                   'Status presensi akan tersedia mulai jam 06:00',
+                  style: textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               );
             }
 
-            // Jika sudah lewat jam 6 pagi dan belum ada presensi
             if (isAfterSixAM && !hasCheckIn) {
-              return const Center(
+              return Center(
                 child: Text(
                   'Belum ada presensi untuk hari ini',
+                  style: textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               );
             }
 
-            // Tampilkan status presensi jika sudah ada data
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Status Presensi Hari Ini',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildStatusRow('Check In', today['check_in'] ?? '-',
-                    today['check_in_status']),
-                const SizedBox(height: 8),
-                _buildStatusRow('Check Out', today['check_out'] ?? '-',
-                    today['check_out_status']),
+                AppSpacing.gapVerticalMD,
+                _buildStatusRow(
+                  context,
+                  'Check In',
+                  today['check_in'] ?? '-',
+                  today['check_in_status'],
+                ),
+                AppSpacing.gapVerticalSM,
+                _buildStatusRow(
+                  context,
+                  'Check Out',
+                  today['check_out'] ?? '-',
+                  today['check_out_status'],
+                ),
                 if (today['late_minutes'] != null) ...[
-                  const SizedBox(height: 8),
+                  AppSpacing.gapVerticalSM,
                   Text(
                     'Keterlambatan: ${today['late_minutes'].toString()} menit',
-                    style: const TextStyle(
-                      color: Colors.red,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.error,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -92,34 +109,42 @@ class PresenceStatusCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusRow(String label, String time, String? status) {
-    Color statusColor = Colors.grey;
+  Widget _buildStatusRow(
+    BuildContext context,
+    String label,
+    String time,
+    String? status,
+  ) {
+    final textTheme = Theme.of(context).textTheme;
+    Color statusColor;
     if (status == 'tepat_waktu') {
-      statusColor = Colors.green;
+      statusColor = AppColors.success;
     } else if (status == 'terlambat') {
-      statusColor = Colors.red;
+      statusColor = AppColors.error;
+    } else {
+      statusColor = AppColors.info;
     }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label),
+        Text(label, style: textTheme.bodyMedium),
         Row(
           children: [
-            Text(time),
+            Text(time, style: textTheme.bodyMedium),
             if (status != null) ...[
-              const SizedBox(width: 8),
+              AppSpacing.gapHorizontalSM,
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppSpacing.borderRadiusMD,
                 ),
                 child: Text(
                   status.replaceAll('_', ' ').toUpperCase(),
-                  style: TextStyle(
+                  style: textTheme.labelSmall?.copyWith(
                     color: statusColor,
-                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

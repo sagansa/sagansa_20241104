@@ -31,23 +31,13 @@ class ModernTextFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mengandalkan InputDecorationTheme dari ThemeProvider agar input
+    // selalu mengikuti tema aktif (light/dark) secara konsisten.
     return TextFormField(
       controller: controller,
+      style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: labelText,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.black),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
         suffixIcon: suffixIcon,
       ),
       keyboardType: keyboardType,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class ThemeToggleButton extends StatelessWidget {
@@ -35,83 +34,90 @@ class ThemeToggleButton extends StatelessWidget {
           onSelected: (ThemeMode mode) {
             themeProvider.setThemeMode(mode);
           },
-          itemBuilder: (BuildContext context) => [
-            PopupMenuItem<ThemeMode>(
-              value: ThemeMode.light,
-              child: Row(
-                children: [
-                  Icon(
-                    lightIcon,
-                    color: themeProvider.themeMode == ThemeMode.light
-                        ? AppColors.primary
-                        : Theme.of(context).iconTheme.color,
-                  ),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Light',
-                    style: TextStyle(
+          itemBuilder: (BuildContext context) {
+            final activeColor = Theme.of(context).colorScheme.primary;
+            final inactiveColor = Theme.of(context).iconTheme.color;
+            final defaultTextColor =
+                Theme.of(context).textTheme.bodyMedium?.color;
+
+            return [
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.light,
+                child: Row(
+                  children: [
+                    Icon(
+                      lightIcon,
                       color: themeProvider.themeMode == ThemeMode.light
-                          ? AppColors.primary
-                          : Theme.of(context).textTheme.bodyMedium?.color,
-                      fontWeight: themeProvider.themeMode == ThemeMode.light
-                          ? FontWeight.w600
-                          : FontWeight.w400,
+                          ? activeColor
+                          : inactiveColor,
                     ),
-                  ),
-                ],
+                    AppSpacing.gapHorizontalSM,
+                    Text(
+                      'Light',
+                      style: TextStyle(
+                        color: themeProvider.themeMode == ThemeMode.light
+                            ? activeColor
+                            : defaultTextColor,
+                        fontWeight: themeProvider.themeMode == ThemeMode.light
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem<ThemeMode>(
-              value: ThemeMode.dark,
-              child: Row(
-                children: [
-                  Icon(
-                    darkIcon,
-                    color: themeProvider.themeMode == ThemeMode.dark
-                        ? AppColors.primary
-                        : Theme.of(context).iconTheme.color,
-                  ),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Dark',
-                    style: TextStyle(
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.dark,
+                child: Row(
+                  children: [
+                    Icon(
+                      darkIcon,
                       color: themeProvider.themeMode == ThemeMode.dark
-                          ? AppColors.primary
-                          : Theme.of(context).textTheme.bodyMedium?.color,
-                      fontWeight: themeProvider.themeMode == ThemeMode.dark
-                          ? FontWeight.w600
-                          : FontWeight.w400,
+                          ? activeColor
+                          : inactiveColor,
                     ),
-                  ),
-                ],
+                    AppSpacing.gapHorizontalSM,
+                    Text(
+                      'Dark',
+                      style: TextStyle(
+                        color: themeProvider.themeMode == ThemeMode.dark
+                            ? activeColor
+                            : defaultTextColor,
+                        fontWeight: themeProvider.themeMode == ThemeMode.dark
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem<ThemeMode>(
-              value: ThemeMode.system,
-              child: Row(
-                children: [
-                  Icon(
-                    systemIcon,
-                    color: themeProvider.themeMode == ThemeMode.system
-                        ? AppColors.primary
-                        : Theme.of(context).iconTheme.color,
-                  ),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'System',
-                    style: TextStyle(
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.system,
+                child: Row(
+                  children: [
+                    Icon(
+                      systemIcon,
                       color: themeProvider.themeMode == ThemeMode.system
-                          ? AppColors.primary
-                          : Theme.of(context).textTheme.bodyMedium?.color,
-                      fontWeight: themeProvider.themeMode == ThemeMode.system
-                          ? FontWeight.w600
-                          : FontWeight.w400,
+                          ? activeColor
+                          : inactiveColor,
                     ),
-                  ),
-                ],
+                    AppSpacing.gapHorizontalSM,
+                    Text(
+                      'System',
+                      style: TextStyle(
+                        color: themeProvider.themeMode == ThemeMode.system
+                            ? activeColor
+                            : defaultTextColor,
+                        fontWeight: themeProvider.themeMode == ThemeMode.system
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ];
+          },
         );
       },
     );
@@ -148,9 +154,18 @@ class ThemeToggleSwitch extends StatelessWidget {
               value ? ThemeMode.dark : ThemeMode.light,
             );
           },
-          activeThumbColor: AppColors.primary,
-          inactiveThumbColor: AppColors.onSurfaceVariant,
-          inactiveTrackColor: AppColors.surfaceVariant,
+          // Gunakan WidgetStateProperty karena activeThumbColor,
+          // inactiveThumbColor, dan inactiveTrackColor sudah deprecated.
+          thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+            return states.contains(WidgetState.selected)
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant;
+          }),
+          trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+            return states.contains(WidgetState.selected)
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                : Theme.of(context).colorScheme.surfaceContainerHighest;
+          }),
         );
       },
     );

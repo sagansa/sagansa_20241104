@@ -38,6 +38,8 @@ class DetectionDatabase {
 
   /// Membuat tabel saat database pertama kali dibuat
   Future<void> _onCreate(Database db, int version) async {
+    // SQLite tidak mendukung INDEX() di dalam CREATE TABLE (itu sintaks MySQL).
+    // Index harus dibuat secara terpisah menggunakan CREATE INDEX.
     await db.execute('''
       CREATE TABLE $_tableName (
         id TEXT PRIMARY KEY,
@@ -48,12 +50,20 @@ class DetectionDatabase {
         device_info TEXT NOT NULL,
         detection_details TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        synced_at INTEGER,
-        INDEX(user_id),
-        INDEX(timestamp),
-        INDEX(synced_at)
+        synced_at INTEGER
       )
     ''');
+
+    // Buat index untuk mempercepat query umum
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_${_tableName}_user_id ON $_tableName (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_${_tableName}_timestamp ON $_tableName (timestamp)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_${_tableName}_synced_at ON $_tableName (synced_at)',
+    );
   }
 
   /// Upgrade database jika diperlukan
@@ -234,22 +244,33 @@ class DetectionDatabase {
     );
     final totalLogs = Sqflite.firstIntValue(totalResult) ?? 0;
 
-    // Valid logs
-    final validResult = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM $_tableName WHERE $whereClause AND validation_result LIKE ?',
-      [...whereArgs, '%"isValid":true%'],
-    );
-    final validLogs = Sqflite.firstIntValue(validResult) ?? 0;
-
-    // Invalid logs
-    final invalidLogs = totalLogs - validLogs;
-
-    // Average risk score
-    final avgRiskResult = await db.rawQuery(
-      'SELECT AVG(CAST(SUBSTR(validation_result, INSTR(validation_result, \'"riskScore":\')+12, 4) AS REAL)) as avg_risk FROM $_tableName WHERE $whereClause',
+    // Menghitung valid/invalid dan rata-rata risk score dengan parsing JSON
+    // di Dart (lebih andal dibanding SUBSTR/INSTR di SQL yang rapuh terhadap
+    // format JSON, spasi, atau urutan key yang berbeda).
+    final rows = await db.rawQuery(
+      'SELECT validation_result FROM $_tableName WHERE $whereClause',
       whereArgs,
     );
-    final avgRiskScore = avgRiskResult.first['avg_risk'] as double? ?? 0.0;
+
+    int validLogs = 0;
+    double totalRisk = 0.0;
+    int parsedCount = 0;
+
+    for (final row in rows) {
+      try {
+        final result = JsonUtils.deserializeValidationResult(
+          row['validation_result'] as String,
+        );
+        if (result.isValid) validLogs++;
+        totalRisk += result.riskScore;
+        parsedCount++;
+      } catch (_) {
+        // Abaikan baris yang gagal diparse agar statistik tetap dapat dihitung
+      }
+    }
+
+    final int invalidLogs = totalLogs - validLogs;
+    final double avgRiskScore = parsedCount > 0 ? totalRisk / parsedCount : 0.0;
 
     return {
       'totalLogs': totalLogs,

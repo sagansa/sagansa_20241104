@@ -21,19 +21,6 @@ class ModernDateField extends StatelessWidget {
     this.enabled = true,
   });
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: value ?? DateTime.now(),
-      firstDate: firstDate ?? DateTime.now(),
-      lastDate: lastDate ?? DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (picked != null) {
-      onChanged(picked);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -43,20 +30,7 @@ class ModernDateField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: labelText,
         prefixIcon: const Icon(Icons.calendar_today),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.black),
-        ),
         errorText: errorText,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
       ),
       readOnly: true,
       enabled: enabled,

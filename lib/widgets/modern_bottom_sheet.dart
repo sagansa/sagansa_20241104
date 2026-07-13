@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_spacing.dart';
 
 class ModernBottomSheet extends StatelessWidget {
   final String? title;
@@ -23,11 +24,13 @@ class ModernBottomSheet extends StatelessWidget {
     bool isDismissible = true,
     Color? backgroundColor,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return showModalBottomSheet<T>(
       context: context,
       isDismissible: isDismissible,
       isScrollControlled: true,
-      backgroundColor: backgroundColor ?? Colors.white,
+      backgroundColor:
+          backgroundColor ?? colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -44,41 +47,41 @@ class ModernBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag indicator
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: colorScheme.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: Padding(
+        padding: padding ?? AppSpacing.paddingMD,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: AppSpacing.borderRadiusXS,
+                ),
               ),
             ),
-          ),
-          if (title != null) ...[
-            Text(
-              title!,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            if (title != null) ...[
+              Text(
+                title!,
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              AppSpacing.gapVerticalMD,
+            ],
+            child,
           ],
-          child,
-        ],
+        ),
       ),
     );
   }

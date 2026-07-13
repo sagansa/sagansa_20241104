@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		ExportOptions.plist — konfigurasi signing untuk `flutter build ipa` /
+		`xcodebuild -exportArchive`. File ini dipakai saat export archive ke .ipa
+		yang siap upload ke App Store Connect.
+
+		--- CARA PAKAI ---
+
+		1. Ganti placeholder di bawah dengan nilai asli Anda:
+		   - TEAM_ID        → Team ID akun Apple Developer Anda (10 karakter,
+		                      contoh: A1B2C3D4E5). Cek di
+		                      https://developer.apple.com/account -> Membership.
+		   - PROVISIONING_PROFILE_UUID → UUID App Store provisioning profile
+		                      untuk bundle id.sagansa.app. Didapat dari
+		                      https://developer.apple.com/account/resources/profiles
+		                      atau Xcode -> Settings -> Accounts -> Download Manual Profile.
+
+		2. Alternatif lebih mudah: pakai automatic signing lewat Xcode
+		   (Runner -> Signing & Capabilities -> centang "Automatically manage
+		   signing" -> pilih Team). Xcode akan buat profile otomatis, dan Anda
+		   bisa skip file ini (archive langsung dari Xcode Organizer).
+
+		3. Untuk build via command line setelah profile manual tersedia:
+		     flutter build ipa --export-options-plat ios/ExportOptions.plist
+		   atau
+		     flutter build ipa --export-options-plat=ios/ExportOptions.plist
+
+		Method "app-store" = untuk upload ke App Store Connect / TestFlight.
+		Method "ad-hoc" / "development" = untuk testing terbatas (ganti nilai di bawah).
+	-->
+	<key>method</key>
+	<string>app-store</string>
+	<key>teamID</key>
+	<string>TEAM_ID</string>
+	<key>uploadBitcode</key>
+	<false/>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>compileBitcode</key>
+	<false/>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>id.sagansa.app</key>
+		<string>PROVISIONING_PROFILE_UUID</string>
+	</dict>
+</dict>
+</plist>

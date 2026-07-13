@@ -21,12 +21,6 @@ class ModernDropdown<T> extends StatelessWidget {
     return DropdownButtonFormField<T>(
       initialValue: value,
       hint: Text(hint),
-      decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
       items: items.map((item) {
         return DropdownMenuItem(
           value: item,

@@ -1,37 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import '../utils/image_utils.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 import 'dart:typed_data';
 import 'dart:io';
-import '../utils/themes.dart';
 import '../services/presence_service.dart';
+import '../services/thermal_printer_service.dart';
+import '../providers/printer_provider.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class DeliveryPage extends StatefulWidget {
-  const DeliveryPage({super.key});
+  final String orderFor;
+  const DeliveryPage({super.key, this.orderFor = '3'});
 
   @override
   State<DeliveryPage> createState() => _DeliveryPageState();
 }
 
 class _DeliveryPageState extends State<DeliveryPage> {
-  // Theme Colors (Matte Black & Gold referenced from AppTheme)
-  static const Color primaryDark = AppTheme.primaryDark;
-  static const Color cardDark = AppTheme.cardDark;
-  static const Color goldAccent = AppTheme.goldAccent;
-  static const Color textLight = AppTheme.textLight;
-  static const Color textMuted = AppTheme.textMuted;
+  ColorScheme get colorScheme => Theme.of(context).colorScheme;
+  TextTheme get textTheme => Theme.of(context).textTheme;
 
   final TextEditingController _receiptController = TextEditingController();
   final TextEditingController _receiverController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  int _selectedStatus = 3; // 3 = Sudah dikirim, 6 = Dikembalikan
 
   bool _isLoadingSearch = false;
   bool _isLoadingSubmit = false;
   bool _isLoadingReadyToShip = false;
   bool _isPrintingPaymentProof = false;
+  bool _isPrintingSticker = false;
   bool _isLoadingList = false;
 
   Map<String, dynamic>? _selectedOrder;
@@ -54,6 +60,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     _scrollController.dispose();
     _receiptController.dispose();
     _receiverController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -74,7 +81,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.getSalesOrders(page: 1, perPage: 10);
+      final result = await PresenceService.getSalesOrders(page: 1, perPage: 10, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true) {
         final List<dynamic> fetchedOrders = result['data'] ?? [];
@@ -91,7 +98,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat list order: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -113,7 +120,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       final result =
-          await PresenceService.getSalesOrders(page: nextPage, perPage: 10);
+          await PresenceService.getSalesOrders(page: nextPage, perPage: 10, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true) {
         final List<dynamic> fetchedOrders = result['data'] ?? [];
@@ -131,7 +138,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat data lanjutan: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -147,9 +154,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
     final receiptNo = _receiptController.text.trim();
     if (receiptNo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan masukkan nomor resi terlebih dahulu.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Silakan masukkan nomor resi terlebih dahulu.'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -162,20 +169,25 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.searchSalesOrder(receiptNo);
+      final result = await PresenceService.searchSalesOrder(receiptNo, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true && result['data'] != null) {
         setState(() {
           _selectedOrder = result['data'];
+          _imageFile = null;
+          _receiverController.clear();
+          _notesController.clear();
           if (_selectedOrder?['received_by'] != null) {
             _receiverController.text = _selectedOrder!['received_by'];
           }
+          final currentStatus = _selectedOrder?['delivery_status'] ?? 3;
+          _selectedStatus = (currentStatus == 6) ? 6 : 3;
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Order tidak ditemukan.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -184,7 +196,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -200,21 +212,25 @@ class _DeliveryPageState extends State<DeliveryPage> {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 50,
+        imageQuality: 75,
+        maxWidth: 1024,
       );
 
       if (!mounted) return;
       if (photo != null) {
-        setState(() {
-          _imageFile = File(photo.path);
-        });
+        final compressed = await ImageUtils.compressToWebP(photo.path);
+        if (mounted) {
+          setState(() {
+            _imageFile = compressed;
+          });
+        }
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal mengambil foto: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -226,9 +242,21 @@ class _DeliveryPageState extends State<DeliveryPage> {
     final receiptNo = _selectedOrder!['receipt_no'];
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap ambil foto bukti pengiriman terlebih dahulu.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: Text(_selectedStatus == 6
+              ? 'Harap ambil foto bukti retur/barang kembali terlebih dahulu.'
+              : 'Harap ambil foto bukti pengiriman terlebih dahulu.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedStatus == 6 && _notesController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Harap isi alasan barang dikembalikan pada catatan.'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -242,7 +270,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
       final result = await PresenceService.updateDeliveryStatus(
         receiptNo: receiptNo,
         imageFile: _imageFile!,
-        receivedBy: _receiverController.text.trim(),
+        receivedBy: _selectedStatus == 6 ? null : _receiverController.text.trim(),
+        deliveryStatus: _selectedStatus,
+        notes: _selectedStatus == 6 ? _notesController.text.trim() : null,
       );
 
       if (!mounted) return;
@@ -251,7 +281,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
           SnackBar(
             content: Text(
                 result['message'] ?? 'Status pengiriman berhasil diperbarui.'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         setState(() {
@@ -259,13 +289,15 @@ class _DeliveryPageState extends State<DeliveryPage> {
           _imageFile = null;
           _receiptController.clear();
           _receiverController.clear();
+          _notesController.clear();
+          _selectedStatus = 3; // Reset to default
         });
         _loadInitialOrders();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Gagal memperbarui pengiriman.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -274,7 +306,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -289,12 +321,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Future<void> _markReadyToShip() async {
     if (_selectedOrder == null) return;
 
-    final receiptNo = _selectedOrder!['receipt_no'];
-    if (receiptNo == null || receiptNo.toString().trim().isEmpty) {
+    final orderId = int.tryParse(_selectedOrder!['id'].toString());
+    if (orderId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nomor resi tidak tersedia.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('ID order tidak tersedia.'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -306,7 +338,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       final result = await PresenceService.markReadyToShip(
-        receiptNo: receiptNo.toString(),
+        orderId: orderId,
+        orderFor: widget.orderFor,
       );
 
       if (!mounted) return;
@@ -315,7 +348,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
           SnackBar(
             content: Text(
                 result['message'] ?? 'Order berhasil ditandai siap dikirim.'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
 
@@ -331,7 +364,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
           SnackBar(
             content: Text(result['message'] ??
                 'Gagal mengubah status menjadi siap dikirim.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -340,7 +373,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -353,9 +386,78 @@ class _DeliveryPageState extends State<DeliveryPage> {
   }
 
   bool _canPrintPaymentProof(Map<String, dynamic> order) {
-    return order['delivery_status'] == 1 &&
-        order['image_payment_url'] != null &&
+    return order['delivery_status'] == 1 && _hasPaymentProof(order);
+  }
+
+  bool _hasPaymentProof(Map<String, dynamic> order) {
+    return order['image_payment_url'] != null &&
         order['image_payment_url'].toString().trim().isNotEmpty;
+  }
+
+  bool _isPaymentProofPrinted(Map<String, dynamic> order) {
+    return order['payment_proof_printed_at'] != null &&
+        order['payment_proof_printed_at'].toString().trim().isNotEmpty;
+  }
+
+  bool _isUnprintedPaymentProof(Map<String, dynamic> order) {
+    return _canPrintPaymentProof(order) && !_isPaymentProofPrinted(order);
+  }
+
+  String _getPaymentProofPrintStatusText(Map<String, dynamic> order) {
+    if (!_hasPaymentProof(order)) {
+      return 'Bukti bayar belum ada';
+    }
+
+    return _isPaymentProofPrinted(order)
+        ? 'Bukti bayar sudah diprint'
+        : 'Bukti bayar belum diprint';
+  }
+
+  String _getPaymentStatusText(dynamic status) {
+    switch (status?.toString()) {
+      case '1':
+        return 'Belum Diperiksa';
+      case '2':
+        return 'Valid / Sudah Dibayar';
+      case '3':
+        return 'Tidak Valid';
+      case '4':
+        return 'Menunggu Pembayaran';
+      default:
+        return '-';
+    }
+  }
+
+  Color _getPaymentStatusColor(dynamic status) {
+    switch (status?.toString()) {
+      case '1':
+        return AppColors.warning;
+      case '2':
+        return AppColors.success;
+      case '3':
+        return AppColors.error;
+      case '4':
+        return AppColors.info;
+      default:
+        return AppColors.onSurfaceVariant;
+    }
+  }
+
+  Color _getPaymentProofPrintStatusColor(Map<String, dynamic> order) {
+    if (!_hasPaymentProof(order)) {
+      return AppColors.onSurfaceVariant;
+    }
+
+    return _isPaymentProofPrinted(order) ? AppColors.success : colorScheme.primary;
+  }
+
+  int _getPaymentProofPrintCount(Map<String, dynamic> order) {
+    final count = order['payment_proof_print_count'];
+    if (count is int) {
+      return count;
+    }
+
+    return int.tryParse(count?.toString() ?? '') ?? 0;
   }
 
   Future<Uint8List> _downloadImageBytes(String imageUrl) async {
@@ -373,10 +475,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     if (printableOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+        SnackBar(
+          content: const Text(
               'Tidak ada bukti pembayaran status belum dikirim untuk diprint.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -388,92 +490,169 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       final document = pw.Document();
+      final printedOrderIds = <int>[];
+      final failedReceipts = <String>[];
 
       for (final order in printableOrders) {
-        final imageBytes =
-            await _downloadImageBytes(order['image_payment_url'].toString());
-        final image = pw.MemoryImage(imageBytes);
+        try {
+          final imageBytes =
+              await _downloadImageBytes(order['image_payment_url'].toString());
+          final image = pw.MemoryImage(imageBytes);
 
-        document.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(24),
-            build: (context) {
-              return pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              'Bukti Pembayaran Online',
-                              style: pw.TextStyle(
-                                fontSize: 18,
-                                fontWeight: pw.FontWeight.bold,
+          document.addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat.a4,
+              margin: const pw.EdgeInsets.all(24),
+              build: (context) {
+                return pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                widget.orderFor == '3'
+                                    ? 'Bukti Pembayaran Online'
+                                    : 'Bukti Pembayaran Direct',
+                                style: pw.TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            pw.SizedBox(height: 8),
-                            pw.Text('Resi: ${order['receipt_no'] ?? '-'}'),
-                            pw.Text('Toko: ${order['store_name'] ?? '-'}'),
-                            pw.Text(
-                                'Provider: ${order['provider_name'] ?? '-'}'),
-                            pw.Text(
-                                'Jasa Kirim: ${order['delivery_service_name'] ?? '-'}'),
-                            pw.Text(
-                                'Tanggal Kirim: ${order['delivery_date'] ?? '-'}'),
-                          ],
-                        ),
-                      ),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.orange50,
-                          borderRadius: pw.BorderRadius.circular(20),
-                        ),
-                        child: pw.Text(
-                          'Belum Dikirim',
-                          style: pw.TextStyle(
-                            color: PdfColors.orange800,
-                            fontWeight: pw.FontWeight.bold,
+                              pw.SizedBox(height: 8),
+                              pw.Text('Resi: ${order['receipt_no'] ?? '-'}'),
+                              pw.Text('Toko: ${order['store_name'] ?? '-'}'),
+                              if (widget.orderFor == '3')
+                                pw.Text(
+                                    'Provider: ${order['provider_name'] ?? '-'}')
+                              else ...[
+                                pw.Text(
+                                    'Metode Bayar: ${order['payment_method'] ?? '-'}'),
+                                if (order['bank_name'] != null)
+                                  pw.Text(
+                                      'Rekening: ${order['bank_name']} - ${order['bank_account_number']}'),
+                              ],
+                              pw.Text(
+                                  'Jasa Kirim: ${order['delivery_service_name'] ?? '-'}'),
+                              pw.Text(
+                                  'Tanggal Kirim: ${order['delivery_date'] ?? '-'}'),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 16),
-                  pw.Expanded(
-                    child: pw.Container(
-                      width: double.infinity,
-                      alignment: pw.Alignment.center,
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: PdfColors.grey300),
-                      ),
-                      child: pw.Image(image, fit: pw.BoxFit.contain),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.orange50,
+                            borderRadius: pw.BorderRadius.circular(20),
+                          ),
+                          child: pw.Text(
+                            'Belum Dikirim',
+                            style: pw.TextStyle(
+                              color: PdfColors.orange800,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              );
-            },
+                    pw.SizedBox(height: 16),
+                    pw.Expanded(
+                      child: pw.Container(
+                        width: double.infinity,
+                        alignment: pw.Alignment.center,
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(color: PdfColors.grey300),
+                        ),
+                        child: pw.Image(image, fit: pw.BoxFit.contain),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+
+          final id = int.tryParse(order['id'].toString());
+          if (id != null) {
+            printedOrderIds.add(id);
+          }
+        } catch (_) {
+          failedReceipts.add(order['receipt_no']?.toString() ?? '-');
+        }
+      }
+
+      if (printedOrderIds.isEmpty) {
+        throw Exception('Semua gambar bukti pembayaran gagal dimuat.');
+      }
+
+      final printCompleted = await Printing.layoutPdf(
+        name: widget.orderFor == '3'
+            ? 'bukti-pembayaran-online.pdf'
+            : 'bukti-pembayaran-direct.pdf',
+        onLayout: (_) async => document.save(),
+      );
+
+      if (printCompleted && printedOrderIds.isNotEmpty) {
+        await PresenceService.markPaymentProofsPrinted(
+          orderIds: printedOrderIds,
+        );
+
+        if (!mounted) return;
+        final printedAt = DateTime.now().toIso8601String();
+        setState(() {
+          _orders = _orders.map((order) {
+            final orderId = int.tryParse(order['id'].toString());
+            if (orderId != null && printedOrderIds.contains(orderId)) {
+              final updatedOrder = Map<String, dynamic>.from(order);
+              updatedOrder['payment_proof_printed_at'] = printedAt;
+              updatedOrder['payment_proof_print_status'] = 'printed';
+              updatedOrder['payment_proof_print_status_label'] =
+                  'Sudah pernah diprint';
+              updatedOrder['payment_proof_print_count'] =
+                  _getPaymentProofPrintCount(updatedOrder) + 1;
+              return updatedOrder;
+            }
+            return order;
+          }).toList();
+
+          if (_selectedOrder != null) {
+            final selectedId = int.tryParse(_selectedOrder!['id'].toString());
+            if (selectedId != null && printedOrderIds.contains(selectedId)) {
+              _selectedOrder = {
+                ..._selectedOrder!,
+                'payment_proof_printed_at': printedAt,
+                'payment_proof_print_status': 'printed',
+                'payment_proof_print_status_label': 'Sudah pernah diprint',
+                'payment_proof_print_count':
+                    _getPaymentProofPrintCount(_selectedOrder!) + 1,
+              };
+            }
+          }
+        });
+
+        final failedMessage = failedReceipts.isEmpty
+            ? ''
+            : ' ${failedReceipts.length} gambar gagal dimuat.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Status print ${printedOrderIds.length} bukti pembayaran diperbarui.$failedMessage'),
+            backgroundColor: AppColors.success,
           ),
         );
       }
-
-      await Printing.layoutPdf(
-        name: 'bukti-pembayaran-online.pdf',
-        onLayout: (_) async => document.save(),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -485,6 +664,63 @@ class _DeliveryPageState extends State<DeliveryPage> {
     }
   }
 
+  Future<void> _printSticker(Map<String, dynamic> order) async {
+    final provider = context.read<PrinterProvider>();
+    final service = ThermalPrinterService.instance;
+
+    setState(() => _isPrintingSticker = true);
+
+    try {
+      final data = StickerData.fromOrderMap(order);
+      bool ok;
+      String message;
+
+      if (provider.isEnabled) {
+        ok = await service.printStickerViaWifi(
+          data: data,
+          ip: provider.ip,
+          port: provider.port,
+          copies: provider.copies,
+        );
+        message = ok
+            ? 'Stiker dicetak via WiFi (${provider.formattedEndpoint}, '
+                '${provider.copies}x).'
+            : 'Gagal mencetak stiker via WiFi.';
+      } else {
+        ok = await service.printStickerViaSpooler(
+          data: data,
+          widthMm: provider.widthMm,
+          heightMm: provider.heightMm,
+          fontSize: provider.fontSize,
+          docName: 'resi-stiker-${order['receipt_no'] ?? ''}',
+        );
+        message = ok
+            ? 'Stiker dikirim ke spooler (${provider.formattedSize}).'
+            : 'Gagal mencetak stiker.';
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: ok ? AppColors.success : AppColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPrintingSticker = false);
+      }
+    }
+  }
+
   Future<void> _printAllPendingPaymentProofs() async {
     final List<Map<String, dynamic>> allOrders = [];
     var page = 1;
@@ -492,8 +728,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       do {
-        final result =
-            await PresenceService.getSalesOrders(page: page, perPage: 100);
+        final result = await PresenceService.getSalesOrders(
+          page: page,
+          perPage: 100,
+          deliveryStatus: 1,
+          hasPaymentProof: true,
+          paymentProofPrinted: false,
+          orderFor: widget.orderFor,
+        );
         if (result['success'] != true) {
           throw Exception(
               result['message'] ?? 'Gagal memuat daftar pengiriman.');
@@ -509,13 +751,15 @@ class _DeliveryPageState extends State<DeliveryPage> {
         page += 1;
       } while (page <= lastPage);
 
-      await _printPaymentProofs(allOrders);
+      await _printPaymentProofs(
+        allOrders.where(_isUnprintedPaymentProof).toList(),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -543,17 +787,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Color _getDeliveryStatusColor(int? status) {
     switch (status) {
       case 2:
-        return Colors.green;
+        return AppColors.success;
       case 3:
-        return goldAccent;
+        return colorScheme.primary;
       case 1:
       case 4:
-        return Colors.orangeAccent;
+        return AppColors.warning;
       case 5:
       case 6:
-        return Colors.redAccent;
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.onSurfaceVariant;
     }
   }
 
@@ -566,65 +810,48 @@ class _DeliveryPageState extends State<DeliveryPage> {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(prefixIcon, color: goldAccent),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.grey[700]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: goldAccent, width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+        prefixIcon: Icon(prefixIcon, color: colorScheme.primary),
+
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        scaffoldBackgroundColor: primaryDark,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: primaryDark,
-          foregroundColor: goldAccent,
-          elevation: 0,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _selectedOrder == null
+              ? (widget.orderFor == '3' ? 'PENGIRIMAN ONLINE' : 'PENGIRIMAN DIRECT')
+              : 'DETAIL PENGIRIMAN',
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
         ),
+        leading: _selectedOrder != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _selectedOrder = null;
+                    _imageFile = null;
+                    _receiverController.clear();
+                  });
+                },
+              )
+            : null,
       ),
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            _selectedOrder == null ? 'PENGIRIMAN ONLINE' : 'DETAIL PENGIRIMAN',
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, letterSpacing: 1.2),
-          ),
-          leading: _selectedOrder != null
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: goldAccent),
-                  onPressed: () {
-                    setState(() {
-                      _selectedOrder = null;
-                      _imageFile = null;
-                      _receiverController.clear();
-                    });
-                  },
-                )
-              : null,
-        ),
-        body: SafeArea(
-          child: RefreshIndicator(
-            color: goldAccent,
-            backgroundColor: cardDark,
-            onRefresh: _loadInitialOrders,
-            child: _selectedOrder != null
-                ? _buildOrderDetailView()
-                : _buildOrderListView(),
-          ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadInitialOrders,
+          child: _selectedOrder != null
+              ? _buildOrderDetailView()
+              : _buildOrderListView(),
         ),
       ),
     );
@@ -633,30 +860,24 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Widget _buildOrderListView() {
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16.0),
+      padding: AppSpacing.paddingMD,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        // Search Bar
         Card(
-          color: cardDark,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: BorderSide(color: goldAccent.withValues(alpha: 0.2)),
-          ),
+          color: colorScheme.surface,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: AppSpacing.paddingMD,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Cari Resi Spesifik',
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: goldAccent,
+                    color: colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: 12),
+                AppSpacing.gapVerticalSM,
                 Row(
                   children: [
                     Expanded(
@@ -666,7 +887,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         prefixIcon: Icons.qr_code_scanner,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    AppSpacing.gapHorizontalSM,
                     SizedBox(
                       width: 55,
                       height: 50,
@@ -676,25 +897,16 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             _searchOrder();
                           }
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: goldAccent,
-                          foregroundColor: primaryDark,
-                          minimumSize: const Size(55, 50),
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                         child: _isLoadingSearch
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                  color: primaryDark,
+                                  color: colorScheme.onPrimary,
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Icons.search,
+                            : Icon(Icons.search,
                                 fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -704,55 +916,47 @@ class _DeliveryPageState extends State<DeliveryPage> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        AppSpacing.gapVerticalMD,
 
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Daftar Pengiriman',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: textLight),
+              style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold, color: colorScheme.onSurface),
             ),
             if (_isLoadingList && _currentPage == 1)
-              const SizedBox(
+              SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    color: goldAccent, strokeWidth: 2),
+                    color: colorScheme.primary, strokeWidth: 2),
               ),
           ],
         ),
-        const SizedBox(height: 10),
+        AppSpacing.gapVerticalXS,
         ElevatedButton.icon(
           onPressed:
               _isPrintingPaymentProof ? null : _printAllPendingPaymentProofs,
           icon: _isPrintingPaymentProof
-              ? const SizedBox(
+              ? SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                    color: primaryDark,
+                    color: colorScheme.onPrimary,
                     strokeWidth: 2,
                   ),
                 )
-              : const Icon(Icons.print, color: primaryDark),
+              : Icon(Icons.print, color: colorScheme.onPrimary),
           label: Text(
             _isPrintingPaymentProof
                 ? 'Menyiapkan Print...'
-                : 'Print Semua Bukti Pembayaran Belum Dikirim',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: goldAccent,
-            foregroundColor: primaryDark,
-            minimumSize: const Size(double.infinity, 46),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+                : 'Print Bukti Pembayaran Belum Dikirim & Belum Diprint',
+            style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        const SizedBox(height: 12),
+        AppSpacing.gapVerticalSM,
 
         if (_orders.isEmpty && !_isLoadingList)
           _buildEmptyState()
@@ -763,10 +967,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
             itemCount: _orders.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index == _orders.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                return Padding(
+                  padding: AppSpacing.paddingVerticalMD,
                   child: Center(
-                    child: CircularProgressIndicator(color: goldAccent),
+                    child: CircularProgressIndicator(color: colorScheme.primary),
                   ),
                 );
               }
@@ -775,26 +979,24 @@ class _DeliveryPageState extends State<DeliveryPage> {
               final int? status = order['delivery_status'];
 
               return Card(
-                color: cardDark,
-                margin: const EdgeInsets.only(bottom: 12.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: goldAccent.withValues(alpha: 0.1)),
-                ),
+                color: colorScheme.surface,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     setState(() {
                       _selectedOrder = order;
                       _imageFile = null;
                       _receiverController.clear();
+                      _notesController.clear();
                       if (order['received_by'] != null) {
                         _receiverController.text = order['received_by'];
                       }
+                      final currentStatus = order['delivery_status'] ?? 3;
+                      _selectedStatus = (currentStatus == 6) ? 6 : 3;
                     });
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: AppSpacing.paddingMD,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -804,80 +1006,242 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             Expanded(
                               child: Text(
                                 order['receipt_no'] ?? 'Tanpa Resi',
-                                style: const TextStyle(
+                                style: textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: textLight,
+                                  color: colorScheme.onSurface,
                                 ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _getDeliveryStatusColor(status)
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                _getDeliveryStatusText(status),
-                                style: TextStyle(
-                                  color: _getDeliveryStatusColor(status),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                             Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                                  decoration: BoxDecoration(
+                                    color: _getDeliveryStatusColor(status)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: AppSpacing.borderRadiusSM,
+                                  ),
+                                  child: Text(
+                                    _getDeliveryStatusText(status),
+                                    style: TextStyle(
+                                      color: _getDeliveryStatusColor(status),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (widget.orderFor == '1') ...[
+                                  AppSpacing.gapHorizontalXS,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                                    decoration: BoxDecoration(
+                                      color: _getPaymentStatusColor(
+                                          order['payment_status'])
+                                      .withValues(alpha: 0.12),
+                                      borderRadius: AppSpacing.borderRadiusSM,
+                                    ),
+                                    child: Text(
+                                      _getPaymentStatusText(
+                                          order['payment_status']),
+                                      style: TextStyle(
+                                        color: _getPaymentStatusColor(
+                                            order['payment_status']),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
-                        const Divider(height: 20, color: Colors.white10),
+                        Divider(
+                            height: 20,
+                            color: colorScheme.onSurface.withValues(alpha: 0.1)),
                         Row(
                           children: [
-                            const Icon(Icons.storefront,
-                                size: 16, color: goldAccent),
-                            const SizedBox(width: 8),
+                            Icon(Icons.storefront,
+                                size: 16, color: colorScheme.primary),
+                            AppSpacing.gapHorizontalSM,
                             Expanded(
                               child: Text(
                                 order['store_name'] ?? '-',
-                                style: const TextStyle(
-                                    fontSize: 13, color: textMuted),
+                                style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        AppSpacing.gapVerticalXS,
                         Row(
                           children: [
-                            const Icon(Icons.local_shipping_outlined,
-                                size: 16, color: goldAccent),
-                            const SizedBox(width: 8),
+                            Icon(Icons.local_shipping_outlined,
+                                size: 16, color: colorScheme.primary),
+                            AppSpacing.gapHorizontalSM,
                             Expanded(
                               child: Text(
-                                '${order['provider_name'] ?? '-'} • ${order['delivery_service_name'] ?? '-'}',
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.grey),
+                                widget.orderFor == '3'
+                                    ? '${order['provider_name'] ?? '-'} • ${order['delivery_service_name'] ?? '-'}'
+                                    : '${order['payment_method'] ?? '-'} • ${order['delivery_service_name'] ?? '-'}',
+                                style: textTheme.bodySmall?.copyWith(
+                                    color: AppColors.onSurfaceVariant),
                               ),
                             ),
                           ],
                         ),
                         if (order['delivery_date'] != null) ...[
-                          const SizedBox(height: 6),
+                          AppSpacing.gapVerticalXS,
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today,
-                                  size: 14, color: goldAccent),
-                              const SizedBox(width: 8),
+                              Icon(Icons.calendar_today,
+                                  size: 14, color: colorScheme.primary),
+                              AppSpacing.gapHorizontalSM,
                               Text(
                                 order['delivery_date'],
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey),
+                                style: textTheme.bodySmall?.copyWith(
+                                    color: AppColors.onSurfaceVariant),
                               ),
                             ],
                           ),
                         ],
+                        if (widget.orderFor == '1') ...[
+                          if (order['ordered_by_name'] != null) ...[
+                            AppSpacing.gapVerticalXS,
+                            Row(
+                              children: [
+                                Icon(Icons.person_outline,
+                                    size: 16, color: colorScheme.primary),
+                                AppSpacing.gapHorizontalSM,
+                                Expanded(
+                                  child: Text(
+                                    'Input By: ${order['ordered_by_name']}',
+                                    style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (order['address_detail'] != null) ...[
+                            AppSpacing.gapVerticalXS,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 16, color: colorScheme.primary),
+                                AppSpacing.gapHorizontalSM,
+                                Expanded(
+                                  child: Text(
+                                    'Penerima: ${order['address_recipient_name'] ?? ''} (${order['address_recipient_telp_no'] ?? ''})\n'
+                                    'Alamat: ${order['address_detail'] ?? ''}, ${order['address_subdistrict'] ?? ''}, ${order['address_district'] ?? ''}, ${order['address_city'] ?? ''}, ${order['address_province'] ?? ''}',
+                                    style: textTheme.bodySmall?.copyWith(
+                                        color: AppColors.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            AppSpacing.gapVerticalXS,
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 16, color: colorScheme.primary),
+                                AppSpacing.gapHorizontalSM,
+                                const Expanded(
+                                  child: Text(
+                                    'Alamat: -',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (order['items'] != null &&
+                              (order['items'] as List).isNotEmpty) ...[
+                            AppSpacing.gapVerticalXS,
+                            Container(
+                              width: double.infinity,
+                              padding: AppSpacing.paddingXS,
+                              decoration: BoxDecoration(
+                                color: colorScheme.onSurface.withValues(alpha: 0.03),
+                                borderRadius: AppSpacing.borderRadiusSM,
+                                border: Border.all(
+                                    color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                    width: 0.5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Daftar Barang:',
+                                    style: textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  AppSpacing.gapVerticalXS,
+                                  ...(order['items'] as List).map((item) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: AppSpacing.xs),
+                                      child: Text(
+                                        '• ${item['product_name']} (${item['quantity']} ${item['product_unit'] ?? ''})',
+                                        style: textTheme.bodySmall?.copyWith(
+                                            color: colorScheme.onSurface),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                        AppSpacing.gapVerticalXS,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                          decoration: BoxDecoration(
+                            color: _getPaymentProofPrintStatusColor(
+                                    Map<String, dynamic>.from(order))
+                                .withValues(alpha: 0.12),
+                            borderRadius: AppSpacing.borderRadiusSM,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isPaymentProofPrinted(
+                                        Map<String, dynamic>.from(order))
+                                    ? Icons.check_circle_outline
+                                    : Icons.print_outlined,
+                                size: 14,
+                                color: _getPaymentProofPrintStatusColor(
+                                    Map<String, dynamic>.from(order)),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Text(
+                                  _getPaymentProofPrintStatusText(
+                                      Map<String, dynamic>.from(order)),
+                                  style: TextStyle(
+                                    color: _getPaymentProofPrintStatusColor(
+                                        Map<String, dynamic>.from(order)),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         if (_canPrintPaymentProof(
                             Map<String, dynamic>.from(order))) ...[
-                          const SizedBox(height: 12),
+                          AppSpacing.gapVerticalSM,
                           OutlinedButton.icon(
                             onPressed: _isPrintingPaymentProof
                                 ? null
@@ -885,15 +1249,11 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                       Map<String, dynamic>.from(order),
                                     ]),
                             icon: const Icon(Icons.print, size: 18),
-                            label: const Text('Print Bukti Pembayaran'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: goldAccent,
-                              side: BorderSide(
-                                  color: goldAccent.withValues(alpha: 0.5)),
-                              minimumSize: const Size(double.infinity, 40),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                            label: Text(
+                              _isPaymentProofPrinted(
+                                      Map<String, dynamic>.from(order))
+                                  ? 'Print Ulang Bukti Pembayaran'
+                                  : 'Print Bukti Pembayaran',
                             ),
                           ),
                         ],
@@ -912,16 +1272,15 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Widget _buildOrderDetailView() {
     final order = _selectedOrder!;
     final int deliveryStatus = order['delivery_status'] ?? 1;
-    final bool isLocked = deliveryStatus == 2 || deliveryStatus == 3;
+    final bool isLocked = deliveryStatus == 2 || deliveryStatus == 6;
     final bool canMarkReadyToShip = deliveryStatus == 1;
     final bool canSubmitDelivery = !isLocked && !canMarkReadyToShip;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: AppSpacing.paddingMD,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Navigation Back Assist Card
           InkWell(
             onTap: () {
               setState(() {
@@ -931,38 +1290,30 @@ class _DeliveryPageState extends State<DeliveryPage> {
               });
             },
             child: Card(
-              color: cardDark,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: goldAccent.withValues(alpha: 0.3)),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              color: colorScheme.surface,
+              child: Padding(
+                padding: AppSpacing.paddingMD,
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_back_ios, size: 16, color: goldAccent),
-                    SizedBox(width: 8),
+                    Icon(Icons.arrow_back_ios,
+                        size: 16, color: colorScheme.primary),
+                    AppSpacing.gapHorizontalSM,
                     Text(
                       'Kembali ke Daftar Pengiriman',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: goldAccent),
+                      style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold, color: colorScheme.primary),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          AppSpacing.gapVerticalMD,
 
           Card(
-            color: cardDark,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: BorderSide(color: goldAccent.withValues(alpha: 0.1)),
-            ),
+            color: colorScheme.surface,
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: AppSpacing.paddingMD,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -972,53 +1323,67 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       Expanded(
                         child: Text(
                           'Resi: ${order['receipt_no']}',
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: textLight,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                         decoration: BoxDecoration(
-                          color:
-                              _getDeliveryStatusColor(order['delivery_status'])
-                                  .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
+                          color: _getDeliveryStatusColor(
+                                  order['delivery_status'])
+                              .withValues(alpha: 0.15),
+                          borderRadius: AppSpacing.borderRadiusSM,
                         ),
                         child: Text(
                           _getDeliveryStatusText(order['delivery_status']),
-                          style: TextStyle(
+                          style: textTheme.bodySmall?.copyWith(
                             color: _getDeliveryStatusColor(
                                 order['delivery_status']),
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 24, color: Colors.white10),
+                  Divider(
+                      height: 24,
+                      color: colorScheme.onSurface.withValues(alpha: 0.1)),
                   _buildDetailRow('Toko', order['store_name'] ?? '-'),
-                  _buildDetailRow(
-                      'Online Provider', order['provider_name'] ?? '-'),
+                  if (widget.orderFor == '3')
+                    _buildDetailRow(
+                        'Online Provider', order['provider_name'] ?? '-')
+                  else ...[
+                    _buildDetailRow(
+                        'Metode Bayar', order['payment_method'] ?? '-'),
+                    _buildDetailRow('Status Bayar',
+                        _getPaymentStatusText(order['payment_status'])),
+                    if (order['bank_name'] != null)
+                      _buildDetailRow(
+                        'Rekening Tujuan',
+                        '${order['bank_name']} - ${order['bank_account_number']} (${order['bank_account_name']})',
+                      ),
+                  ],
                   _buildDetailRow(
                       'Jasa Kirim', order['delivery_service_name'] ?? '-'),
                   _buildDetailRow(
                       'Tanggal Kirim', order['delivery_date'] ?? '-'),
+                  _buildDetailRow(
+                    'Status Print',
+                    _getPaymentProofPrintStatusText(order),
+                  ),
                   if (isLocked)
                     _buildDetailRow('Penerima', order['received_by'] ?? '-'),
-                  const SizedBox(height: 16),
-                  const Text(
+                  AppSpacing.gapVerticalMD,
+                  Text(
                     'Detail Produk:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: goldAccent),
+                    style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold, color: colorScheme.primary),
                   ),
-                  const SizedBox(height: 8),
+                  AppSpacing.gapVerticalSM,
                   if (order['items'] != null &&
                       (order['items'] as List).isNotEmpty)
                     ListView.builder(
@@ -1028,17 +1393,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       itemBuilder: (context, index) {
                         final item = order['items'][index];
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                           child: Row(
                             children: [
-                              const Icon(Icons.circle,
-                                  size: 6, color: goldAccent),
-                              const SizedBox(width: 8),
+                              Icon(Icons.circle,
+                                  size: 6, color: colorScheme.primary),
+                              AppSpacing.gapHorizontalSM,
                               Expanded(
                                 child: Text(
                                   '${item['product_name']} x ${item['quantity']} ${item['product_unit'] ?? ''}',
-                                  style: const TextStyle(
-                                      color: textMuted, fontSize: 13),
+                                  style: textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant),
                                 ),
                               ),
                             ],
@@ -1047,43 +1412,39 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       },
                     )
                   else
-                    const Text('Tidak ada rincian produk.',
-                        style: TextStyle(color: Colors.grey)),
+                    Text('Tidak ada rincian produk.',
+                        style: textTheme.bodySmall?.copyWith(
+                            color: AppColors.onSurfaceVariant)),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          AppSpacing.gapVerticalMD,
 
           if (order['image_payment_url'] != null) ...[
             Card(
-              color: cardDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: goldAccent.withValues(alpha: 0.1)),
-              ),
+              color: colorScheme.surface,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: AppSpacing.paddingMD,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.payment, color: goldAccent, size: 18),
-                        SizedBox(width: 8),
+                        Icon(Icons.payment, color: colorScheme.primary, size: 18),
+                        AppSpacing.gapHorizontalSM,
                         Text(
                           'Foto Bukti Pembayaran',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: goldAccent,
+                            color: colorScheme.primary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    AppSpacing.gapVerticalSM,
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: AppSpacing.borderRadiusMD,
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -1100,8 +1461,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close,
-                                        color: Colors.white, size: 30),
+                                    icon: Icon(Icons.close,
+                                        color: colorScheme.onSurface, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -1120,18 +1481,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   height: 100,
-                                  color: Colors.white10,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
                                   alignment: Alignment.center,
-                                  child: const Column(
+                                  child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.broken_image,
-                                          color: Colors.redAccent, size: 36),
-                                      SizedBox(height: 8),
+                                          color: AppColors.error, size: 36),
+                                      AppSpacing.gapVerticalSM,
                                       Text(
                                         'Gagal memuat gambar',
-                                        style: TextStyle(
-                                            color: Colors.grey, fontSize: 12),
+                                        style: textTheme.bodySmall?.copyWith(
+                                            color: AppColors.onSurfaceVariant),
                                       ),
                                     ],
                                   ),
@@ -1140,13 +1501,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: Colors.black54,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: const Text(
+                              color: colorScheme.onSurface.withValues(alpha: 0.54),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Text(
                                 'Klik untuk memperbesar gambar',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
+                                style: textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
                               ),
@@ -1159,7 +1519,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapVerticalMD,
           ],
 
           if (_canPrintPaymentProof(order)) ...[
@@ -1170,62 +1530,54 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         Map<String, dynamic>.from(order),
                       ]),
               icon: _isPrintingPaymentProof
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                        color: primaryDark,
+                        color: colorScheme.onPrimary,
                         strokeWidth: 2,
                       ),
                     )
-                  : const Icon(Icons.print, color: primaryDark),
+                  : Icon(Icons.print, color: colorScheme.onPrimary),
               label: Text(
                 _isPrintingPaymentProof
                     ? 'Menyiapkan Print...'
-                    : 'Print Bukti Pembayaran',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: goldAccent,
-                foregroundColor: primaryDark,
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    : _isPaymentProofPrinted(order)
+                        ? 'Print Ulang Bukti Pembayaran'
+                        : 'Print Bukti Pembayaran',
+                style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold),
               ),
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapVerticalMD,
           ],
+
+          if (widget.orderFor == '3') _buildStickerPrintButton(order),
 
           if (order['image_delivery_url'] != null) ...[
             Card(
-              color: cardDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: goldAccent.withValues(alpha: 0.1)),
-              ),
+              color: colorScheme.surface,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: AppSpacing.paddingMD,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.photo, color: goldAccent, size: 18),
-                        SizedBox(width: 8),
+                        Icon(Icons.photo, color: colorScheme.primary, size: 18),
+                        AppSpacing.gapHorizontalSM,
                         Text(
                           'Foto Bukti Pengiriman',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: goldAccent,
+                            color: colorScheme.primary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    AppSpacing.gapVerticalSM,
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: AppSpacing.borderRadiusMD,
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -1242,8 +1594,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close,
-                                        color: Colors.white, size: 30),
+                                    icon: Icon(Icons.close,
+                                        color: colorScheme.onSurface, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -1262,18 +1614,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   height: 100,
-                                  color: Colors.white10,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
                                   alignment: Alignment.center,
-                                  child: const Column(
+                                  child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.broken_image,
-                                          color: Colors.redAccent, size: 36),
-                                      SizedBox(height: 8),
+                                          color: AppColors.error, size: 36),
+                                      AppSpacing.gapVerticalSM,
                                       Text(
                                         'Gagal memuat gambar',
-                                        style: TextStyle(
-                                            color: Colors.grey, fontSize: 12),
+                                        style: textTheme.bodySmall?.copyWith(
+                                            color: AppColors.onSurfaceVariant),
                                       ),
                                     ],
                                   ),
@@ -1282,13 +1634,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: Colors.black54,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: const Text(
+                              color: colorScheme.onSurface.withValues(alpha: 0.54),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Text(
                                 'Klik untuk memperbesar gambar',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
+                                style: textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
                               ),
@@ -1301,72 +1652,60 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapVerticalMD,
           ],
 
           if (canMarkReadyToShip) ...[
             Card(
-              color: cardDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: Colors.orangeAccent.withValues(alpha: 0.35)),
-              ),
+              color: colorScheme.surface,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: AppSpacing.paddingMD,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.inventory_2_outlined,
-                            color: Colors.orangeAccent, size: 20),
-                        SizedBox(width: 8),
+                            color: AppColors.warning, size: 20),
+                        AppSpacing.gapHorizontalSM,
                         Expanded(
                           child: Text(
                             'Order Belum Siap Dikirim',
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.orangeAccent,
+                              color: AppColors.warning,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
+                    AppSpacing.gapVerticalXS,
+                    Text(
                       'Tandai order ini sebagai siap dikirim sebelum mengunggah bukti pengiriman.',
-                      style: TextStyle(color: textMuted, fontSize: 13),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
-                    const SizedBox(height: 16),
+                    AppSpacing.gapVerticalMD,
                     ElevatedButton.icon(
                       onPressed:
                           _isLoadingReadyToShip ? null : _markReadyToShip,
                       icon: _isLoadingReadyToShip
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
-                                color: primaryDark,
+                                color: colorScheme.onPrimary,
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Icon(Icons.local_shipping,
-                              color: primaryDark),
+                          : Icon(Icons.local_shipping,
+                              color: colorScheme.onPrimary),
                       label: Text(
                         _isLoadingReadyToShip
                             ? 'Memproses...'
                             : 'Tandai Siap Dikirim',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: goldAccent,
-                        foregroundColor: primaryDark,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          style: textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold),
                         ),
-                      ),
                     ),
                   ],
                 ),
@@ -1374,34 +1713,70 @@ class _DeliveryPageState extends State<DeliveryPage> {
             ),
           ] else if (canSubmitDelivery) ...[
             Card(
-              color: cardDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: goldAccent.withValues(alpha: 0.1)),
-              ),
+              color: colorScheme.surface,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: AppSpacing.paddingMD,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Kirim Bukti Pengiriman',
-                      style: TextStyle(
-                        fontSize: 16,
+                    Text(
+                      _selectedStatus == 6
+                          ? 'Laporkan Barang Kembali'
+                          : 'Kirim Bukti Pengiriman',
+                      style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: goldAccent,
+                        color: colorScheme.primary,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    _buildGoldTextField(
-                      labelText: 'Nama Penerima (Opsional)',
-                      controller: _receiverController,
-                      prefixIcon: Icons.person_outline,
+                    AppSpacing.gapVerticalMD,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Center(child: Text('Sudah Dikirim')),
+                            selected: _selectedStatus == 3,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _selectedStatus = 3;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        AppSpacing.gapHorizontalSM,
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Center(child: Text('Dikembalikan')),
+                            selected: _selectedStatus == 6,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _selectedStatus = 6;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    AppSpacing.gapVerticalMD,
+                    if (_selectedStatus == 3)
+                      _buildGoldTextField(
+                        labelText: 'Nama Penerima (Opsional)',
+                        controller: _receiverController,
+                        prefixIcon: Icons.person_outline,
+                      )
+                    else
+                      _buildGoldTextField(
+                        labelText: 'Alasan Pengembalian (Wajib)',
+                        controller: _notesController,
+                        prefixIcon: Icons.notes_outlined,
+                      ),
+                    AppSpacing.gapVerticalMD,
                     if (_imageFile != null) ...[
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: AppSpacing.borderRadiusMD,
                         child: Image.file(
                           _imageFile!,
                           height: 200,
@@ -1409,28 +1784,21 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           fit: BoxFit.cover,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapVerticalSM,
                     ],
                     ElevatedButton.icon(
                       onPressed: _takePhoto,
-                      icon: const Icon(Icons.camera_alt, color: Colors.white),
+                      icon: Icon(Icons.camera_alt, color: colorScheme.onSurface),
                       label: Text(
                         _imageFile == null
-                            ? 'Ambil Foto Bukti Pengiriman'
+                            ? (_selectedStatus == 6
+                                ? 'Ambil Foto Bukti Retur'
+                                : 'Ambil Foto Bukti Pengiriman')
                             : 'Ambil Ulang Foto',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[900],
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: goldAccent.withValues(alpha: 0.4)),
-                        ),
+                        style: TextStyle(color: colorScheme.onSurface),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    AppSpacing.gapVerticalMD,
                     ElevatedButton(
                       onPressed: _imageFile == null
                           ? null
@@ -1439,20 +1807,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                 _submitDelivery();
                               }
                             },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: goldAccent,
-                        foregroundColor: primaryDark,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
                       child: _isLoadingSubmit
-                          ? const CircularProgressIndicator(color: primaryDark)
-                          : const Text(
-                              'Kirim Bukti Pengiriman',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
+                          ? CircularProgressIndicator(color: colorScheme.onPrimary)
+                          : Text(
+                              _selectedStatus == 6
+                                  ? 'Laporkan Barang Kembali'
+                                  : 'Kirim Bukti Pengiriman',
+                              style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold),
                             ),
                     ),
                   ],
@@ -1462,34 +1824,44 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ] else ...[
             Builder(builder: (context) {
               final isStatusTwo = deliveryStatus == 2;
+              final isStatusSix = deliveryStatus == 6;
+              Color cardColor = const Color(0xFF1F2E35);
+              if (isStatusTwo) {
+                cardColor = const Color(0xFF142B1A);
+              } else if (isStatusSix) {
+                cardColor = const Color(0xFF2C1919);
+              }
+
+              IconData icon = Icons.local_shipping;
+              Color iconColor = colorScheme.primary;
+              String statusText = 'Orderan ini sudah dikirim.';
+
+              if (isStatusTwo) {
+                icon = Icons.check_circle;
+                iconColor = AppColors.success;
+                statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
+              } else if (isStatusSix) {
+                icon = Icons.assignment_return;
+                iconColor = AppColors.error;
+                statusText = 'Orderan ini dikembalikan.';
+              }
+
               return Card(
-                color: isStatusTwo
-                    ? const Color(0xFF142B1A)
-                    : const Color(0xFF1F2E35),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isStatusTwo ? Colors.green : goldAccent,
-                    width: 0.5,
-                  ),
-                ),
+                color: cardColor,
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: AppSpacing.paddingMD,
                   child: Row(
                     children: [
                       Icon(
-                        isStatusTwo ? Icons.check_circle : Icons.local_shipping,
-                        color: isStatusTwo ? Colors.green : goldAccent,
+                        icon,
+                        color: iconColor,
                       ),
-                      const SizedBox(width: 12),
+                      AppSpacing.gapHorizontalSM,
                       Expanded(
                         child: Text(
-                          isStatusTwo
-                              ? 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.'
-                              : 'Orderan ini sudah dikirim.',
+                          statusText,
                           style: TextStyle(
-                            color: isStatusTwo ? Colors.green : goldAccent,
+                            color: iconColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1505,36 +1877,137 @@ class _DeliveryPageState extends State<DeliveryPage> {
     );
   }
 
+  Widget _buildStickerPrintButton(Map<String, dynamic> order) {
+    return Consumer<PrinterProvider>(
+      builder: (context, provider, _) {
+        final bool thermalReady = provider.isEnabled;
+
+        return Card(
+          color: colorScheme.surface,
+          child: Padding(
+            padding: AppSpacing.paddingMD,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      thermalReady ? Icons.wifi : Icons.receipt_long,
+                      color: thermalReady ? AppColors.success : colorScheme.primary,
+                      size: 20,
+                    ),
+                    AppSpacing.gapHorizontalSM,
+                    Expanded(
+                      child: Text(
+                        'Cetak Resi Stiker',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (thermalReady)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.15),
+                          borderRadius: AppSpacing.borderRadiusSM,
+                        ),
+                        child: const Text(
+                          'WiFi',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.15),
+                          borderRadius: AppSpacing.borderRadiusSM,
+                        ),
+                        child: const Text(
+                          'Spooler',
+                          style: TextStyle(
+                            color: AppColors.info,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                AppSpacing.gapVerticalXS,
+                Text(
+                  thermalReady
+                      ? 'Printer: ${provider.formattedEndpoint} • '
+                          '${provider.formattedSize} • ${provider.copies}x'
+                      : 'Ukuran: ${provider.formattedSize} • '
+                          'Aktifkan thermal di Pengaturan untuk WiFi.',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+                AppSpacing.gapVerticalSM,
+                OutlinedButton.icon(
+                  onPressed: _isPrintingSticker
+                      ? null
+                      : () => _printSticker(order),
+                  icon: _isPrintingSticker
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          thermalReady ? Icons.print : Icons.receipt_outlined,
+                          size: 18,
+                        ),
+                  label: Text(
+                    _isPrintingSticker
+                        ? 'Mencetak...'
+                        : 'Cetak Stiker Resi'
+                            '${provider.copies > 1 ? ' (${provider.copies}x)' : ''}',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48.0),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.local_shipping_outlined,
               size: 80,
-              color: goldAccent.withValues(alpha: 0.4),
+              color: colorScheme.primary.withValues(alpha: 0.4),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            AppSpacing.gapVerticalMD,
+            Text(
               'Belum Ada Data Pengiriman',
-              style: TextStyle(
-                fontSize: 16,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: goldAccent,
+                color: colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.0),
+            AppSpacing.gapVerticalSM,
+            Padding(
+              padding: AppSpacing.paddingHorizontalMD,
               child: Text(
                 'Silakan ketik atau scan nomor resi pesanan di kolom pencarian di atas untuk memuat rincian pesanan.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
             ),
@@ -1546,7 +2019,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1554,14 +2027,15 @@ class _DeliveryPageState extends State<DeliveryPage> {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
+              style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.onSurfaceVariant),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w500, color: textLight),
+              style: textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500, color: colorScheme.onSurface),
             ),
           ),
         ],

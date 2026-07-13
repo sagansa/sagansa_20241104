@@ -1,4 +1,5 @@
 import '../models/store_model.dart';
+import 'package:flutter/foundation.dart';
 import '../utils/constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -33,7 +34,7 @@ class StoreService {
         throw Exception('Gagal memuat data stores: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error dalam getStores: $e');
+      debugPrint('Error dalam getStores: $e');
       throw Exception('Gagal memuat data stores: $e');
     }
   }

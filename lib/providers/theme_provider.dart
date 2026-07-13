@@ -4,17 +4,38 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../theme/app_spacing.dart';
 
-class ThemeProvider extends ChangeNotifier {
+class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const String _themeKey = 'theme_mode';
 
   ThemeMode _themeMode = ThemeMode.system;
   bool _isInitialized = false;
+  Brightness _platformBrightness = Brightness.light;
 
   ThemeMode get themeMode => _themeMode;
   bool get isInitialized => _isInitialized;
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
-  bool get isLightMode => _themeMode == ThemeMode.light;
   bool get isSystemMode => _themeMode == ThemeMode.system;
+
+  /// Resolves actual dark mode state considering system preference
+  bool get isDarkMode {
+    if (_themeMode == ThemeMode.system) {
+      return _platformBrightness == Brightness.dark;
+    }
+    return _themeMode == ThemeMode.dark;
+  }
+
+  bool get isLightMode => !isDarkMode;
+
+  ThemeProvider() {
+    _platformBrightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   /// Initialize theme from shared preferences
   Future<void> initialize() async {
@@ -34,6 +55,16 @@ class ThemeProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error initializing theme: $e');
       _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    _platformBrightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    // Only notify if in system mode so consumers using isDarkMode update
+    if (_themeMode == ThemeMode.system) {
       notifyListeners();
     }
   }
@@ -66,6 +97,13 @@ class ThemeProvider extends ChangeNotifier {
       useMaterial3: true,
       brightness: Brightness.light,
 
+      // Penting: di Material 3, ThemeData.primaryColor TIDAK otomatis
+      // derive dari colorScheme.primary. Kita set eksplisit agar semua
+      // widget legacy yang masih memakai Theme.of(context).primaryColor
+      // (login_page, menu_card, modern_date_range_picker, dll.) tetap
+      // konsisten dengan colorScheme.
+      primaryColor: AppColors.primary,
+
       // Color scheme
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
@@ -93,24 +131,9 @@ class ThemeProvider extends ChangeNotifier {
         inversePrimary: AppColors.inversePrimary,
       ),
 
-      // Typography
-      textTheme: const TextTheme(
-        displayLarge: AppTypography.displayLarge,
-        displayMedium: AppTypography.displayMedium,
-        displaySmall: AppTypography.displaySmall,
-        headlineLarge: AppTypography.headlineLarge,
-        headlineMedium: AppTypography.headlineMedium,
-        headlineSmall: AppTypography.headlineSmall,
-        titleLarge: AppTypography.titleLarge,
-        titleMedium: AppTypography.titleMedium,
-        titleSmall: AppTypography.titleSmall,
-        labelLarge: AppTypography.labelLarge,
-        labelMedium: AppTypography.labelMedium,
-        labelSmall: AppTypography.labelSmall,
-        bodyLarge: AppTypography.bodyLarge,
-        bodyMedium: AppTypography.bodyMedium,
-        bodySmall: AppTypography.bodySmall,
-      ),
+      // Typography (warna teks sudah di-inject via lightTextTheme).
+      // Ubah AppTypography.lightTextColor / lightMutedColor untuk menyesuaikan.
+      textTheme: AppTypography.lightTextTheme,
 
       // App bar theme - Elegant white with black text
       appBarTheme: AppBarTheme(
@@ -234,6 +257,16 @@ class ThemeProvider extends ChangeNotifier {
         unselectedItemColor: AppColors.onSurfaceVariant,
         type: BottomNavigationBarType.fixed,
         elevation: AppElevation.level3,
+        // selectedIconTheme dibesarkan sedikit agar item aktif jelas
+        // terlihat baik di light maupun dark mode.
+        selectedIconTheme: const IconThemeData(
+          color: AppColors.primary,
+          size: 26,
+        ),
+        unselectedIconTheme: const IconThemeData(
+          color: AppColors.onSurfaceVariant,
+          size: 24,
+        ),
         selectedLabelStyle: AppTypography.labelSmall.copyWith(
           fontWeight: FontWeight.w600,
           color: AppColors.primary,
@@ -282,6 +315,10 @@ class ThemeProvider extends ChangeNotifier {
       useMaterial3: true,
       brightness: Brightness.dark,
 
+      // Lihat catatan di lightTheme: set eksplisit agar widget legacy
+      // yang memakai Theme.of(context).primaryColor tetap konsisten.
+      primaryColor: AppColors.darkPrimary,
+
       // Color scheme
       colorScheme: const ColorScheme.dark(
         primary: AppColors.darkPrimary,
@@ -309,24 +346,9 @@ class ThemeProvider extends ChangeNotifier {
         inversePrimary: AppColors.primary,
       ),
 
-      // Typography (same as light theme)
-      textTheme: const TextTheme(
-        displayLarge: AppTypography.displayLarge,
-        displayMedium: AppTypography.displayMedium,
-        displaySmall: AppTypography.displaySmall,
-        headlineLarge: AppTypography.headlineLarge,
-        headlineMedium: AppTypography.headlineMedium,
-        headlineSmall: AppTypography.headlineSmall,
-        titleLarge: AppTypography.titleLarge,
-        titleMedium: AppTypography.titleMedium,
-        titleSmall: AppTypography.titleSmall,
-        labelLarge: AppTypography.labelLarge,
-        labelMedium: AppTypography.labelMedium,
-        labelSmall: AppTypography.labelSmall,
-        bodyLarge: AppTypography.bodyLarge,
-        bodyMedium: AppTypography.bodyMedium,
-        bodySmall: AppTypography.bodySmall,
-      ),
+      // Typography (warna teks sudah di-inject via darkTextTheme).
+      // Ubah AppTypography.darkTextColor / darkMutedColor untuk menyesuaikan.
+      textTheme: AppTypography.darkTextTheme,
 
       // App bar theme - Elegant dark with white text
       appBarTheme: AppBarTheme(
@@ -424,6 +446,16 @@ class ThemeProvider extends ChangeNotifier {
         unselectedItemColor: AppColors.darkOnSurfaceVariant,
         type: BottomNavigationBarType.fixed,
         elevation: AppElevation.level3,
+        // selectedIconTheme dibesarkan sedikit agar item aktif jelas
+        // terlihat baik di light maupun dark mode.
+        selectedIconTheme: const IconThemeData(
+          color: AppColors.darkPrimary,
+          size: 26,
+        ),
+        unselectedIconTheme: const IconThemeData(
+          color: AppColors.darkOnSurfaceVariant,
+          size: 24,
+        ),
         selectedLabelStyle: AppTypography.labelSmall.copyWith(
           fontWeight: FontWeight.w600,
           color: AppColors.darkPrimary,

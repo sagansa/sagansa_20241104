@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../pages/login_page.dart';
+import '../theme/app_spacing.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -27,18 +29,18 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
-            Image.asset(
-              'assets/images/new-logo.png',
-              width: 200,
-              height: 200,
+            // Logo (SVG dengan gradient emas shiny)
+            SvgPicture.asset(
+              'assets/images/logo.svg',
+              width: 280,
+              height: 280,
+              fit: BoxFit.contain,
             ),
-            const SizedBox(height: 20),
+            AppSpacing.gapVerticalLG,
           ],
         ),
       ),

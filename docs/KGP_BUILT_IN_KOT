@@ -1,0 +1,118 @@
+# Kotlin Gradle Plugin (KGP) & Built-in Kotlin Migration
+
+## Status (Last Reviewed: 2026-06-21)
+
+| Plugin | Resolved Version | Latest Available | KGP-Free? |
+|--------|------------------|------------------|-----------|
+| `image_picker_android` | 0.8.13+19 | 0.8.13+19 | ✅ Yes |
+| `shared_preferences_android` | 2.4.26 | 2.4.26 | ✅ Yes |
+| `url_launcher_android` | 6.3.32 | 6.3.32 | ✅ Yes |
+| `package_info_plus` | 10.1.0 | 10.1.0 | ❌ No (upstream) |
+
+## Outcome
+
+After upgrading, `flutter build apk` succeeds. The KGP warning is now reduced from **4 plugins → 1 plugin** (`package_info_plus` only).
+
+```
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP): package_info_plus
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+```
+
+## Background
+
+Flutter 3.44+ introduced **Built-in Kotlin** support and emits a warning when plugins still apply the Kotlin Gradle Plugin (KGP) via `apply plugin: 'kotlin-android'` or the `id("kotlin-android")` plugin.
+
+> Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+
+## Investigation Details
+
+### ✅ Flutter team plugins (RESOLVED)
+
+The 3 Flutter-maintained plugins have migrated. Their `android/build.gradle.kts` plugins blocks now contain only `com.android.library` (no more `kotlin-android`):
+
+```kotlin
+// image_picker_android 0.8.13+19, shared_preferences_android 2.4.26, url_launcher_android 6.3.32
+plugins {
+    id("com.android.library")
+    // NOTE: "kotlin-android" removed — Built-in Kotlin compatible
+}
+```
+
+They still carry a `kotlin-gradle-plugin` classpath line, but this is harmless: it is not *applied*, so Flutter's detector no longer flags these plugins.
+
+### ❌ `package_info_plus` 10.1.0 (STILL APPLIES KGP)
+
+This third-party plugin (from `fluttercommunity/plus_plugins`) still uses the old Groovy DSL with an explicit KGP application:
+
+```groovy
+// package_info_plus-10.1.0/android/build.gradle
+ext.kotlin_version = '2.2.0'
+classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+// ...
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'   // ← This is what triggers the warning
+```
+
+This is the **only remaining cause** of the KGP warning. There is no newer version of `package_info_plus` available on pub.dev that resolves it.
+
+## Changes Made
+
+### `pubspec.yaml`
+- `package_info_plus`: `^9.0.1` → `^10.1.0` (major version upgrade)
+  - Verified API compatibility: `PackageInfo.fromPlatform()` is unchanged.
+  - See `lib/services/version_service.dart` (only consumer in this project).
+
+### Transitive dependencies upgraded (`pubspec.lock`)
+- `image_picker_android`: 0.8.13+17 → 0.8.13+19
+- `shared_preferences_android`: 2.4.23 → 2.4.26
+- `url_launcher_android`: 6.3.30 → 6.3.32
+
+## App-Side Android Config (Already Correct)
+
+The Flutter migrator had already updated the app-side configuration:
+
+**`android/gradle.properties`**:
+```properties
+android.builtInKotlin=true
+android.newDsl=true
+```
+
+**`android/settings.gradle`** — Kotlin declared via the `plugins {}` block (Built-in Kotlin compatible style):
+```groovy
+plugins {
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    id "com.android.application" version "8.11.1" apply false
+    id "org.jetbrains.kotlin.android" version "2.2.20" apply false
+}
+```
+
+## Recommended Follow-up Actions
+
+### Short-term (Monitor `package_info_plus`)
+- Watch the `plus_plugins` repository for a Built-in Kotlin migration release:
+  - https://github.com/fluttercommunity/plus_plugins
+  - CHANGELOG: https://pub.dev/packages/package_info_plus/changelog
+- Once a KGP-free version is published, bump the version in `pubspec.yaml`.
+
+### When a KGP-free `package_info_plus` is released
+```bash
+cd mobiles/sagansa
+flutter pub upgrade --major-versions
+flutter clean && flutter pub get
+flutter build apk  # verify the warning is fully gone
+```
+
+### If Flutter forces the migration before the plugin is updated
+Per the official guide, report the issue to plugin authors:
+- https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors
+
+As a last resort, a Gradle init-script / dependency-substitution workaround could strip KGP, but this is **not recommended** — it risks build instability and should only be considered if Flutter hard-fails before upstream ships a fix.
+
+## Verification Commands
+```bash
+# Check current plugin versions
+grep -A5 "^  \(image_picker_android\|package_info_plus\|shared_preferences_android\|url_launcher_android\):" pubspec.lock | grep version
+
+# Confirm which plugins still apply kotlin-android (should only be package_info_plus)
+grep -rE "kotlin-android|apply plugin: 'kotlin" \
+  ~/.pub-cache/hosted/pub.dev/{image_picker_android-0.8.13+19,package_info_plus-10.1.0,shared_preferences_android-2.4.26,url_launcher_android-6.3.32}/android/build.gradle*

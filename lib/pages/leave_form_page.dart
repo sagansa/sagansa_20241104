@@ -5,6 +5,7 @@ import '../widgets/modern_button.dart';
 import '../widgets/modern_text_form_field.dart';
 import '../widgets/modern_date_range_picker.dart';
 import '../controllers/leave_controller.dart';
+import '../theme/app_spacing.dart';
 
 class LeaveFormPage extends StatefulWidget {
   final LeaveModel? leave;
@@ -12,10 +13,10 @@ class LeaveFormPage extends StatefulWidget {
   const LeaveFormPage({super.key, this.leave});
 
   @override
-  _LeaveFormPageState createState() => _LeaveFormPageState();
+  LeaveFormPageState createState() => LeaveFormPageState();
 }
 
-class _LeaveFormPageState extends State<LeaveFormPage> {
+class LeaveFormPageState extends State<LeaveFormPage> {
   final _formKey = GlobalKey<FormState>();
   int? _selectedReason;
   late TextEditingController _notesController;
@@ -108,7 +109,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: AppSpacing.paddingMD,
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -128,7 +129,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                           }
                         },
                       ),
-                      const SizedBox(height: 16),
+                      AppSpacing.gapVerticalMD,
                       ModernDateRangePicker(
                         startDate: _fromDate,
                         endDate: _untilDate,
@@ -142,7 +143,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                         maxDate: DateTime.now().add(const Duration(days: 365)),
                         errorText: dateRangeError,
                       ),
-                      const SizedBox(height: 16),
+                      AppSpacing.gapVerticalMD,
                       ModernTextFormField(
                         labelText: 'Catatan',
                         controller: _notesController,
@@ -163,23 +164,23 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
             ),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                     spreadRadius: 0,
                     blurRadius: 10,
                     offset: const Offset(0, -5),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: 8,
-                top: 8,
+              padding: EdgeInsets.only(
+                left: AppSpacing.md,
+                right: AppSpacing.md,
+                bottom: AppSpacing.sm,
+                top: AppSpacing.sm,
               ),
-              margin: const EdgeInsets.only(top: 8),
+              margin: const EdgeInsets.only(top: AppSpacing.sm),
               child: ModernButton(
                 text: widget.leave == null ? 'Simpan' : 'Update',
                 onPressed: _isLoading ? null : _submitForm,

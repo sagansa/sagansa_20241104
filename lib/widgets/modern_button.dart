@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/themes.dart';
+import '../theme/app_spacing.dart';
 
 class ModernButton extends StatelessWidget {
   final String text;
@@ -17,6 +17,8 @@ class ModernButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mengandalkan ElevatedButtonTheme dari ThemeProvider agar tombol
+    // selalu mengikuti tema aktif (light/dark) secara konsisten.
     return ElevatedButton(
       onPressed: onPressed == null
           ? null
@@ -26,22 +28,24 @@ class ModernButton extends StatelessWidget {
               }
             },
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.goldAccent,
-        foregroundColor: AppTheme.primaryDark,
-        minimumSize: const Size(double.infinity, 45),
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        minimumSize: const Size(double.infinity, 48),
+        padding: AppSpacing.paddingVerticalMD,
       ),
       child: isLoading
-          ? const CircularProgressIndicator(color: AppTheme.primaryDark)
+          ? SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.onPrimary,
+                strokeWidth: 2.5,
+              ),
+            )
           : Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(icon),
-                  const SizedBox(width: 8),
+                  AppSpacing.gapHorizontalSM,
                 ],
                 Text(text),
               ],

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Aturan migrasi/pencadangan data (Android 12+ / targetSdk 31+).
+  https://developer.android.com/guide/topics/data/autobackup
+
+  cloud-backup: data yang di-backup ke Google Drive (per user).
+  device-transfer: data yang dipindahkan saat user ganti device (cable/cloud).
+
+  Kita hanya meng-include SharedPreferences (preferensi & state non-sensitif).
+  Cache & database otomatis dikecualikan oleh sistem Android.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

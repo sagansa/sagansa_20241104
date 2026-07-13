@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../utils/themes.dart';
 
 class ModernTextField extends StatelessWidget {
   final String labelText;
@@ -32,26 +31,19 @@ class ModernTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mengandalkan InputDecorationTheme dari ThemeProvider agar input
+    // selalu mengikuti tema aktif (light/dark) secara konsisten.
+    final colorScheme = Theme.of(context).colorScheme;
+
     return TextField(
       controller: controller,
-      style: const TextStyle(color: AppTheme.textLight),
+      style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: const TextStyle(color: AppTheme.textMuted),
-        prefixIcon: Icon(prefixIcon, color: AppTheme.goldAccent),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
+        prefixIcon: Icon(
+          prefixIcon,
+          color: colorScheme.onSurfaceVariant,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.grey[800]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: AppTheme.goldAccent, width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
         suffixIcon: suffixIcon,
       ),
       keyboardType: keyboardType,

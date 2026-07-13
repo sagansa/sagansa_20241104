@@ -82,12 +82,18 @@ class _ConnectionTestWidgetState extends State<ConnectionTestWidget> {
   }
 
   Future<void> _testFallbackApiCall() async {
+    // Jika fallback sama dengan baseUrl, tidak perlu mengulang test yang sama.
+    if (ApiConstants.fallbackBaseUrl == ApiConstants.baseUrl) {
+      _addResult('ℹ️ Fallback IP: tidak dikonfigurasi (sama dengan baseUrl)');
+      return;
+    }
+
     try {
       final response = await http.head(
         Uri.parse('${ApiConstants.fallbackBaseUrl}/login'),
         headers: {
           'Accept': 'application/json',
-          'Host': 'api.sagansa.id',
+          'Host': Uri.parse(ApiConstants.baseUrl).host,
         },
       ).timeout(const Duration(seconds: 10));
 

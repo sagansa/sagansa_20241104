@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import '../pages/readiness_page.dart';
+import '../pages/hygiene_page.dart';
 import '../models/store_model.dart';
 import '../models/shift_store_model.dart';
 import '../services/presence_service.dart';
+import '../theme/app_colors.dart';
 import 'dart:io';
 
 class PresenceController {
@@ -42,9 +45,10 @@ class PresenceController {
     }
 
     Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.bestForNavigation,
-      timeLimit: const Duration(seconds: 30),
-      forceAndroidLocationManager: true,
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: Duration(seconds: 30),
+      ),
     );
 
     return position;
@@ -92,6 +96,8 @@ class PresenceController {
       final responseData =
           await PresenceService.uploadImage(imageFile, isCheckIn, presenceData);
 
+      if (!context.mounted) return;
+
       if (responseData['status'] == 'success') {
         final message = isCheckIn
             ? 'Check-in berhasil\nStatus: ${responseData['data']['check_in_status']}'
@@ -100,20 +106,48 @@ class PresenceController {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
 
         onSuccess();
       } else {
-        onError(responseData['message'] ?? 'Gagal melakukan presensi');
+        if (responseData['error_code'] == 'READINESS_REQUIRED') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(responseData['message'] ?? 'Wajib mengisi form Kesiapan Diri'),
+              backgroundColor: AppColors.warning,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReadinessPage()),
+          );
+          onError(responseData['message'] ?? 'Kesiapan Diri diperlukan');
+        } else if (responseData['error_code'] == 'HYGIENE_REQUIRED') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(responseData['message'] ?? 'Wajib mengisi form Kebersihan Toko'),
+              backgroundColor: AppColors.warning,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HygienePage()),
+          );
+          onError(responseData['message'] ?? 'Kebersihan Toko diperlukan');
+        } else {
+          onError(responseData['message'] ?? 'Gagal melakukan presensi');
+        }
       }
     } catch (e) {
       const errorMessage = 'Gagal mengirim data presensi';
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(errorMessage),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
       onError(errorMessage);

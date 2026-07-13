@@ -4,16 +4,18 @@ import '../models/leave_model.dart';
 import '../services/leave_service.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import 'leave_form_page.dart';
 
 class LeavePage extends StatefulWidget {
   const LeavePage({super.key});
 
   @override
-  _LeavePageState createState() => _LeavePageState();
+  LeavePageState createState() => LeavePageState();
 }
 
-class _LeavePageState extends State<LeavePage> {
+class LeavePageState extends State<LeavePage> {
   List<Leave> _leaves = [];
   bool _isLoading = true;
 
@@ -32,6 +34,7 @@ class _LeavePageState extends State<LeavePage> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gagal memuat data cuti')),
       );
@@ -41,13 +44,13 @@ class _LeavePageState extends State<LeavePage> {
   Color _getStatusColor(int status) {
     switch (status) {
       case 1:
-        return Colors.orange; // Pending
+        return AppColors.warning;
       case 2:
-        return Colors.green; // Approved
+        return AppColors.success;
       case 3:
-        return Colors.red; // Rejected
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.onSurfaceVariant;
     }
   }
 
@@ -63,16 +66,12 @@ class _LeavePageState extends State<LeavePage> {
           : RefreshIndicator(
               onRefresh: _loadLeaves,
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: AppSpacing.paddingMD,
                 itemCount: _leaves.length,
                 itemBuilder: (context, index) {
                   final leave = _leaves[index];
                   return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: InkWell(
                       onTap: () async {
                         if (leave.status == 1) {
@@ -88,7 +87,7 @@ class _LeavePageState extends State<LeavePage> {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: AppSpacing.paddingMD,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -98,8 +97,7 @@ class _LeavePageState extends State<LeavePage> {
                                 Expanded(
                                   child: Text(
                                     leave.reasonText,
-                                    style: const TextStyle(
-                                      fontSize: 16,
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -111,47 +109,56 @@ class _LeavePageState extends State<LeavePage> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _getStatusColor(leave.status),
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: AppSpacing.borderRadiusLG,
                                   ),
                                   child: Text(
                                     leave.statusText,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: AppSpacing.sectionGap),
                             Row(
                               children: [
-                                const Icon(Icons.date_range,
-                                    size: 16, color: Colors.grey),
-                                const SizedBox(width: 8),
+                                Icon(Icons.date_range,
+                                    size: 16,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant),
+                                AppSpacing.gapHorizontalSM,
                                 Text(
                                   '${DateFormat('dd MMM yyyy').format(leave.fromDate)} - ${DateFormat('dd MMM yyyy').format(leave.untilDate)}',
                                   style: TextStyle(
-                                    color: Colors.grey[700],
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                                 ),
                               ],
                             ),
                             if (leave.notes != null &&
                                 leave.notes!.isNotEmpty) ...[
-                              const SizedBox(height: 8),
+                              AppSpacing.gapVerticalSM,
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.notes,
-                                      size: 16, color: Colors.grey),
-                                  const SizedBox(width: 8),
+                                  Icon(Icons.notes,
+                                      size: 16,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant),
+                                  AppSpacing.gapHorizontalSM,
                                   Expanded(
                                     child: Text(
                                       leave.notes!,
                                       style: TextStyle(
-                                        color: Colors.grey[700],
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                       ),
                                     ),
                                   ),

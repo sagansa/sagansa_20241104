@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android signing — JANGAN di-commit. Berisi password & private key.
+# key.properties berisi path ke keystore + password; *.jks/*.keystore adalah
+# binary private key. Kompromi = orang lain bisa menandatangani app atas nama
+# Anda (lihat docs/play-policy-audit.md bagian keamanan keystore).
+/android/key.properties
+key.properties
+*.jks
+*.keystore
+
+# Heap dump (hasil profiling, tidak relevan untuk repo)
+*.hprof

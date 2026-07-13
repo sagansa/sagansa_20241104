@@ -1,36 +1,46 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
 
 class NetworkService {
-  /// Check if device has internet connectivity
+  static const Duration _lookupTimeout = Duration(seconds: 5);
+  static const Duration _httpTimeout = Duration(seconds: 10);
+
+  /// Check if device has internet connectivity.
+  ///
+  /// Melakukan beberapa lookup DNS secara paralel (menggunakan [Future.any])
+  /// dan mengembalikan `true` begitu salah satu berhasil, sehingga lebih cepat
+  /// daripada menunggu setiap lookup satu per satu.
   static Future<bool> hasInternetConnection() async {
     try {
-      // Try multiple DNS lookups to be more reliable
-      final futures = [
-        InternetAddress.lookup('google.com')
-            .timeout(const Duration(seconds: 5)),
-        InternetAddress.lookup('cloudflare.com')
-            .timeout(const Duration(seconds: 5)),
-        InternetAddress.lookup('8.8.8.8').timeout(const Duration(seconds: 5)),
+      // Untuk IP address gunakan InternetAddress() (reverse DNS via lookup
+      // untuk IP seringkali gagal/bukan yang kita maksud).
+      final lookups = <Future<dynamic>>[
+        InternetAddress.lookup('google.com').timeout(_lookupTimeout),
+        InternetAddress.lookup('cloudflare.com').timeout(_lookupTimeout),
+        InternetAddress('8.8.8.8').reverse().timeout(_lookupTimeout),
       ];
 
-      // If any of the lookups succeed, we have internet
-      for (final future in futures) {
-        try {
-          final result = await future;
-          if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-            debugPrint('NetworkService: Internet connection confirmed');
-            return true;
+      // Race semua lookup; kembalikan true begitu satu pun sukses.
+      await Future.any(
+        lookups.map((lookup) async {
+          final result = await lookup;
+          if (result is List<InternetAddress>) {
+            if (result.isNotEmpty && result.first.rawAddress.isNotEmpty) {
+              return true;
+            }
+            throw Exception('empty result');
           }
-        } catch (e) {
-          debugPrint('NetworkService: DNS lookup failed: $e');
-          continue;
-        }
-      }
-
-      debugPrint('NetworkService: All DNS lookups failed');
+          // InternetAddress (dari reverse())
+          return true;
+        }),
+      );
+      debugPrint('NetworkService: Internet connection confirmed');
+      return true;
+    } on TimeoutException {
+      debugPrint('NetworkService: All DNS lookups timed out');
       return false;
     } catch (e) {
       debugPrint('NetworkService: Error checking internet: $e');
@@ -38,39 +48,52 @@ class NetworkService {
     }
   }
 
-  /// Check if API server is reachable
+  /// Check if API server is reachable.
+  ///
+  /// Mencoba HEAD request ke endpoint `/login`. Setiap response (selain
+  /// server error 5xx) dianggap menandakan server dapat dijangkau.
   static Future<bool> isApiServerReachable() async {
     try {
-      // First try with domain name
-      final response = await http.head(
-        Uri.parse('${ApiConstants.baseUrl}/login'),
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .head(
+            Uri.parse('${ApiConstants.baseUrl}/login'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(_httpTimeout);
 
-      return response.statusCode < 500; // Any response except server error
+      return response.statusCode < 500;
     } catch (e) {
       debugPrint('NetworkService: API server not reachable via domain: $e');
 
-      // Try with IP address as fallback
+      // Coba dengan fallback URL (mis. IP address) sebagai cadangan.
+      if (ApiConstants.fallbackBaseUrl == ApiConstants.baseUrl) {
+        // Tidak ada fallback berbeda yang dikonfigurasi; hindari retry duplikat.
+        return false;
+      }
+
       try {
-        final response = await http.head(
-          Uri.parse('${ApiConstants.fallbackBaseUrl}/login'),
-          headers: {
-            'Accept': 'application/json',
-            'Host': 'api.sagansa.id', // Important: keep original host header
-          },
-        ).timeout(const Duration(seconds: 10));
+        final response = await http
+            .head(
+              Uri.parse('${ApiConstants.fallbackBaseUrl}/login'),
+              headers: {
+                'Accept': 'application/json',
+                // Pertahankan host asli agar virtual host di sisi server tetap
+                // dapat merouting request dengan benar.
+                'Host': Uri.parse(ApiConstants.baseUrl).host,
+              },
+            )
+            .timeout(_httpTimeout);
 
         return response.statusCode < 500;
       } catch (fallbackError) {
         debugPrint(
-            'NetworkService: API server not reachable via IP: $fallbackError');
+            'NetworkService: API server not reachable via fallback: $fallbackError');
         return false;
       }
     }
   }
 
-  /// Get network status with detailed information
+  /// Get network status with detailed information.
   static Future<NetworkStatus> getNetworkStatus() async {
     debugPrint('NetworkService: Starting network status check...');
 
@@ -103,10 +126,11 @@ class NetworkService {
     );
   }
 
-  /// Try to resolve DNS for API domain
+  /// Try to resolve DNS for API domain.
   static Future<String?> resolveApiDomain() async {
     try {
-      final result = await InternetAddress.lookup('api.sagansa.id');
+      final result =
+          await InternetAddress.lookup('api.sagansa.id').timeout(_lookupTimeout);
       if (result.isNotEmpty) {
         return result.first.address;
       }

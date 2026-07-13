@@ -66,6 +66,38 @@ class AppSpacing {
   static const SizedBox gapVerticalLG = SizedBox(height: lg);
   static const SizedBox gapVerticalXL = SizedBox(height: xl);
 
+  // ============================================================
+  // SEMANTIC SPACING TOKENS
+  // Pakai token-token ini ALIH-ALIH magic numbers (EdgeInsets.all(12),
+  // SizedBox(height: 8)) agar margin konsisten antar halaman.
+  // ============================================================
+
+  /// Padding untuk body ScrollView di sebuah halaman (dart board/list).
+  /// Default: horizontal 12, vertical 12.
+  static const EdgeInsets screenPadding =
+      EdgeInsets.symmetric(horizontal: sm + xs, vertical: sm + xs);
+
+  /// Padding dalam sebuah Card. Default: 12.
+  static const EdgeInsets cardPadding = EdgeInsets.all(sm + xs);
+
+  /// Padding untuk item di dalam list (ListTile dsb). Vertical 8, horizontal 12.
+  static const EdgeInsets listItemPadding =
+      EdgeInsets.symmetric(horizontal: sm + xs, vertical: sm);
+
+  /// Margin bawah antar card/list-item. Pakai via EdgeInsets.only(bottom:)
+  /// atau langsung `AppSpacing.itemGap` (double).
+  static const double itemGap = sm;
+
+  /// Margin bawah antar section dalam halaman. Default 12.
+  static const double sectionGap = sm + xs;
+
+  /// Gap horizontal antar elemen dalam Row (mis. avatar ke teks).
+  static const double rowGap = sm + xs;
+
+  /// Padding FAB area (jaga jarak dari edge).
+  static const EdgeInsets fabPadding =
+      EdgeInsets.only(bottom: lg, right: lg);
+
   // Border radius
   static const double radiusXS = 4.0;
   static const double radiusSM = 8.0;

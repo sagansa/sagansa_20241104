@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import '../widgets/modern_bottom_nav.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../services/salary_service.dart';
 import 'salary_detail_page.dart';
 
 class SalaryPage extends StatefulWidget {
   const SalaryPage({super.key});
 
   @override
-  _SalaryPageState createState() => _SalaryPageState();
+  State<SalaryPage> createState() => _SalaryPageState();
 }
 
 class _SalaryPageState extends State<SalaryPage> {
@@ -17,44 +19,50 @@ class _SalaryPageState extends State<SalaryPage> {
     decimalDigits: 0,
   );
 
-  // Dummy data untuk contoh
-  final List<Map<String, dynamic>> salaryHistory = [
-    {
-      'period': DateTime(2024, 4),
-      'amount': 4850000,
-      'status': 'pending', // pending, paid, processing
-      'paymentDate': null,
-    },
-    {
-      'period': DateTime(2024, 3),
-      'amount': 4750000,
-      'status': 'paid',
-      'paymentDate': DateTime(2024, 3, 28),
-    },
-    {
-      'period': DateTime(2024, 2),
-      'amount': 4900000,
-      'status': 'paid',
-      'paymentDate': DateTime(2024, 2, 28),
-    },
-    {
-      'period': DateTime(2024, 1),
-      'amount': 4800000,
-      'status': 'paid',
-      'paymentDate': DateTime(2024, 1, 28),
-    },
-  ];
+  final SalaryService _salaryService = SalaryService();
+  List<Map<String, dynamic>> salaryHistory = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  Color _getStatusColor(String status) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSalaryHistory();
+  }
+
+  Future<void> _loadSalaryHistory() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final history = await _salaryService.getSalaryHistory();
+      if (!mounted) return;
+      setState(() {
+        salaryHistory = history;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Gagal memuat riwayat gaji: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Color _getStatusColor(String status, ColorScheme colorScheme) {
     switch (status) {
       case 'paid':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.warning;
       case 'processing':
-        return Colors.blue;
+        return AppColors.info;
       default:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
@@ -72,67 +80,66 @@ class _SalaryPageState extends State<SalaryPage> {
   }
 
   Widget _buildSalaryCard(Map<String, dynamic> salary) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final DateTime periodDate = DateTime.parse(salary['period']);
+    final DateTime? paymentDate = salary['paymentDate'] != null 
+        ? DateTime.parse(salary['paymentDate']) 
+        : null;
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SalaryDetailPage(salaryData: salary),
+              builder: (context) => SalaryDetailPage(salaryId: salary['id']),
             ),
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: AppSpacing.paddingMD,
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    DateFormat('MMMM yyyy', 'id_ID').format(salary['period']),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    DateFormat('MMMM yyyy', 'id_ID').format(periodDate),
+                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(salary['status']).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: _getStatusColor(salary['status'], colorScheme).withValues(alpha: 0.1),
+                      borderRadius: AppSpacing.borderRadiusMD,
                     ),
                     child: Text(
                       _getStatusText(salary['status']),
-                      style: TextStyle(
-                        color: _getStatusColor(salary['status']),
-                        fontSize: 12,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: _getStatusColor(salary['status'], colorScheme),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: AppSpacing.sectionGap),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     currencyFormatter.format(salary['amount']),
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
                   ),
-                  if (salary['paymentDate'] != null)
+                  if (paymentDate != null)
                     Text(
-                      'Dibayar: ${DateFormat('dd/MM/yyyy').format(salary['paymentDate'])}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      'Dibayar: ${DateFormat('dd/MM/yyyy').format(paymentDate)}',
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                 ],
               ),
@@ -145,57 +152,75 @@ class _SalaryPageState extends State<SalaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Riwayat Gaji'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.blue.withValues(alpha: 0.1),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Gaji dibayarkan maksimum tanggal 5 setiap bulan',
-                    style: TextStyle(color: Colors.blue),
+      appBar: AppBar(title: const Text('Riwayat Gaji')),
+      body: RefreshIndicator(
+        onRefresh: _loadSalaryHistory,
+        child: Column(
+          children: [
+            Container(
+              padding: AppSpacing.paddingMD,
+              color: AppColors.primary.withValues(alpha: 0.1),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: AppColors.primary),
+                  AppSpacing.gapHorizontalSM,
+                  Expanded(
+                    child: Text(
+                      'Gaji bulanan dihitung berdasarkan periode cut-off yang dikonfigurasi HRD.',
+                      style: TextStyle(color: colorScheme.onSurface),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: salaryHistory.length,
-              itemBuilder: (context, index) {
-                return _buildSalaryCard(salaryHistory[index]);
-              },
+            Expanded(
+              child: _buildBody(colorScheme, textTheme),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(ColorScheme colorScheme, TextTheme textTheme) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: AppSpacing.paddingLG,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
+              AppSpacing.gapVerticalMD,
+              ElevatedButton(
+                onPressed: _loadSalaryHistory,
+                child: const Text('Coba Lagi'),
+              ),
+            ],
           ),
-        ],
-      ),
-      bottomNavigationBar: ModernBottomNav(
-        currentIndex: 3,
-        presences: const [],
-        onTap: (index) {
-          if (index != 3) {
-            Navigator.pushReplacementNamed(
-              context,
-              index == 0
-                  ? '/home'
-                  : index == 1
-                      ? '/leave'
-                      : '/calendar',
-            );
-          }
-        },
-      ),
+        ),
+      );
+    }
+
+    if (salaryHistory.isEmpty) {
+      return Center(
+        child: Text('Belum ada riwayat slip gaji bulanan.'),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: salaryHistory.length,
+      itemBuilder: (context, index) {
+        return _buildSalaryCard(salaryHistory[index]);
+      },
     );
   }
 }

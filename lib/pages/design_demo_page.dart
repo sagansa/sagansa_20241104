@@ -5,7 +5,6 @@ import '../widgets/modern_bottom_nav.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/theme_toggle_button.dart';
 import '../theme/app_spacing.dart';
-import '../theme/app_typography.dart';
 
 class DesignDemoPage extends StatefulWidget {
   const DesignDemoPage({super.key});
@@ -40,27 +39,16 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
             _buildHeaderSection(),
             AppSpacing.gapVerticalXL,
-
-            // Button Section
             _buildButtonSection(),
             AppSpacing.gapVerticalXL,
-
-            // Input Section
             _buildInputSection(),
             AppSpacing.gapVerticalXL,
-
-            // Card Section
             _buildCardSection(),
             AppSpacing.gapVerticalXL,
-
-            // Loading Section
             _buildLoadingSection(),
             AppSpacing.gapVerticalXL,
-
-            // List Section
             _buildListSection(),
           ],
         ),
@@ -69,48 +57,28 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
       bottomNavigationBar: ModernBottomNav(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          ModernBottomNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home,
-            label: 'Home',
-          ),
-          ModernBottomNavItem(
-            icon: Icons.design_services_outlined,
-            activeIcon: Icons.design_services,
-            label: 'Design',
-          ),
-          ModernBottomNavItem(
-            icon: Icons.palette_outlined,
-            activeIcon: Icons.palette,
-            label: 'Theme',
-          ),
-          ModernBottomNavItem(
-            icon: Icons.settings_outlined,
-            activeIcon: Icons.settings,
-            label: 'Settings',
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildHeaderSection() {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Elegant Black & White Design',
-          style: AppTypography.headlineMedium.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         AppSpacing.gapVerticalSM,
         Text(
           'A sophisticated design system with clean aesthetics and smooth animations.',
-          style: AppTypography.bodyLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          style: textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -118,13 +86,14 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
   }
 
   Widget _buildButtonSection() {
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Elegant Buttons',
-          style: AppTypography.titleLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -136,16 +105,14 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
         ),
         AppSpacing.gapVerticalSM,
         ModernButton(
-          text: 'Outlined Button',
-          type: ModernButtonType.outlined,
-          onPressed: () => _showSnackBar('Outlined button pressed'),
+          text: 'Secondary Button',
+          onPressed: () => _showSnackBar('Secondary button pressed'),
           icon: Icons.favorite_border,
         ),
         AppSpacing.gapVerticalSM,
         ModernButton(
-          text: 'Text Button',
-          type: ModernButtonType.text,
-          onPressed: () => _showSnackBar('Text button pressed'),
+          text: 'Action Button',
+          onPressed: () => _showSnackBar('Action button pressed'),
           icon: Icons.text_fields,
         ),
         AppSpacing.gapVerticalSM,
@@ -160,13 +127,14 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
   }
 
   Widget _buildInputSection() {
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Elegant Input Fields',
-          style: AppTypography.titleLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -176,7 +144,6 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
           controller: _textController,
           prefixIcon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
-          hintText: 'Enter your email',
         ),
         AppSpacing.gapVerticalMD,
         ModernTextField(
@@ -184,7 +151,6 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
           controller: TextEditingController(),
           prefixIcon: Icons.lock_outlined,
           obscureText: true,
-          hintText: 'Enter your password',
           suffixIcon: const Icon(Icons.visibility_outlined),
         ),
         AppSpacing.gapVerticalMD,
@@ -192,21 +158,21 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
           labelText: 'Message',
           controller: TextEditingController(),
           prefixIcon: Icons.message_outlined,
-          maxLines: 3,
-          hintText: 'Enter your message here...',
         ),
       ],
     );
   }
 
   Widget _buildCardSection() {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Elegant Cards',
-          style: AppTypography.titleLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -223,12 +189,12 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
+                        color: colorScheme.primary,
                         borderRadius: AppSpacing.borderRadiusSM,
                       ),
                       child: Icon(
                         Icons.design_services,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: colorScheme.onPrimary,
                       ),
                     ),
                     AppSpacing.gapHorizontalMD,
@@ -238,17 +204,14 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
                         children: [
                           Text(
                             'Design System',
-                            style: AppTypography.titleMedium.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface,
+                            style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             'Modern UI components',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -259,8 +222,8 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
                 AppSpacing.gapVerticalMD,
                 Text(
                   'This elegant design system provides a consistent and beautiful user experience with smooth animations and clean aesthetics.',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -272,13 +235,14 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
   }
 
   Widget _buildLoadingSection() {
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Skeleton Loading States',
-          style: AppTypography.titleLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -293,13 +257,15 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
   }
 
   Widget _buildListSection() {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Elegant List Items',
-          style: AppTypography.titleLarge.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -325,37 +291,36 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
           final item = items[index];
 
           return Card(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
               leading: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: AppSpacing.borderRadiusSM,
                 ),
                 child: Icon(
                   item['icon'] as IconData,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: colorScheme.primary,
                 ),
               ),
               title: Text(
                 item['title'] as String,
-                style: AppTypography.titleSmall.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
+                style: textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               subtitle: Text(
                 item['subtitle'] as String,
-                style: AppTypography.bodySmall.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               trailing: Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
               onTap: () => _showSnackBar('${item['title']} tapped'),
             ),
@@ -366,10 +331,11 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
   }
 
   void _showSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: AppSpacing.borderRadiusSM,

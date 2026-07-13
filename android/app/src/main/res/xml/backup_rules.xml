@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Konfigurasi backup kompatibel untuk Android < 12 (fullBackupContent).
+
+  Kita hanya meng-include SharedPreferences (preferensi & state non-sensitif).
+  Cache & database otomatis dikecualikan oleh sistem Android (getCacheDir,
+  noop), sehingga tidak perlu deklarasi eksplisit. Token sesi disimpan via
+  secure storage (lihat kode), bukan SharedPreferences biasa.
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+</full-backup-content>

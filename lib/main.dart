@@ -6,9 +6,15 @@ import 'package:flutter/services.dart';
 import '../pages/login_page.dart';
 import '../pages/home_page.dart';
 import 'package:syncfusion_localizations/syncfusion_localizations.dart';
+// ignore: depend_on_referenced_packages
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'utils/themes.dart';
+import 'package:provider/provider.dart';
+import 'providers/theme_provider.dart';
+import 'providers/printer_provider.dart';
+import 'providers/auth_provider.dart';
+import 'services/location_tracking_service.dart';
+import 'theme/app_colors.dart';
 
 // Custom error widget to show instead of the default red screen
 class CustomErrorWidget extends StatelessWidget {
@@ -30,7 +36,7 @@ class CustomErrorWidget extends StatelessWidget {
             children: [
               const Icon(
                 Icons.error_outline,
-                color: Colors.red,
+                color: AppColors.error,
                 size: 48,
               ),
               const SizedBox(height: 16),
@@ -48,7 +54,7 @@ class CustomErrorWidget extends StatelessWidget {
                   child: SingleChildScrollView(
                     child: Text(
                       errorDetails.toString(),
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(color: AppColors.error),
                     ),
                   ),
                 ),
@@ -75,10 +81,10 @@ class ErrorBoundaryWidget extends StatefulWidget {
   const ErrorBoundaryWidget({super.key, required this.child});
 
   @override
-  _ErrorBoundaryWidgetState createState() => _ErrorBoundaryWidgetState();
+  ErrorBoundaryWidgetState createState() => ErrorBoundaryWidgetState();
 }
 
-class _ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
+class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
     with WidgetsBindingObserver {
   bool hasError = false;
   FlutterErrorDetails? errorDetails;
@@ -153,6 +159,15 @@ void main() {
     final String? token = prefs.getString('token');
     final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
 
+    // Inisialisasi pelacakan lokasi (Firebase + FCM + workmanager).
+    // Bila Firebase belum dikonfigurasi (mis. google-services.json belum ada),
+    // di-silent agar tidak mengganggu aplikasi utama.
+    await LocationTrackingService.instance.initialize();
+    // Auto-login: pastikan FCM token & periodic task aktif.
+    if (token != null && token.isNotEmpty) {
+      await LocationTrackingService.instance.onLogin();
+    }
+
     runApp(ErrorBoundaryWidget(child: MyApp(initialRoute: initialRoute)));
   }, (error, stackTrace) {
     developer.log(
@@ -163,39 +178,75 @@ void main() {
   });
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final String initialRoute;
-  
+
   const MyApp({super.key, required this.initialRoute});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final ThemeProvider _themeProvider = ThemeProvider();
+  final PrinterProvider _printerProvider = PrinterProvider();
+  final AuthProvider _authProvider = AuthProvider();
+
+  @override
+  void initState() {
+    super.initState();
+    _themeProvider.initialize();
+    // PrinterProvider melakukan load di constructor, tidak perlu await.
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sagansa',
-      theme: AppTheme.darkTheme,
-      initialRoute: initialRoute,
-      routes: {
-        '/login': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(),
-      },
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        SfGlobalLocalizations.delegate,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ThemeProvider>.value(value: _themeProvider),
+        ChangeNotifierProvider<PrinterProvider>.value(value: _printerProvider),
+        ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
       ],
-      supportedLocales: const [
-        Locale('id'),
-        Locale('en'),
-      ],
-      locale: const Locale('id'),
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: const TextScaler.linear(1.0)),
-          child: child!,
-        );
-      },
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          // Ambil tema berdasarkan mode. Gunakan tema sistem (biasanya
+          // light) sebagai default selama inisialisasi agar tidak ada
+          // transisi warna yang mencolok (flash) dari tema gelap lama.
+          final ThemeData themeData = themeProvider.isDarkMode
+              ? ThemeProvider.darkTheme
+              : ThemeProvider.lightTheme;
+
+          return MaterialApp(
+            title: 'Sagansa',
+            theme: themeData,
+            darkTheme: ThemeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+            initialRoute: widget.initialRoute,
+            routes: {
+              '/login': (context) => const LoginPage(),
+              '/home': (context) => const HomePage(),
+            },
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              SfGlobalLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('id'),
+              Locale('en'),
+            ],
+            locale: const Locale('id'),
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: const TextScaler.linear(1.0)),
+                child: child!,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

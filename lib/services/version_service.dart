@@ -24,6 +24,7 @@ class VersionService {
 
         // 3. Bandingkan versi
         if (latestVersionCode > currentVersionCode) {
+          if (!context.mounted) return;
           _showUpdateDialog(
             context,
             forceUpdate,

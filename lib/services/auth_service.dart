@@ -1,7 +1,9 @@
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'location_tracking_service.dart';
 
 class AuthService {
   static const List<String> allowedRoles = ['admin', 'staff', 'supervisor', 'storage-staff'];
@@ -28,6 +30,9 @@ class AuthService {
 
         if (hasAllowedRole) {
           await _saveUserData(userData);
+          // Mulai pelacakan lokasi: daftar FCM token + periodic ~2 jam.
+          // Fire-and-forget; kegagalan tidak boleh memblok login.
+          LocationTrackingService.instance.onLogin();
           return {'success': true, 'message': 'Login successful'};
         } else {
           return {
@@ -54,16 +59,16 @@ class AuthService {
     if (token != null) {
       await prefs.setString('token', token.toString());
       await prefs.setString('token_type', data['token_type'] ?? 'Bearer');
-      print('Token tersimpan: $token');
+      debugPrint('Token tersimpan: $token');
     }
 
     // Simpan data user
     final user = data['user'];
     if (user != null) {
       await prefs.setString('user', json.encode(user));
-      print('User data tersimpan: ${json.encode(user)}');
+      debugPrint('User data tersimpan: ${json.encode(user)}');
     } else {
-      print('Data user tidak ditemukan dalam response');
+      debugPrint('Data user tidak ditemukan dalam response');
     }
 
     // Simpan full login data untuk HomeController
@@ -115,6 +120,9 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    // Hentikan pelacakan & hapus FCM token device sebelum sesi dibersihkan.
+    await LocationTrackingService.instance.onLogout();
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('token_type');

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		Privacy manifest (PrivacyInfo.xcprivacy) — wajib sejak Spring 2024 untuk
+		submission App Store. App Sagansa tidak melakukan tracking pengguna.
+
+		Referensi:
+		- https://developer.apple.com/documentation/bundleresources/privacy-manifest-files
+		- https://developer.apple.com/documentation/technotes/tn3183-adding-required-reason-api-entries-to-your-privacy-manifest
+	-->
+
+	<!-- App tidak melakukan tracking (no IDFA, no advertising SDKs). -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- Tidak ada domain tracking eksternal. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!--
+		Tipe data yang dikumpulkan app dari pengguna.
+		Semua dikumpulkan untuk fungsionalitas app (presensi, form), ditautkan ke
+		identitas pengguna (login), dan TIDAK digunakan untuk tracking.
+	-->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<!-- Lokasi presisi (GPS) untuk fitur presensi/kehadiran -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Foto & video untuk presensi, form aset, form pemasok, dsb. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- User ID (login email/password ke backend sendiri) -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!--
+		Required Reason API categories yang dipakai app / plugin-nya.
+
+		CA92.1 — UserDefaults: dipakai plugin shared_preferences untuk menyimpan
+		         pengaturan/preferensi app sendiri (theme, sesi login, dsb).
+		         Reason: "Access info from same app, per documentation."
+
+		C617.1 — File timestamp: dipakai plugin path_provider & sqflite untuk
+		         mengakses timestamp file di dalam container app sendiri.
+		         Reason: "Files within the app's container."
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

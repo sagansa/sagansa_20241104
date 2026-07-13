@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/store_model.dart';
@@ -13,7 +14,7 @@ class PresenceService {
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(tokenKey);
-    print('Token yang diambil: $token');
+    debugPrint('Token yang diambil: $token');
     return token;
   }
 
@@ -37,13 +38,13 @@ class PresenceService {
         throw Exception('Gagal memuat data stores: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error dalam getStores: $e');
+      debugPrint('Error dalam getStores: $e');
       throw Exception('Gagal memuat data stores: $e');
     }
   }
 
   static Future<List<ShiftStore>> getShiftStores() async {
-    print('Memulai getShiftStores()');
+    debugPrint('Memulai getShiftStores()');
     try {
       final token = await getToken();
       if (token == null) {
@@ -57,8 +58,8 @@ class PresenceService {
           )
           .timeout(const Duration(seconds: 30));
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -76,7 +77,7 @@ class PresenceService {
         throw Exception('Gagal memuat data shift: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error dalam getShiftStores: $e');
+      debugPrint('Error dalam getShiftStores: $e');
       rethrow;
     }
   }
@@ -163,12 +164,30 @@ class PresenceService {
     }
   }
 
-  static Future<Map<String, dynamic>> getSalesOrders(
-      {int page = 1, int perPage = 10}) async {
+  static Future<Map<String, dynamic>> getSalesOrders({
+    int page = 1,
+    int perPage = 10,
+    int? deliveryStatus,
+    bool? hasPaymentProof,
+    bool? paymentProofPrinted,
+    String? orderFor,
+  }) async {
     try {
       final token = await getToken();
-      final uri = Uri.parse(
-          '${ApiConstants.searchSalesOrder}?page=$page&per_page=$perPage');
+      final queryParameters = <String, String>{
+        'page': page.toString(),
+        'per_page': perPage.toString(),
+        if (deliveryStatus != null)
+          'delivery_status': deliveryStatus.toString(),
+        if (hasPaymentProof != null)
+          'has_payment_proof': hasPaymentProof ? '1' : '0',
+        if (paymentProofPrinted != null)
+          'payment_proof_printed': paymentProofPrinted ? '1' : '0',
+        if (orderFor != null)
+          'for': orderFor,
+      };
+      final uri = Uri.parse(ApiConstants.searchSalesOrder)
+          .replace(queryParameters: queryParameters);
       final response = await http.get(
         uri,
         headers: ApiConstants.headers(token),
@@ -186,11 +205,35 @@ class PresenceService {
     }
   }
 
-  static Future<Map<String, dynamic>> searchSalesOrder(String receiptNo) async {
+  static Future<Map<String, dynamic>> markPaymentProofsPrinted({
+    required List<int> orderIds,
+  }) async {
     try {
       final token = await getToken();
+      final response = await http.post(
+        Uri.parse(ApiConstants.markPaymentProofsPrinted),
+        headers: ApiConstants.headers(token),
+        body: json.encode({'order_ids': orderIds}),
+      );
+
+      final responseData = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return responseData;
+      } else {
+        throw Exception(responseData['message'] ??
+            'Gagal memperbarui status print bukti pembayaran.');
+      }
+    } catch (e) {
+      throw Exception('Error saat memperbarui status print: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> searchSalesOrder(String receiptNo, {String? orderFor}) async {
+    try {
+      final token = await getToken();
+      final forQuery = orderFor != null ? '&for=$orderFor' : '';
       final uri =
-          Uri.parse('${ApiConstants.searchSalesOrder}?receipt_no=$receiptNo');
+          Uri.parse('${ApiConstants.searchSalesOrder}?receipt_no=$receiptNo$forQuery');
       final response = await http.get(
         uri,
         headers: ApiConstants.headers(token),
@@ -208,14 +251,17 @@ class PresenceService {
   }
 
   static Future<Map<String, dynamic>> markReadyToShip({
-    required String receiptNo,
+    required int orderId,
+    String? orderFor,
   }) async {
     try {
       final token = await getToken();
+      final body = <String, dynamic>{'id': orderId};
+      if (orderFor != null) body['for'] = orderFor;
       final response = await http.post(
         Uri.parse(ApiConstants.readyToShip),
         headers: ApiConstants.headers(token),
-        body: json.encode({'receipt_no': receiptNo}),
+        body: json.encode(body),
       );
 
       final responseData = json.decode(response.body);
@@ -234,6 +280,8 @@ class PresenceService {
     required String receiptNo,
     required File imageFile,
     String? receivedBy,
+    int? deliveryStatus,
+    String? notes,
   }) async {
     final token = await getToken();
     final uri = Uri.parse(ApiConstants.updateDeliveryStatus);
@@ -245,6 +293,10 @@ class PresenceService {
           'receipt_no': receiptNo,
           if (receivedBy != null && receivedBy.isNotEmpty)
             'received_by': receivedBy,
+          if (deliveryStatus != null)
+            'delivery_status': deliveryStatus.toString(),
+          if (notes != null && notes.isNotEmpty)
+            'notes': notes,
         })
         ..files.add(await http.MultipartFile.fromPath(
           'image_delivery',
@@ -266,17 +318,4 @@ class PresenceService {
     }
   }
 
-  static Future<Map<String, dynamic>> _getDeviceInfo() async {
-    return {
-      'platform': Platform.operatingSystem,
-      'version': Platform.operatingSystemVersion,
-      'model': await _getDeviceModel(),
-      // ... informasi device lainnya
-    };
-  }
-
-  static Future<String> _getDeviceModel() async {
-    // Implementasikan untuk mendapatkan model device
-    return '';
-  }
 }

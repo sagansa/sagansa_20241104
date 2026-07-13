@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
+import '../services/image_service.dart';
 
 class PresenceModel {
   final String store;
@@ -12,6 +14,9 @@ class PresenceModel {
   final String? latitudeOut;
   final String? longitudeOut;
   final String? imageOut;
+
+  String? get imageInUrl => ImageService.buildUrl(imageIn);
+  String? get imageOutUrl => ImageService.buildUrl(imageOut);
   final String shiftStartTime;
   final String shiftEndTime;
   final String checkInStatus;
@@ -76,15 +81,15 @@ class PresenceModel {
   Color getStatusColor(String? status) {
     switch (status) {
       case 'tepat_waktu':
-        return Colors.green;
+        return AppColors.success;
       case 'terlambat':
-        return Colors.red;
+        return AppColors.error;
       case 'pulang_cepat':
-        return Colors.orange;
+        return AppColors.warning;
       case 'tidak_absen':
-        return Colors.red;
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.onSurfaceVariant;
     }
   }
 

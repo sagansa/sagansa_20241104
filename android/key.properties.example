@@ -1,0 +1,22 @@
+# Template konfigurasi signing untuk release build Android.
+#
+# Cara pakai:
+#   1. Salin file ini menjadi "key.properties" (di folder android/ yang sama):
+#        cp key.properties.example key.properties
+#   2. Isi nilai sesuai keystore Anda. JANGAN commit file key.properties —
+#      sudah di-gitignore.
+#   3. Pastikan file keystore (.jks) ada di path yang ditunj storeFile.
+#
+# build.gradle membaca key.properties ini secara kondisional: bila tidak ada
+# atau tidak lengkap, release build akan fallback ke debug signing (yang TIDAK
+# bisa di-upload ke Play Store). Jadi pastikan key.properties benar sebelum
+# build release.
+#
+# KEAMANAN: password di file ini rahasia. Jangan share di chat/email publik.
+# Karena keystore pernah ter-commit ke git, anggap password lama compromised —
+# generate keystore baru atau ganti password (lihat docs/play-policy-audit.md).
+
+storePassword=v22KoaB6.Nz-4ZOwDf/F
+keyPassword=v22KoaB6.Nz-4ZOwDf/F
+keyAlias=upload
+storeFile=../my-release-key.jks

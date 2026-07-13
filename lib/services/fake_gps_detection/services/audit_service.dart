@@ -158,7 +158,7 @@ class AuditService {
         try {
           final deletedCount = await cleanupOldLogs();
           if (kDebugMode && deletedCount > 0) {
-            print('Cleaned up $deletedCount old detection logs');
+            debugPrint('Cleaned up $deletedCount old detection logs');
           }
         } catch (e) {
           if (kDebugMode) {

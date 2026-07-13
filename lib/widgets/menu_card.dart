@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_spacing.dart';
 
 class MenuCard extends StatelessWidget {
   final IconData icon;
@@ -14,22 +15,23 @@ class MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Card(
-      elevation: 2,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: AppSpacing.borderRadiusSM,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: AppSpacing.paddingMD,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: Theme.of(context).primaryColor),
-              const SizedBox(height: 8),
+              Icon(icon, size: 48, color: colorScheme.primary),
+              AppSpacing.gapVerticalSM,
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,

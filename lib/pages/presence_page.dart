@@ -8,6 +8,9 @@ import '../pages/home_page.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../controllers/presence_controller.dart';
+import '../utils/image_utils.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -18,10 +21,10 @@ class PresencePage extends StatefulWidget {
   const PresencePage({super.key, required this.isCheckIn});
 
   @override
-  _PresencePageState createState() => _PresencePageState();
+  PresencePageState createState() => PresencePageState();
 }
 
-class _PresencePageState extends State<PresencePage> {
+class PresencePageState extends State<PresencePage> {
   List<Store> stores = [];
   List<ShiftStore> shiftStores = [];
   Store? selectedStore;
@@ -58,6 +61,7 @@ class _PresencePageState extends State<PresencePage> {
       });
       _getCurrentLocation();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
@@ -73,7 +77,6 @@ class _PresencePageState extends State<PresencePage> {
       setState(() {
         currentPosition = position;
 
-        // Cari toko terdekat
         Store? nearestStore;
         double shortestDistance = double.infinity;
 
@@ -91,16 +94,14 @@ class _PresencePageState extends State<PresencePage> {
           }
         }
 
-        // Update selected store dan validasi lokasi
         if (nearestStore != null) {
           selectedStore = nearestStore;
           isLocationValid = shortestDistance <= nearestStore.radius;
-          
+
           if (!widget.isCheckIn) {
             _salaryAmountController.text = nearestStore.dailySalaryAmount;
           }
 
-          // Tampilkan snackbar dengan informasi jarak
           String message = isLocationValid
               ? 'Anda berada di area ${nearestStore.nickname} (${shortestDistance.toStringAsFixed(2)} meter)'
               : 'Anda berada di luar area ${nearestStore.nickname}. Jarak: ${shortestDistance.toStringAsFixed(2)} meter';
@@ -108,18 +109,18 @@ class _PresencePageState extends State<PresencePage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(message),
-              backgroundColor: isLocationValid ? Colors.green : Colors.red,
+              backgroundColor: isLocationValid ? AppColors.success : AppColors.error,
             ),
           );
         }
       });
 
-      // Pindahkan map ke posisi saat ini
       mapController.move(
         LatLng(position.latitude, position.longitude),
         18.0,
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
@@ -138,10 +139,9 @@ class _PresencePageState extends State<PresencePage> {
 
       if (!isTimeValid) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Waktu checkout hanya diperbolehkan sampai jam 02:00'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Waktu checkout hanya diperbolehkan sampai jam 02:00'),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -151,9 +151,9 @@ class _PresencePageState extends State<PresencePage> {
   Future<void> _validateAndSubmitPresence() async {
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap ambil foto selfie terlebih dahulu'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Harap ambil foto selfie terlebih dahulu'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -162,15 +162,12 @@ class _PresencePageState extends State<PresencePage> {
     setState(() => isLoading = true);
 
     try {
-
-
-      // Modifikasi pemanggilan submitPresence untuk mengirim foto
       await _presenceController.submitPresence(
         isCheckIn: widget.isCheckIn,
         currentPosition: currentPosition!,
         selectedStore: selectedStore!,
         selectedShiftStore: selectedShiftStore,
-        imageFile: _imageFile!, // Tambahkan parameter imageFile
+        imageFile: _imageFile!,
         dailySalaryAmount: widget.isCheckIn ? null : _salaryAmountController.text,
         dailySalaryPaymentTypeId: widget.isCheckIn ? null : _selectedPaymentTypeId.toString(),
         onSuccess: () {
@@ -182,11 +179,12 @@ class _PresencePageState extends State<PresencePage> {
         },
         onError: (error) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), backgroundColor: Colors.red),
+            SnackBar(content: Text(error), backgroundColor: AppColors.error),
           );
         },
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
@@ -197,13 +195,11 @@ class _PresencePageState extends State<PresencePage> {
 
   void _updateMapView() {
     if (selectedStore != null && currentPosition != null) {
-      // Hitung titik tengah antara user dan store
       final centerLat =
           (currentPosition!.latitude + selectedStore!.latitude) / 2;
       final centerLng =
           (currentPosition!.longitude + selectedStore!.longitude) / 2;
 
-      // Hitung zoom yang sesuai berdasarkan jarak
       final distance = Geolocator.distanceBetween(
         currentPosition!.latitude,
         currentPosition!.longitude,
@@ -211,15 +207,16 @@ class _PresencePageState extends State<PresencePage> {
         selectedStore!.longitude,
       );
 
-      // Sesuaikan zoom berdasarkan jarak
       double zoom = 18.0;
       if (distance > 1000) {
         zoom = 14.0;
-      } else if (distance > 500)
+      } else if (distance > 500) {
         zoom = 15.0;
-      else if (distance > 200)
+      } else if (distance > 200) {
         zoom = 16.0;
-      else if (distance > 100) zoom = 17.0;
+      } else if (distance > 100) {
+        zoom = 17.0;
+      }
 
       mapController.move(LatLng(centerLat, centerLng), zoom);
     }
@@ -229,16 +226,21 @@ class _PresencePageState extends State<PresencePage> {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front, // Menggunakan kamera depan
-        imageQuality: 50, // Kompres kualitas gambar
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 75,
+        maxWidth: 1024,
       );
 
       if (photo != null) {
-        setState(() {
-          _imageFile = File(photo.path);
-        });
+        final compressed = await ImageUtils.compressToWebP(photo.path);
+        if (mounted) {
+          setState(() {
+            _imageFile = compressed;
+          });
+        }
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengambil foto: ${e.toString()}')),
       );
@@ -247,6 +249,9 @@ class _PresencePageState extends State<PresencePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     bool isButtonEnabled = selectedStore != null &&
         currentPosition != null &&
         isLocationValid &&
@@ -274,17 +279,17 @@ class _PresencePageState extends State<PresencePage> {
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: AppSpacing.paddingMD,
                   child: Column(
                     children: [
                       Card(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: AppSpacing.paddingMD,
                           child: Column(
                             children: [
                               if (_imageFile != null) ...[
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: AppSpacing.borderRadiusSM,
                                   child: Image.file(
                                     _imageFile!,
                                     height: 200,
@@ -292,7 +297,7 @@ class _PresencePageState extends State<PresencePage> {
                                     fit: BoxFit.cover,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                AppSpacing.gapVerticalSM,
                               ],
                               ElevatedButton.icon(
                                 onPressed: _takePhoto,
@@ -308,7 +313,7 @@ class _PresencePageState extends State<PresencePage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      AppSpacing.gapVerticalMD,
                       if (widget.isCheckIn) ...[
                         ModernDropdown<Store>(
                           value: selectedStore,
@@ -336,9 +341,8 @@ class _PresencePageState extends State<PresencePage> {
                               if (!isLocationValid) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                        'Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter'),
-                                    backgroundColor: Colors.red,
+                                    content: Text('Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter'),
+                                    backgroundColor: AppColors.error,
                                   ),
                                 );
                               }
@@ -347,7 +351,7 @@ class _PresencePageState extends State<PresencePage> {
                             _updateMapView();
                           },
                         ),
-                        const SizedBox(height: 16),
+                        AppSpacing.gapVerticalMD,
                         ModernDropdown<ShiftStore>(
                           value: selectedShiftStore,
                           hint: 'Pilih Shift',
@@ -359,7 +363,7 @@ class _PresencePageState extends State<PresencePage> {
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        AppSpacing.gapVerticalMD,
                       ],
                       SizedBox(
                         height: 300,
@@ -387,32 +391,30 @@ class _PresencePageState extends State<PresencePage> {
                                         point: LatLng(selectedStore!.latitude,
                                             selectedStore!.longitude),
                                         radius: selectedStore!.radius
-                                            .toDouble(), // dalam meter
-                                        color: Colors.blue.withValues(alpha: 0.2),
-                                        borderColor: Colors.blue,
+                                            .toDouble(),
+                                        color: colorScheme.primary.withValues(alpha: 0.2),
+                                        borderColor: colorScheme.primary,
                                         borderStrokeWidth: 2,
                                       ),
                                     ],
                                   ),
                                 MarkerLayer(
                                   markers: [
-                                    // Marker untuk posisi user
                                     if (currentPosition != null)
                                       Marker(
                                         point: LatLng(currentPosition!.latitude,
                                             currentPosition!.longitude),
-                                        child: const Icon(
+                                        child: Icon(
                                             Icons.person_pin_circle,
-                                            color: Colors.red,
+                                            color: colorScheme.error,
                                             size: 40.0),
                                       ),
-                                    // Marker untuk store yang dipilih
                                     if (selectedStore != null)
                                       Marker(
                                         point: LatLng(selectedStore!.latitude,
                                             selectedStore!.longitude),
-                                        child: const Icon(Icons.store,
-                                            color: Colors.blue, size: 40.0),
+                                        child: Icon(Icons.store,
+                                            color: colorScheme.primary, size: 40.0),
                                       ),
                                   ],
                                 ),
@@ -421,17 +423,17 @@ class _PresencePageState extends State<PresencePage> {
                             if (isLoadingLocation)
                               Center(
                                 child: Container(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: AppSpacing.paddingMD,
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: colorScheme.surface,
+                                    borderRadius: AppSpacing.borderRadiusSM,
                                   ),
-                                  child: const Column(
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      CircularProgressIndicator(),
-                                      SizedBox(height: 8),
-                                      Text('Mendapatkan lokasi...'),
+                                      const CircularProgressIndicator(),
+                                      AppSpacing.gapVerticalSM,
+                                      const Text('Mendapatkan lokasi...'),
                                     ],
                                   ),
                                 ),
@@ -439,41 +441,38 @@ class _PresencePageState extends State<PresencePage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      AppSpacing.gapVerticalMD,
                       if (selectedStore != null)
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12.0),
+                            padding: AppSpacing.cardPadding,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Lokasi Toko:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                                const SizedBox(height: 8),
+                                AppSpacing.gapVerticalSM,
                                 Row(
                                   children: [
-                                    const Icon(Icons.store, color: Colors.grey),
-                                    const SizedBox(width: 8),
+                                    Icon(Icons.store, color: colorScheme.onSurfaceVariant),
+                                    AppSpacing.gapHorizontalSM,
                                     Expanded(
                                       child: Text(
                                         selectedStore!.nickname,
-                                        style: const TextStyle(fontSize: 15),
+                                        style: textTheme.bodyMedium,
                                       ),
                                     ),
                                   ],
                                 ),
                                 if (currentPosition != null) ...[
-                                  const SizedBox(height: 8),
+                                  AppSpacing.gapVerticalSM,
                                   Row(
                                     children: [
-                                      const Icon(Icons.location_on,
-                                          color: Colors.grey),
-                                      const SizedBox(width: 8),
+                                      Icon(Icons.location_on,
+                                          color: colorScheme.onSurfaceVariant),
+                                      AppSpacing.gapHorizontalSM,
                                       Text(
                                         'Jarak: ${Geolocator.distanceBetween(
                                           currentPosition!.latitude,
@@ -481,11 +480,11 @@ class _PresencePageState extends State<PresencePage> {
                                           selectedStore!.latitude,
                                           selectedStore!.longitude,
                                         ).toStringAsFixed(2)} meter',
-                                        style: const TextStyle(fontSize: 15),
+                                        style: textTheme.bodyMedium,
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
+                                  AppSpacing.gapVerticalSM,
                                   Row(
                                     children: [
                                       Icon(
@@ -493,19 +492,18 @@ class _PresencePageState extends State<PresencePage> {
                                             ? Icons.check_circle
                                             : Icons.error,
                                         color: isLocationValid
-                                            ? Colors.green
-                                            : Colors.red,
+                                            ? AppColors.success
+                                            : colorScheme.error,
                                       ),
-                                      const SizedBox(width: 8),
+                                      AppSpacing.gapHorizontalSM,
                                       Text(
                                         isLocationValid
                                             ? 'Anda berada di area toko'
                                             : 'Anda di luar area toko',
-                                        style: TextStyle(
+                                        style: textTheme.bodyMedium?.copyWith(
                                           color: isLocationValid
-                                              ? Colors.green
-                                              : Colors.red,
-                                          fontSize: 15,
+                                              ? AppColors.success
+                                              : colorScheme.error,
                                         ),
                                       ),
                                     ],
@@ -521,36 +519,33 @@ class _PresencePageState extends State<PresencePage> {
               ),
               ),
               if (!widget.isCheckIn) ...[
-                const SizedBox(height: 16),
+                AppSpacing.gapVerticalMD,
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0),
+                    padding: AppSpacing.cardPadding,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Daily Salary',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: AppSpacing.sectionGap),
                         TextField(
                           controller: _salaryAmountController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
                             labelText: 'Amount (Rp)',
-                            border: OutlineInputBorder(),
+
                             prefixText: 'Rp ',
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: AppSpacing.sectionGap),
                         DropdownButtonFormField<int>(
                           initialValue: _selectedPaymentTypeId,
                           decoration: const InputDecoration(
                             labelText: 'Payment Type',
-                            border: OutlineInputBorder(),
+
                           ),
                           items: const [
                             DropdownMenuItem(value: 1, child: Text('Transfer')),
@@ -569,22 +564,22 @@ class _PresencePageState extends State<PresencePage> {
               ],
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: colorScheme.surface,
                   border: Border(
                     top: BorderSide(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+                      color: colorScheme.primary.withValues(alpha: 0.18),
                     ),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
+                      color: colorScheme.onSurface.withValues(alpha: 0.35),
                       spreadRadius: 0,
                       blurRadius: 12,
                       offset: const Offset(0, -5),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(16),
+                padding: AppSpacing.paddingMD,
                 child: ModernButton(
                   text: widget.isCheckIn ? 'Check In' : 'Check Out',
                   onPressed: isButtonEnabled ? _validateAndSubmitPresence : null,

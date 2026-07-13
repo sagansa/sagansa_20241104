@@ -1,9 +1,24 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+// ignore: depend_on_referenced_packages
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ImageService {
+  static const String imgBaseUrl = String.fromEnvironment(
+    'IMG_SERVICE_URL',
+    defaultValue: 'https://img.sagansa.id',
+  );
+
+  /// Bangun URL publik dari path relatif atau URL absolut.
+  static String? buildUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path; // Sudah URL absolut
+    final clean = path.replaceAll(RegExp(r'^/+'), '');
+    return '$imgBaseUrl/storage/$clean';
+  }
+
   static Future<File?> pickAndResizeImage({
     required ImageSource source,
     int maxWidth = 1024, // ukuran maksimal lebar
@@ -47,7 +62,7 @@ class ImageService {
 
       return targetFile;
     } catch (e) {
-      print('Error resizing image: $e');
+      debugPrint('Error resizing image: $e');
       return null;
     }
   }

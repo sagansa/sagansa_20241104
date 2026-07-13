@@ -48,11 +48,18 @@ class _SkeletonLoadingState extends State<SkeletonLoading>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
     final baseColor =
-        widget.baseColor ?? (isDark ? Colors.grey[800]! : Colors.grey[300]!);
-    final highlightColor = widget.highlightColor ??
-        (isDark ? Colors.grey[700]! : Colors.grey[100]!);
+        widget.baseColor ??
+        (brightness == Brightness.dark
+            ? colorScheme.onSurface.withValues(alpha: 0.15)
+            : colorScheme.onSurface.withValues(alpha: 0.08));
+    final highlightColor =
+        widget.highlightColor ??
+        (brightness == Brightness.dark
+            ? colorScheme.onSurface.withValues(alpha: 0.25)
+            : colorScheme.onSurface.withValues(alpha: 0.03));
 
     return AnimatedBuilder(
       animation: _animation,
@@ -164,9 +171,9 @@ class SkeletonCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: AppSpacing.borderRadiusMD,
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Color(0x1F000000),
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -253,9 +260,9 @@ class SkeletonGridItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: AppSpacing.borderRadiusMD,
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: Color(0x1F000000),
               blurRadius: 2,
               offset: Offset(0, 1),
             ),
@@ -339,9 +346,9 @@ class SkeletonBottomNav extends StatelessWidget {
       height: 80,
       decoration: BoxDecoration(
         color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Color(0x1F000000),
             blurRadius: 4,
             offset: Offset(0, -2),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_spacing.dart';
 
 class ModernDateRangePicker extends StatelessWidget {
   final DateTime? startDate;
@@ -22,32 +23,32 @@ class ModernDateRangePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final borderColor = errorText != null
+        ? colorScheme.error
+        : colorScheme.outlineVariant;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: errorText != null ? Colors.red : Colors.grey[300]!,
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 1),
+            borderRadius: AppSpacing.borderRadiusSM,
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: AppSpacing.paddingSM,
                 child: Row(
                   children: [
-                    Icon(Icons.date_range, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
+                    Icon(Icons.date_range, color: colorScheme.onSurfaceVariant),
+                    AppSpacing.gapHorizontalSM,
                     Expanded(
                       child: Text(
                         _formatDateRange(startDate, endDate),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[800],
-                        ),
+                        style: textTheme.bodyLarge,
                       ),
                     ),
                   ],
@@ -69,26 +70,23 @@ class ModernDateRangePicker extends StatelessWidget {
                 monthViewSettings: DateRangePickerMonthViewSettings(
                   firstDayOfWeek: 1,
                   viewHeaderStyle: DateRangePickerViewHeaderStyle(
-                    textStyle: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                    textStyle: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 headerStyle: DateRangePickerHeaderStyle(
-                  textStyle: TextStyle(
-                    fontSize: 16,
+                  textStyle: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
                   ),
                 ),
                 monthFormat: 'MMMM',
-                todayHighlightColor: Theme.of(context).primaryColor,
-                selectionColor: Theme.of(context).primaryColor,
+                todayHighlightColor: colorScheme.primary,
+                selectionColor: colorScheme.primary,
                 rangeSelectionColor:
-                    Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                startRangeSelectionColor: Theme.of(context).primaryColor,
-                endRangeSelectionColor: Theme.of(context).primaryColor,
+                    colorScheme.primary.withValues(alpha: 0.1),
+                startRangeSelectionColor: colorScheme.primary,
+                endRangeSelectionColor: colorScheme.primary,
               ),
             ],
           ),
@@ -98,9 +96,8 @@ class ModernDateRangePicker extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4, left: 12),
             child: Text(
               errorText!,
-              style: const TextStyle(
-                color: Colors.red,
-                fontSize: 12,
+              style: textTheme.labelSmall?.copyWith(
+                color: colorScheme.error,
               ),
             ),
           ),

@@ -23,16 +23,16 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _token.isNotEmpty;
 
   AuthProvider() {
-    print('AuthProvider constructor called');
+    debugPrint('AuthProvider constructor called');
     _loadToken();
   }
 
   Future<void> _loadToken() async {
     try {
-      print('Loading token...');
+      debugPrint('Loading token...');
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString('token') ?? '';
-      print('Token loaded: ${_token.isNotEmpty ? 'exists' : 'empty'}');
+      debugPrint('Token loaded: ${_token.isNotEmpty ? 'exists' : 'empty'}');
 
       // Load user data if token exists
       if (_token.isNotEmpty) {
@@ -40,9 +40,9 @@ class AuthProvider with ChangeNotifier {
         if (userDataString != null) {
           try {
             _userData = json.decode(userDataString);
-            print('User data loaded successfully');
+            debugPrint('User data loaded successfully');
           } catch (e) {
-            print('Error parsing user data: $e');
+            debugPrint('Error parsing user data: $e');
             _userData = null;
           }
         }
@@ -50,9 +50,9 @@ class AuthProvider with ChangeNotifier {
 
       _authState = AuthState.idle;
       notifyListeners();
-      print('Token loading completed');
+      debugPrint('Token loading completed');
     } catch (e) {
-      print('Error loading token: $e');
+      debugPrint('Error loading token: $e');
       _token = '';
       _userData = null;
       _authState = AuthState.error;
@@ -79,9 +79,9 @@ class AuthProvider with ChangeNotifier {
       debugPrint('AuthProvider: Attempting login for email: $email');
       final result = await _authService.login(email, password);
 
-      debugPrint('AuthProvider: Login result status: ${result['status']}');
+      debugPrint('AuthProvider: Login result status: ${result['success']}');
 
-      if (result['status'] == 'error') {
+      if (result['success'] != true) {
         _authState = AuthState.error;
         _errorMessage = result['message'] ?? 'Login gagal';
         _setLoading(false);
@@ -90,21 +90,8 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Validate response data
-      if (result['data'] == null ||
-          result['data']['access_token'] == null ||
-          result['data']['user'] == null) {
-        _authState = AuthState.error;
-        _errorMessage = 'Response data tidak valid';
-        _setLoading(false);
-        notifyListeners();
-        debugPrint('AuthProvider: Invalid response data');
-        return false;
-      }
-
-      // Success
-      _token = result['data']['access_token'];
-      _userData = result['data']['user'];
+      // Success - reload token and user data from SharedPreferences
+      await _loadToken();
       _authState = AuthState.success;
       _setLoading(false);
       notifyListeners();
@@ -203,4 +190,11 @@ class AuthProvider with ChangeNotifier {
 
   /// Check if the provider has been initialized
   bool get hasInitialized => _authState != AuthState.loading;
+
+  /// Check if the current user has any of the specified roles
+  bool hasAnyRole(List<String> rolesToCheck) {
+    if (_userData == null) return false;
+    final userRoles = List<String>.from(_userData!['roles'] ?? []);
+    return userRoles.any((role) => rolesToCheck.contains(role));
+  }
 }

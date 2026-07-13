@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-
+import '../widgets/modern_bottom_nav.dart';
 class POSPage extends StatefulWidget {
   const POSPage({super.key});
 
   @override
-  _POSPageState createState() => _POSPageState();
+  POSPageState createState() => POSPageState();
 }
 
-class _POSPageState extends State<POSPage> {
+class POSPageState extends State<POSPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,6 +22,14 @@ class _POSPageState extends State<POSPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 3,
+        onTap: (index) {
+          if (index != 3) {
+            Navigator.pop(context);
+          }
+        },
       ),
     );
   }

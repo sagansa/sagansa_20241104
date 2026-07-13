@@ -12,7 +12,11 @@ class FormatUtils {
   }
 
   static String formatDate(DateTime date) {
-    // Implementasi format tanggal, misalnya:
     return '${date.day}-${date.month}-${date.year}';
+  }
+
+  static String stripHtml(String html) {
+    if (html.isEmpty) return html;
+    return html.replaceAll(RegExp(r'<[^>]*>'), '').trim();
   }
 }

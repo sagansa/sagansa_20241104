@@ -61,7 +61,7 @@ class HomeController {
           leave.fromDate.isBefore(now) &&
           leave.untilDate.isAfter(now));
     } catch (e) {
-      print('Error checking active leave: $e');
+      debugPrint('Error checking active leave: $e');
       return false;
     }
   }

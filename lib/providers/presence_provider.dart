@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import '../models/presence_model.dart';
 import '../services/presence_service.dart';
 
@@ -18,14 +19,37 @@ class PresenceProvider with ChangeNotifier {
 
   Future<void> fetchPresences() async {
     try {
-      print('Starting fetchPresences...');
-      final response = await PresenceService().getPresences();
-      print('Got response from service: ${response.length} items');
-      _presences = response;
+      developer.log('Starting fetchPresences...', name: 'PresenceProvider');
+      final response = await PresenceService.getUserPresence();
+      developer.log('Got response from service', name: 'PresenceProvider');
+
+      // Parse the response - getUserPresence returns Map<String, dynamic>
+      final List<dynamic> presencesData = response['data'] is List
+          ? response['data'] as List
+          : [];
+
+      _presences =
+          presencesData.map((json) => PresenceModel.fromJson(json)).toList();
+
+      // Parse today's presence if available
+      final todayData = response['today'];
+      if (todayData != null && todayData is Map<String, dynamic>) {
+        _todayPresence = PresenceModel.fromJson(todayData);
+      } else {
+        _todayPresence = null;
+      }
+
       notifyListeners();
-      print('Presences updated in provider');
+      developer.log(
+        'Presences updated in provider: ${_presences.length} items',
+        name: 'PresenceProvider',
+      );
     } catch (e) {
-      print('Error in fetchPresences: $e');
+      developer.log(
+        'Error in fetchPresences: $e',
+        name: 'PresenceProvider',
+        error: e,
+      );
       rethrow;
     }
   }

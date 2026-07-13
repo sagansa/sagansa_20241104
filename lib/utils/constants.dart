@@ -13,9 +13,19 @@ class ApiConstants {
   // General Endpoints
   static const String appVersion = '$baseUrl/app-version';
 
+  // Fallback URL (used for connectivity retries; defaults to same domain)
+  static const String fallbackBaseUrl = String.fromEnvironment(
+    'FALLBACK_API_URL',
+    defaultValue: baseUrl,
+  );
+
+  // Calendar Endpoint
+  static const String calendar = '$baseUrl/calendar';
+
   // Presence Endpoints
   static const String userPresence = '$baseUrl/user-presence';
   static const String leaves = '$baseUrl/leaves';
+  static const String salaries = '$baseUrl/salaries';
   static const String checkIn = '$baseUrl/check-in';
   static const String checkOut = '$baseUrl/check-out';
   static const String todayPresenceEndpoint = '$baseUrl/presences/today';
@@ -25,11 +35,32 @@ class ApiConstants {
   static const String stores = '$baseUrl/stores';
   static const String shiftStores = '$baseUrl/shift-stores';
 
+  // Employee Location Tracking Endpoints
+  static const String locationPing = '$baseUrl/location';
+  static const String deviceTokens = '$baseUrl/device-tokens';
+
   // Sales Order Delivery Endpoints
   static const String searchSalesOrder = '$baseUrl/sales-orders/search';
   static const String readyToShip = '$baseUrl/sales-orders/ready-to-ship';
+  static const String markPaymentProofsPrinted =
+      '$baseUrl/sales-orders/payment-proofs/printed';
   static const String updateDeliveryStatus =
       '$baseUrl/sales-orders/delivery-update';
+
+  // Asset Management Endpoints (kategorisasi produk + pemeriksaan berkala).
+  static const String assetCategories = '$baseUrl/asset-categories';
+  static const String assets = '$baseUrl/assets';
+  static const String assetDashboard = '$baseUrl/assets/dashboard';
+  static const String assetCurrentStore = '$baseUrl/assets/current-store';
+  static const String assetFromProduct = '$baseUrl/assets/from-product';
+  static const String assetProducts = '$baseUrl/asset-products';
+  static const String assetChecks = '$baseUrl/asset-checks';
+  static const String assetIssues = '$baseUrl/asset-issues';
+
+  // Hygiene Endpoints
+  static const String hygieneRooms = '$baseUrl/hygiene/rooms';
+  static const String hygieneTodayStatus = '$baseUrl/hygiene/today-status';
+  static const String hygiene = '$baseUrl/hygiene';
 
   static Map<String, String> headers(String? token) {
     return {
@@ -37,6 +68,26 @@ class ApiConstants {
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
+  }
+
+  static String get closingStoreUrl {
+    String admin = 'https://www.sagansa.id/admin';
+    if (baseUrl.contains('127.0.0.1:8001')) {
+      admin = 'http://127.0.0.1:8000/admin';
+    } else if (baseUrl.contains('localhost:8001')) {
+      admin = 'http://localhost:8000/admin';
+    } else if (baseUrl.contains('192.168.')) {
+      final uri = Uri.parse(baseUrl);
+      admin = 'http://${uri.host}:8000/admin';
+    } else {
+      final uri = Uri.parse(baseUrl);
+      String host = uri.host;
+      if (host.startsWith('api.')) {
+        host = 'www.${host.substring(4)}';
+      }
+      admin = '${uri.scheme}://$host/admin';
+    }
+    return '$admin/transaction/closings/panel/closing-stores';
   }
 }
 
@@ -60,4 +111,50 @@ class AppConstants {
     2: '#4CAF50', // Green untuk approved
     3: '#F44336', // Red untuk rejected
   };
+}
+
+/// Konfigurasi printer thermal untuk cetak resi berbentuk stiker.
+///
+/// Printer dihubungkan melalui jaringan WiFi (TCP/IP). Umumnya thermal printer
+/// ESC/POS network membuka port **9100**. Sesuaikan `defaultIp` & `defaultPort`
+/// dengan konfigurasi printer yang dipasang.
+class PrinterConstants {
+  // Shared Preferences Keys untuk printer thermal
+  static const String thermalEnabledKey = 'thermal_printer_enabled';
+  static const String thermalWidthMmKey = 'thermal_printer_width_mm';
+  static const String thermalHeightMmKey = 'thermal_printer_height_mm';
+  static const String thermalIpKey = 'thermal_printer_ip';
+  static const String thermalPortKey = 'thermal_printer_port';
+  static const String thermalNameKey = 'thermal_printer_name';
+  static const String thermalCopiesKey = 'thermal_printer_copies';
+  static const String thermalFontSizeKey = 'thermal_printer_font_size';
+
+  // Dimensi default stiker (10 cm x 15 cm -> 100mm x 150mm)
+  // Catatan: ukuran ini akan dikonfirmasi/disesuaikan dengan hardware fisik.
+  static const double defaultWidthMm = 100.0;
+  static const double defaultHeightMm = 150.0;
+
+  // Batasan dimensi stiker (mm) untuk mencegah konfigurasi tidak masuk akal.
+  static const double minWidthMm = 30.0;
+  static const double maxWidthMm = 200.0;
+  static const double minHeightMm = 30.0;
+  static const double maxHeightMm = 300.0;
+
+  // Konfigurasi jaringan default thermal printer (ESC/POS over TCP).
+  static const String defaultIp = '192.168.1.100';
+  static const int defaultPort = 9100;
+
+  // Default jumlah rangkap cetak
+  static const int defaultCopies = 1;
+  static const int minCopies = 1;
+  static const int maxCopies = 5;
+
+  // Default ukuran font pada stiker (point)
+  static const double defaultFontSize = 10.0;
+  static const double minFontSize = 6.0;
+  static const double maxFontSize = 18.0;
+
+  // Timeout koneksi & tulis socket (ms)
+  static const int connectTimeoutMs = 5000;
+  static const int writeTimeoutMs = 5000;
 }

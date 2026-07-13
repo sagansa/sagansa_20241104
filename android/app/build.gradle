@@ -1,7 +1,10 @@
 plugins {
     id "com.android.application"
+    id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    // Firebase Cloud Messaging: DINONAKTIFKAN sementara (lihat settings.gradle).
+    // id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()
@@ -27,7 +30,10 @@ def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
-def releaseStoreFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+// Resolve storeFile relatif ke rootProject (folder android/), bukan module
+// dir (android/app/). Jadi path di key.properties bisa "../upload-keystore.jks"
+// untuk file di root project Flutter.
+def releaseStoreFile = keystoreProperties['storeFile'] ? rootProject.file(keystoreProperties['storeFile']) : null
 def hasReleaseKeystore = releaseStoreFile != null &&
         releaseStoreFile.exists() &&
         keystoreProperties['keyAlias'] &&
@@ -35,21 +41,32 @@ def hasReleaseKeystore = releaseStoreFile != null &&
         keystoreProperties['storePassword']
 
 android {
-    namespace = "id.sagansa.presence"
+    namespace = "id.sagansa.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"  // Remove "ndk;" prefix
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications 17+ butuh core library desugaring untuk
+        // java.time API di Android < 26.
+        coreLibraryDesugaringEnabled true
+    }
+
+    // Kotlin JVM target harus match Java (17) agar tidak "Inconsistent JVM
+    // Target Compatibility" saat compileReleaseKotlin.
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "id.sagansa.presence"
+        applicationId = "id.sagansa.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion
+        // Firebase Messaging menuntut minSdk >= 23; set eksplisit agar aman
+        // terlepas dari default Flutter SDK.
+        minSdk = Math.max(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
@@ -69,6 +86,12 @@ android {
     buildTypes {
         release {
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
+            // R8 code shrinking + resource shrinking untuk AAB lebih kecil.
+            // proguard-rules.pro berisi keep-rules agar plugin tidak crash saat
+            // obfuscation aktif. Build pertama setelah mengubah ini WAJIB di-
+            // smoke-test di device/emulator.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -76,6 +99,16 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Firebase BoM & messaging: DINONAKTIFKAN sementara sampai google-services.json
+    // tersedia (lihat settings.gradle). Native Firebase SDK tetap di-pull oleh plugin
+    // flutter firebase_messaging bila dipakai; di sini tidak perlu deklarasi eksplisit.
+    // implementation platform('com.google.firebase:firebase-bom:33.4.0')
+    // implementation 'com.google.firebase:firebase-messaging'
+    // Desugaring library (wajib untuk flutter_local_notifications).
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
 configurations.all {

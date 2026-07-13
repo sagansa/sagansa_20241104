@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      Default: blok cleartext (HTTP). Semua komunikasi ke backend API harus
+      melalui HTTPS.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+      Pengecualian: printer thermal ESC/POS via TCP port 9100 di jaringan
+      lokal. Printer tidak mendukung TLS, sehingga cleartext diizinkan HANYA
+      untuk private network (10.0.0.0/8, 192.168.0.0/16). Host backend publik
+      tetap wajib HTTPS.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.0.0/8</domain>
+        <domain includeSubdomains="false">192.168.0.0/16</domain>
+        <domain includeSubdomains="false">172.16.0.0/12</domain>
+    </domain-config>
+</network-security-config>

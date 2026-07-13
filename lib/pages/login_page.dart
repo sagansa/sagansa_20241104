@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'home_page.dart';
-import '../services/auth_service.dart';
 import '../widgets/modern_text_field.dart';
 import '../widgets/modern_button.dart';
+import '../theme/app_spacing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  LoginPageState createState() => LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool _passwordVisible = false;
-  final _authService = AuthService();
 
   @override
   void initState() {
@@ -48,33 +50,35 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final result = await _authService.login(
+      final success = await context.read<AuthProvider>().login(
         emailController.text.trim(),
         passwordController.text,
       );
 
-      print('Login response: $result');
+      if (!mounted) return;
 
       setState(() {
         isLoading = false;
       });
 
-      if (result['message'] == 'Login successful') {
-        print('Login berhasil, navigating to HomePage...');
+      if (success) {
+        debugPrint('Login berhasil, navigating to HomePage...');
         
         // Simpan email dan password agar tidak perlu mengetik ulang
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('saved_email', emailController.text.trim());
         await prefs.setString('saved_password', passwordController.text);
 
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
       } else {
-        _showErrorDialog(result['message']);
+        final errorMsg = context.read<AuthProvider>().errorMessage;
+        _showErrorDialog(errorMsg.isNotEmpty ? errorMsg : 'Login gagal');
       }
     } catch (e) {
-      print('Error in _login: $e');
+      debugPrint('Error in _login: $e');
       setState(() {
         isLoading = false;
       });
@@ -101,9 +105,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -112,121 +113,89 @@ class _LoginPageState extends State<LoginPage> {
                 constraints: BoxConstraints(
                   minHeight: constraints.maxHeight,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Logo dan form fields
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 32),
-                          Image.asset(
-                            'assets/images/new-logo.png',
-                            height: 120,
-                            width: 120,
-                            color: Theme.of(context).primaryColor,
-                            colorBlendMode: BlendMode.srcIn,
-                          ),
-                          const SizedBox(height: 32),
-                          const Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                  child: Padding(
+                    padding: AppSpacing.paddingMD,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppSpacing.gapVerticalLG,
+                            SvgPicture.asset(
+                              'assets/images/logo.svg',
+                              height: 160,
+                              width: 160,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-                          AutofillGroup(
-                            child: Column(
-                              children: [
-                                ModernTextField(
-                                  controller: emailController,
-                                  labelText: 'Email',
-                                  prefixIcon: Icons.email,
-                                  keyboardType: TextInputType.emailAddress,
-                                  autofillHints: const [AutofillHints.email],
-                                ),
-                                const SizedBox(height: 16),
-                                ModernTextField(
-                                  controller: passwordController,
-                                  labelText: 'Password',
-                                  prefixIcon: Icons.lock,
-                                  obscureText: !_passwordVisible,
-                                  autofillHints: const [AutofillHints.password],
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _passwordVisible
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _passwordVisible = !_passwordVisible;
-                                      });
-                                    },
+                            AppSpacing.gapVerticalLG,
+                            Text(
+                              "Login",
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            AppSpacing.gapVerticalLG,
+                            AutofillGroup(
+                              child: Column(
+                                children: [
+                                  ModernTextField(
+                                    controller: emailController,
+                                    labelText: 'Email',
+                                    prefixIcon: Icons.email,
+                                    keyboardType: TextInputType.emailAddress,
+                                    autofillHints: const [AutofillHints.email],
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                print('Forgot password clicked');
-                              },
-                              child: Text(
-                                'Lupa Password?',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                ),
+                                  AppSpacing.gapVerticalMD,
+                                  ModernTextField(
+                                    controller: passwordController,
+                                    labelText: 'Password',
+                                    prefixIcon: Icons.lock,
+                                    obscureText: !_passwordVisible,
+                                    autofillHints: const [AutofillHints.password],
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _passwordVisible
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _passwordVisible = !_passwordVisible;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      // Bottom section dengan login button dan register text
-                      Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Belum punya akun? ',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  print('Register clicked');
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  debugPrint('Forgot password clicked');
                                 },
                                 child: Text(
-                                  'Daftar Sekarang',
+                                  'Lupa Password?',
                                   style: TextStyle(
                                     color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ModernButton(
-                            text: 'Login',
-                            onPressed: _login,
-                            isLoading: isLoading,
-                          ),
-                          const SizedBox(height: 16), // Tambahan padding di bawah
-                        ],
-                      ),
-                    ],
+                            ),
+                          ],
+                        ),
+                        AppSpacing.gapVerticalMD,
+                        ModernButton(
+                          text: 'Login',
+                          onPressed: _login,
+                          isLoading: isLoading,
+                        ),
+                        AppSpacing.gapVerticalMD,
+                      ],
+                    ),
                   ),
-                ),
               ),
             );
           },

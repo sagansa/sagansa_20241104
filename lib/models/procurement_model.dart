@@ -161,6 +161,8 @@ class InvoicePurchase {
   final String? supplierName;
   final String createdByName;
   final List<DetailInvoiceItem> detailInvoices;
+  final String? image;
+  String? get imageUrl => ImageService.buildUrl(image);
 
   InvoicePurchase({
     required this.id,
@@ -179,6 +181,7 @@ class InvoicePurchase {
     this.supplierName,
     this.createdByName = '',
     this.detailInvoices = const [],
+    this.image,
   });
 
   String get paymentStatusText {
@@ -232,6 +235,7 @@ class InvoicePurchase {
       supplierName: json['supplier']?['name'],
       createdByName: json['created_by']?['name'] ?? '',
       detailInvoices: items,
+      image: json['image'],
     );
   }
 }

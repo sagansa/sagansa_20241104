@@ -88,6 +88,39 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
         RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.');
   }
 
+  void _showImageFullscreen(String url) {
+    final colorScheme = Theme.of(context).colorScheme;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: colorScheme.onSurface.withValues(alpha: 0.87),
+            iconTheme: IconThemeData(color: colorScheme.surface),
+            title: Text('Bukti Invoice',
+                style: TextStyle(color: colorScheme.surface)),
+          ),
+          body: Container(
+            color: Colors.black,
+            child: Center(
+              child: InteractiveViewer(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.broken_image,
+                    color: colorScheme.surface.withValues(alpha: 0.54),
+                    size: 64,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -161,8 +194,12 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                                                 _toggleSelection(inv.id),
                                           ),
                                           AppSpacing.gapHorizontalSM,
-                                          const ListThumbnail(
+                                          ListThumbnail(
+                                            imageUrl: inv.imageUrl,
                                             placeholderIcon: Icons.receipt_long,
+                                            onTap: inv.imageUrl != null
+                                                ? () => _showImageFullscreen(inv.imageUrl!)
+                                                : null,
                                           ),
                                           AppSpacing.gapHorizontalSM,
                                           Expanded(

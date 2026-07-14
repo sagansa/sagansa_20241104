@@ -7,6 +7,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/add_fab.dart';
+import '../../widgets/list_thumbnail.dart';
 import '../../widgets/modern_bottom_nav.dart';
 import 'invoice_selection_page.dart';
 import 'payment_receipt_detail_page.dart';
@@ -213,50 +214,9 @@ class _PaymentReceiptDashboardPageState
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    if (receipt.image != null &&
-                                        receipt.image!.isNotEmpty)
-                                      ClipRRect(
-                                        borderRadius:
-                                            AppSpacing.borderRadiusSM,
-                                        child: Image.network(
-                                          _imageUrl(receipt.image),
-                                          width: 56,
-                                          height: 56,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              _imagePlaceholder(
-                                                  colorScheme),
-                                          loadingBuilder:
-                                              (_, child, progress) {
-                                            if (progress == null) {
-                                              return child;
-                                            }
-                                            return Container(
-                                              width: 56,
-                                              height: 56,
-                                              decoration: BoxDecoration(
-                                                color: colorScheme
-                                                    .surfaceContainerHighest
-                                                    .withValues(alpha: 0.3),
-                                                borderRadius:
-                                                    AppSpacing.borderRadiusSM,
-                                              ),
-                                              child: const Center(
-                                                child: SizedBox(
-                                                  width: 16,
-                                                  height: 16,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    else
-                                      _imagePlaceholder(colorScheme),
+                                    ListThumbnail(
+                                      imageUrl: _imageUrl(receipt.image),
+                                    ),
                                     const SizedBox(width: AppSpacing.md),
                                     Expanded(
                                       child: Column(
@@ -368,19 +328,5 @@ class _PaymentReceiptDashboardPageState
     );
   }
 
-  Widget _imagePlaceholder(ColorScheme colorScheme) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: AppSpacing.borderRadiusSM,
-      ),
-      child: Icon(
-        Icons.receipt_long,
-        size: 28,
-        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-      ),
-    );
-  }
 }
+

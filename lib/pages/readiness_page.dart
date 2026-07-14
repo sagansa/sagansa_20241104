@@ -60,7 +60,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
       );
 
       if (image != null) {
-        final compressed = await ImageUtils.compressToWebP(image.path);
+        final compressed = await ImageUtils.compressImage(image.path);
         if (mounted) {
           setState(() {
             if (type == 'selfie') _selfieImage = compressed;

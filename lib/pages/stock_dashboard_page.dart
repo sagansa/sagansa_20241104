@@ -284,17 +284,7 @@ class _StockDashboardPageState extends State<StockDashboardPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildMenuRow(
-                  icon: Icons.qr_code_scanner,
-                  color: AppColors.primary,
-                  title: 'Scan Barcode Opname',
-                  subtitle: 'Gunakan kamera untuk menghitung stok sisa.',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Kamera Scanner Aktif (Segera Hadir)')),
-                    );
-                  },
-                ),
+
                 _buildMenuRow(
                   icon: Icons.inventory_outlined,
                   color: AppColors.info,

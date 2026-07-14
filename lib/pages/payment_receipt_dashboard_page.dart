@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_spacing.dart';
@@ -343,16 +345,18 @@ class _PaymentReceiptDashboardPageState
                         },
                       ),
                     ),
-      floatingActionButton: AddFab(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const InvoiceSelectionPage(),
+      floatingActionButton: context.watch<AuthProvider>().hasAnyRole(['staff', 'storage-staff'])
+          ? null
+          : AddFab(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const InvoiceSelectionPage(),
+                  ),
+                ).then((_) => _fetchReceipts());
+              },
             ),
-          ).then((_) => _fetchReceipts());
-        },
-      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 3,
         onTap: (index) {

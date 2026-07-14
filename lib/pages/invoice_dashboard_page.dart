@@ -4,6 +4,7 @@ import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import 'invoice_detail_page.dart';
+import 'procurement_dashboard_page.dart';
 import '../../widgets/modern_bottom_nav.dart';
 
 class InvoiceDashboardPage extends StatefulWidget {
@@ -372,6 +373,17 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                     );
                   }),
                 ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProcurementDashboardPage(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 3,
         onTap: (index) {

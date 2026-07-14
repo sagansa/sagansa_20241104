@@ -27,7 +27,11 @@ class ModernDropdown<T> extends StatelessWidget {
           child: Text(getLabel(item)),
         );
       }).toList(),
-      onChanged: onChanged,
+      onChanged: (val) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          onChanged(val);
+        });
+      },
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../utils/image_utils.dart';
@@ -6,7 +8,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
-import 'dart:typed_data';
 import 'dart:io';
 import '../services/presence_service.dart';
 import '../services/thermal_printer_service.dart';
@@ -218,7 +219,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
       if (!mounted) return;
       if (photo != null) {
-        final compressed = await ImageUtils.compressToWebP(photo.path);
+        final compressed = await ImageUtils.compressImage(photo.path);
         if (mounted) {
           setState(() {
             _imageFile = compressed;
@@ -240,12 +241,23 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (_selectedOrder == null) return;
 
     final receiptNo = _selectedOrder!['receipt_no'];
-    if (_imageFile == null) {
+    
+    // Validasi foto (hanya wajib untuk status 3 / Sudah Dikirim)
+    if (_selectedStatus == 3 && _imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_selectedStatus == 6
-              ? 'Harap ambil foto bukti retur/barang kembali terlebih dahulu.'
-              : 'Harap ambil foto bukti pengiriman terlebih dahulu.'),
+          content: const Text('Harap ambil foto bukti pengiriman terlebih dahulu.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Validasi nama penerima (wajib jika online order & status 3 / Sudah Dikirim)
+    if (widget.orderFor == '3' && _selectedStatus == 3 && _receiverController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Harap isi nama penerima terlebih dahulu.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -269,7 +281,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     try {
       final result = await PresenceService.updateDeliveryStatus(
         receiptNo: receiptNo,
-        imageFile: _imageFile!,
+        imageFile: _imageFile,
         receivedBy: _selectedStatus == 6 ? null : _receiverController.text.trim(),
         deliveryStatus: _selectedStatus,
         notes: _selectedStatus == 6 ? _notesController.text.trim() : null,
@@ -416,9 +428,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
   String _getPaymentStatusText(dynamic status) {
     switch (status?.toString()) {
       case '1':
-        return 'Belum Diperiksa';
+        return 'Sudah Dibayar';
       case '2':
-        return 'Valid / Sudah Dibayar';
+        return 'Valid';
       case '3':
         return 'Tidak Valid';
       case '4':
@@ -806,16 +818,21 @@ class _DeliveryPageState extends State<DeliveryPage> {
     required TextEditingController controller,
     required IconData prefixIcon,
     bool obscureText = false,
+    Widget? suffixIcon,
+    void Function(String)? onSubmitted,
+    TextInputAction? textInputAction,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       style: TextStyle(color: colorScheme.onSurface),
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
       decoration: InputDecoration(
         labelText: labelText,
         labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         prefixIcon: Icon(prefixIcon, color: colorScheme.primary),
-
+        suffixIcon: suffixIcon,
       ),
     );
   }
@@ -863,59 +880,67 @@ class _DeliveryPageState extends State<DeliveryPage> {
       padding: AppSpacing.paddingMD,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        Card(
-          color: colorScheme.surface,
-          child: Padding(
-            padding: AppSpacing.paddingMD,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        if (widget.orderFor == '3') ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
               children: [
-                Text(
-                  'Cari Resi Spesifik',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+                Expanded(
+                  child: _buildGoldTextField(
+                    labelText: 'Cari Nomor Resi / Scan QR & Barcode',
+                    controller: _receiptController,
+                    prefixIcon: Icons.search,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) {
+                      if (!_isLoadingSearch) {
+                        _searchOrder();
+                      }
+                    },
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_receiptController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              setState(() {
+                                _receiptController.clear();
+                              });
+                            },
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_scanner, size: 20),
+                          tooltip: 'Scan QR/Barcode',
+                          onPressed: _scanBarcode,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.arrow_forward, color: colorScheme.primary, size: 20),
+                          tooltip: 'Cari',
+                          onPressed: () {
+                            if (!_isLoadingSearch) {
+                              _searchOrder();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                AppSpacing.gapVerticalSM,
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildGoldTextField(
-                        labelText: 'Nomor Resi / QR',
-                        controller: _receiptController,
-                        prefixIcon: Icons.qr_code_scanner,
-                      ),
+                if (_isLoadingSearch) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: colorScheme.primary,
+                      strokeWidth: 2,
                     ),
-                    AppSpacing.gapHorizontalSM,
-                    SizedBox(
-                      width: 55,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (!_isLoadingSearch) {
-                            _searchOrder();
-                          }
-                        },
-                        child: _isLoadingSearch
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: colorScheme.onPrimary,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(Icons.search,
-                                fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
-        ),
+        ],
         AppSpacing.gapVerticalMD,
 
         Row(
@@ -936,27 +961,29 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ],
         ),
         AppSpacing.gapVerticalXS,
-        ElevatedButton.icon(
-          onPressed:
-              _isPrintingPaymentProof ? null : _printAllPendingPaymentProofs,
-          icon: _isPrintingPaymentProof
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    color: colorScheme.onPrimary,
-                    strokeWidth: 2,
-                  ),
-                )
-              : Icon(Icons.print, color: colorScheme.onPrimary),
-          label: Text(
-            _isPrintingPaymentProof
-                ? 'Menyiapkan Print...'
-                : 'Print Bukti Pembayaran Belum Dikirim & Belum Diprint',
-            style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        if (widget.orderFor != '1') ...[
+          ElevatedButton.icon(
+            onPressed:
+                _isPrintingPaymentProof ? null : _printAllPendingPaymentProofs,
+            icon: _isPrintingPaymentProof
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: colorScheme.onPrimary,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Icon(Icons.print, color: colorScheme.onPrimary),
+            label: Text(
+              _isPrintingPaymentProof
+                  ? 'Menyiapkan Print...'
+                  : 'Print Bukti Pembayaran Belum Dikirim & Belum Diprint',
+              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        AppSpacing.gapVerticalSM,
+          AppSpacing.gapVerticalSM,
+        ],
 
         if (_orders.isEmpty && !_isLoadingList)
           _buildEmptyState()
@@ -1005,7 +1032,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                order['receipt_no'] ?? 'Tanpa Resi',
+                                widget.orderFor == '1'
+                                    ? 'Order #${order['id']}'
+                                    : (order['receipt_no'] ?? 'Tanpa Resi'),
                                 style: textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: colorScheme.onSurface,
@@ -1117,7 +1146,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                 AppSpacing.gapHorizontalSM,
                                 Expanded(
                                   child: Text(
-                                    'Input By: ${order['ordered_by_name']}',
+                                    'Order By: ${order['ordered_by_name']}',
                                     style: textTheme.bodySmall?.copyWith(
                                         color: colorScheme.onSurfaceVariant),
                                   ),
@@ -1201,61 +1230,63 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                           ],
                         ],
-                        AppSpacing.gapVerticalXS,
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(
-                            color: _getPaymentProofPrintStatusColor(
-                                    Map<String, dynamic>.from(order))
-                                .withValues(alpha: 0.12),
-                            borderRadius: AppSpacing.borderRadiusSM,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _isPaymentProofPrinted(
-                                        Map<String, dynamic>.from(order))
-                                    ? Icons.check_circle_outline
-                                    : Icons.print_outlined,
-                                size: 14,
-                                color: _getPaymentProofPrintStatusColor(
-                                    Map<String, dynamic>.from(order)),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Flexible(
-                                child: Text(
-                                  _getPaymentProofPrintStatusText(
+                        if (widget.orderFor != '1') ...[
+                          AppSpacing.gapVerticalXS,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                            decoration: BoxDecoration(
+                              color: _getPaymentProofPrintStatusColor(
+                                      Map<String, dynamic>.from(order))
+                                  .withValues(alpha: 0.12),
+                              borderRadius: AppSpacing.borderRadiusSM,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _isPaymentProofPrinted(
+                                          Map<String, dynamic>.from(order))
+                                      ? Icons.check_circle_outline
+                                      : Icons.print_outlined,
+                                  size: 14,
+                                  color: _getPaymentProofPrintStatusColor(
                                       Map<String, dynamic>.from(order)),
-                                  style: TextStyle(
-                                    color: _getPaymentProofPrintStatusColor(
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Flexible(
+                                  child: Text(
+                                    _getPaymentProofPrintStatusText(
                                         Map<String, dynamic>.from(order)),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                    style: TextStyle(
+                                      color: _getPaymentProofPrintStatusColor(
+                                          Map<String, dynamic>.from(order)),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_canPrintPaymentProof(
-                            Map<String, dynamic>.from(order))) ...[
-                          AppSpacing.gapVerticalSM,
-                          OutlinedButton.icon(
-                            onPressed: _isPrintingPaymentProof
-                                ? null
-                                : () => _printPaymentProofs([
-                                      Map<String, dynamic>.from(order),
-                                    ]),
-                            icon: const Icon(Icons.print, size: 18),
-                            label: Text(
-                              _isPaymentProofPrinted(
-                                      Map<String, dynamic>.from(order))
-                                  ? 'Print Ulang Bukti Pembayaran'
-                                  : 'Print Bukti Pembayaran',
+                              ],
                             ),
                           ),
+                          if (_canPrintPaymentProof(
+                              Map<String, dynamic>.from(order))) ...[
+                            AppSpacing.gapVerticalSM,
+                            OutlinedButton.icon(
+                              onPressed: _isPrintingPaymentProof
+                                  ? null
+                                  : () => _printPaymentProofs([
+                                        Map<String, dynamic>.from(order),
+                                      ]),
+                              icon: const Icon(Icons.print, size: 18),
+                              label: Text(
+                                _isPaymentProofPrinted(
+                                        Map<String, dynamic>.from(order))
+                                    ? 'Print Ulang Bukti Pembayaran'
+                                    : 'Print Bukti Pembayaran',
+                              ),
+                            ),
+                          ],
                         ],
                       ],
                     ),
@@ -1269,12 +1300,1139 @@ class _DeliveryPageState extends State<DeliveryPage> {
     );
   }
 
+  Widget _buildOnlineOrderDetailView(
+    Map<String, dynamic> order,
+    bool isLocked,
+    bool canMarkReadyToShip,
+    bool canSubmitDelivery,
+    int deliveryStatus,
+  ) {
+    final String receiptNo = order['receipt_no'] ?? '-';
+    final String providerName = order['provider_name'] ?? '-';
+    final String storeName = order['store_name'] ?? '-';
+    final String deliveryServiceName = order['delivery_service_name'] ?? '-';
+    final String deliveryDate = order['delivery_date'] ?? '-';
+    final String printStatus = _getPaymentProofPrintStatusText(order);
+
+    // Address and Recipient Info
+    final String recipientName = order['address_recipient_name'] ?? order['received_by'] ?? '-';
+    final String recipientPhone = order['address_recipient_telp_no'] ?? '-';
+    final String addressName = order['address_name'] ?? '';
+
+    final String fullAddress = [
+      if (order['address_detail'] != null && order['address_detail'].toString().trim().isNotEmpty)
+        order['address_detail'].toString().trim(),
+      if (order['address_subdistrict'] != null && order['address_subdistrict'].toString().trim().isNotEmpty)
+        'Kec. ${order['address_subdistrict']}',
+      if (order['address_district'] != null && order['address_district'].toString().trim().isNotEmpty)
+        order['address_district'].toString().trim(),
+      if (order['address_city'] != null && order['address_city'].toString().trim().isNotEmpty)
+        order['address_city'].toString().trim(),
+      if (order['address_province'] != null && order['address_province'].toString().trim().isNotEmpty)
+        order['address_province'].toString().trim(),
+    ].join(', ');
+
+    return SingleChildScrollView(
+      padding: AppSpacing.paddingMD,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sleek Inline Back Button & Header
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.arrow_back, color: colorScheme.primary),
+                onPressed: () {
+                  setState(() {
+                    _selectedOrder = null;
+                    _imageFile = null;
+                    _receiverController.clear();
+                  });
+                },
+              ),
+              Text(
+                'Detail Pengiriman Online',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          AppSpacing.gapVerticalMD,
+
+          // Card 1: Status & Info Transaksi Utama
+          Card(
+            color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.shopping_bag,
+                              size: 14,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              providerName,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getDeliveryStatusColor(order['delivery_status'])
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _getDeliveryStatusText(order['delivery_status']),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: _getDeliveryStatusColor(order['delivery_status']),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Resi: $receiptNo',
+                    style: textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Toko',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              storeName,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (order['ordered_by_name'] != null)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dipesan Oleh',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                order['ordered_by_name'],
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AppSpacing.gapVerticalMD,
+
+          // Card 2: Informasi Penerima & Alamat
+          Card(
+            color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.person_pin_circle,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Penerima & Alamat Kirim',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Nama Penerima',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              recipientName,
+                              style: textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (recipientPhone != '-' && recipientPhone.isNotEmpty)
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 18, color: colorScheme.primary),
+                          tooltip: 'Salin nomor telepon',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: recipientPhone));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Nomor telepon disalin ke clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nomor Telepon',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        recipientPhone,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Alamat Pengiriman',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (addressName.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.secondary.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      addressName,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.secondary,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              fullAddress.isEmpty ? '-' : fullAddress,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurface,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (fullAddress.isNotEmpty && fullAddress != '-')
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 18, color: colorScheme.primary),
+                          tooltip: 'Salin alamat lengkap',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: fullAddress));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Alamat lengkap disalin ke clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AppSpacing.gapVerticalMD,
+
+          // Card 3: Informasi Ekspedisi
+          Card(
+            color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.secondary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.local_shipping,
+                          color: colorScheme.secondary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Informasi Pengiriman',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Jasa Kirim',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              deliveryServiceName,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tanggal Kirim',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              deliveryDate,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Status Cetak Label',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        printStatus,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (isLocked) ...[
+                    const SizedBox(height: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Penerima',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          order['received_by'] ?? '-',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          AppSpacing.gapVerticalMD,
+
+          // Card 4: Daftar Produk
+          Card(
+            color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Daftar Produk',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  if (order['items'] != null && (order['items'] as List).isNotEmpty)
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: (order['items'] as List).length,
+                      separatorBuilder: (context, index) => const Divider(height: 16),
+                      itemBuilder: (context, index) {
+                        final item = order['items'][index];
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${item['quantity']} ${item['product_unit'] ?? 'pcs'}',
+                                style: textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item['product_name'] ?? '-',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Tidak ada rincian produk.',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          AppSpacing.gapVerticalMD,
+
+          // Bukti Pembayaran (jika ada)
+          if (order['image_payment_url'] != null) ...[
+            Card(
+              color: colorScheme.surface,
+              child: Padding(
+                padding: AppSpacing.paddingMD,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.payment, color: colorScheme.primary, size: 18),
+                        AppSpacing.gapHorizontalSM,
+                        Text(
+                          'Foto Bukti Pembayaran',
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapVerticalSM,
+                    ClipRRect(
+                      borderRadius: AppSpacing.borderRadiusMD,
+                      child: InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              child: Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  InteractiveViewer(
+                                    child: Image.network(
+                                      order['image_payment_url'],
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: colorScheme.onSurface, size: 30),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            Image.network(
+                              order['image_payment_url'],
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 100,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.broken_image,
+                                          color: AppColors.error, size: 36),
+                                      AppSpacing.gapVerticalSM,
+                                      Text(
+                                        'Gagal memuat gambar',
+                                        style: textTheme.bodySmall?.copyWith(
+                                            color: AppColors.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            Container(
+                              width: double.infinity,
+                              color: colorScheme.onSurface.withValues(alpha: 0.54),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Text(
+                                'Klik untuk memperbesar gambar',
+                                style: textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AppSpacing.gapVerticalMD,
+          ],
+
+          // Print Bukti Pembayaran
+          if (_canPrintPaymentProof(order)) ...[
+            ElevatedButton.icon(
+              onPressed: _isPrintingPaymentProof
+                  ? null
+                  : () => _printPaymentProofs([
+                        Map<String, dynamic>.from(order),
+                      ]),
+              icon: _isPrintingPaymentProof
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: colorScheme.onPrimary,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Icon(Icons.print, color: colorScheme.onPrimary),
+              label: Text(
+                _isPrintingPaymentProof
+                    ? 'Menyiapkan Print...'
+                    : _isPaymentProofPrinted(order)
+                        ? 'Print Ulang Bukti Pembayaran'
+                        : 'Print Bukti Pembayaran',
+                style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            AppSpacing.gapVerticalMD,
+          ],
+
+          // Cetak Resi Stiker (khusus online)
+          _buildStickerPrintButton(order),
+          AppSpacing.gapVerticalMD,
+
+          // Foto Bukti Pengiriman (jika ada)
+          if (order['image_delivery_url'] != null) ...[
+            Card(
+              color: colorScheme.surface,
+              child: Padding(
+                padding: AppSpacing.paddingMD,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.photo, color: colorScheme.primary, size: 18),
+                        AppSpacing.gapHorizontalSM,
+                        Text(
+                          'Foto Bukti Pengiriman',
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapVerticalSM,
+                    ClipRRect(
+                      borderRadius: AppSpacing.borderRadiusMD,
+                      child: InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              child: Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  InteractiveViewer(
+                                    child: Image.network(
+                                      order['image_delivery_url'],
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close,
+                                        color: colorScheme.onSurface, size: 30),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            Image.network(
+                              order['image_delivery_url'],
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 100,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.broken_image,
+                                          color: AppColors.error, size: 36),
+                                      AppSpacing.gapVerticalSM,
+                                      Text(
+                                        'Gagal memuat gambar',
+                                        style: textTheme.bodySmall?.copyWith(
+                                            color: AppColors.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            Container(
+                              width: double.infinity,
+                              color: colorScheme.onSurface.withValues(alpha: 0.54),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Text(
+                                'Klik untuk memperbesar gambar',
+                                style: textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AppSpacing.gapVerticalMD,
+          ],
+
+          // Form Input Pengiriman / Konfirmasi Siap Kirim
+          if (canMarkReadyToShip) ...[
+            Card(
+              color: colorScheme.surface,
+              child: Padding(
+                padding: AppSpacing.paddingMD,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined,
+                            color: AppColors.warning, size: 20),
+                        AppSpacing.gapHorizontalSM,
+                        Expanded(
+                          child: Text(
+                            'Order Belum Siap Dikirim',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapVerticalXS,
+                    Text(
+                      'Tandai order ini sebagai siap dikirim sebelum mengunggah bukti pengiriman.',
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                    AppSpacing.gapVerticalMD,
+                    ElevatedButton.icon(
+                      onPressed:
+                          _isLoadingReadyToShip ? null : _markReadyToShip,
+                      icon: _isLoadingReadyToShip
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: colorScheme.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(Icons.local_shipping,
+                              color: colorScheme.onPrimary),
+                      label: Text(
+                        _isLoadingReadyToShip
+                            ? 'Memproses...'
+                            : 'Tandai Siap Dikirim',
+                          style: textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold),
+                        ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else if (canSubmitDelivery) ...[
+            Card(
+              color: colorScheme.surface,
+              child: Padding(
+                padding: AppSpacing.paddingMD,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kirim Bukti Pengiriman',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    AppSpacing.gapVerticalMD,
+                    _buildGoldTextField(
+                      labelText: 'Nama Penerima (Wajib)',
+                      controller: _receiverController,
+                      prefixIcon: Icons.person_outline,
+                    ),
+                    AppSpacing.gapVerticalMD,
+                    if (_imageFile != null) ...[
+                      ClipRRect(
+                        borderRadius: AppSpacing.borderRadiusMD,
+                        child: Image.file(
+                          _imageFile!,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      AppSpacing.gapVerticalSM,
+                    ],
+                    ElevatedButton.icon(
+                      onPressed: _takePhoto,
+                      icon: Icon(Icons.camera_alt, color: colorScheme.onSurface),
+                      label: Text(
+                        _imageFile == null
+                            ? 'Ambil Foto Bukti Pengiriman'
+                            : 'Ambil Ulang Foto',
+                        style: TextStyle(color: colorScheme.onSurface),
+                      ),
+                    ),
+                    AppSpacing.gapVerticalMD,
+                    ElevatedButton(
+                      onPressed: _imageFile == null
+                          ? null
+                          : () {
+                              if (!_isLoadingSubmit) {
+                                if (_receiverController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Harap isi nama penerima terlebih dahulu.'),
+                                      backgroundColor: AppColors.error,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Konfirmasi Pengiriman'),
+                                      content: const Text(
+                                          'Apakah Anda yakin ingin mengirim bukti pengiriman ini? '
+                                          'Status pengiriman akan diubah menjadi "Sudah Dikirim" dan tidak dapat diubah lagi.'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('Batal'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            setState(() {
+                                              _selectedStatus = 3;
+                                            });
+                                            _submitDelivery();
+                                          },
+                                          child: const Text('Ya, Kirim'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            },
+                      child: _isLoadingSubmit
+                          ? CircularProgressIndicator(color: colorScheme.onPrimary)
+                          : Text(
+                              'Kirim Bukti Pengiriman',
+                              style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AppSpacing.gapVerticalMD,
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.assignment_return),
+              label: const Text('Refund / Kembalikan Order', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () {
+                _showRefundDialog();
+              },
+            ),
+          ] else ...[
+            Builder(builder: (context) {
+              final isStatusTwo = deliveryStatus == 2;
+              final isStatusSix = deliveryStatus == 6;
+              Color cardColor = const Color(0xFF1F2E35);
+              if (isStatusTwo) {
+                cardColor = const Color(0xFF142B1A);
+              } else if (isStatusSix) {
+                cardColor = const Color(0xFF2C1919);
+              }
+
+              IconData icon = Icons.local_shipping;
+              Color iconColor = colorScheme.primary;
+              String statusText = 'Orderan ini sudah dikirim.';
+
+              if (isStatusTwo) {
+                icon = Icons.check_circle;
+                iconColor = AppColors.success;
+                statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
+              } else if (isStatusSix) {
+                icon = Icons.assignment_return;
+                iconColor = AppColors.error;
+                statusText = 'Orderan ini dikembalikan.';
+              }
+
+              return Card(
+                color: cardColor,
+                child: Padding(
+                  padding: AppSpacing.paddingMD,
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color: iconColor,
+                      ),
+                      AppSpacing.gapHorizontalSM,
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            color: iconColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showRefundDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final ColorScheme dialogColorScheme = Theme.of(context).colorScheme;
+        final TextTheme dialogTextTheme = Theme.of(context).textTheme;
+
+        return AlertDialog(
+          backgroundColor: dialogColorScheme.surface,
+          title: Row(
+            children: [
+              Icon(Icons.assignment_return, color: AppColors.error),
+              const SizedBox(width: 10),
+              Text(
+                'Konfirmasi Refund / Kembalikan',
+                style: dialogTextTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: dialogColorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Apakah Anda yakin ingin mengembalikan order ini? Status pengiriman akan diubah menjadi "Dikembalikan" dan tidak dapat diubah lagi.',
+            style: dialogTextTheme.bodyMedium?.copyWith(
+              color: dialogColorScheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Batal',
+                style: TextStyle(color: dialogColorScheme.onSurfaceVariant),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  _selectedStatus = 6;
+                  _imageFile = null;
+                  _notesController.text = 'Refund oleh storage staff';
+                });
+                _submitDelivery();
+              },
+              child: const Text('Ya, Kembalikan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildOrderDetailView() {
     final order = _selectedOrder!;
     final int deliveryStatus = order['delivery_status'] ?? 1;
-    final bool isLocked = deliveryStatus == 2 || deliveryStatus == 6;
+    final bool isLocked = deliveryStatus == 2 || deliveryStatus == 6 || deliveryStatus == 3;
     final bool canMarkReadyToShip = deliveryStatus == 1;
     final bool canSubmitDelivery = !isLocked && !canMarkReadyToShip;
+
+    if (widget.orderFor == '3') {
+      return _buildOnlineOrderDetailView(order, isLocked, canMarkReadyToShip, canSubmitDelivery, deliveryStatus);
+    }
 
     return SingleChildScrollView(
       padding: AppSpacing.paddingMD,
@@ -1322,7 +2480,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Resi: ${order['receipt_no']}',
+                          widget.orderFor == '1'
+                              ? 'Order #${order['id']}'
+                              : 'Resi: ${order['receipt_no']}',
                           style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: colorScheme.onSurface,
@@ -1371,10 +2531,6 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       'Jasa Kirim', order['delivery_service_name'] ?? '-'),
                   _buildDetailRow(
                       'Tanggal Kirim', order['delivery_date'] ?? '-'),
-                  _buildDetailRow(
-                    'Status Print',
-                    _getPaymentProofPrintStatusText(order),
-                  ),
                   if (isLocked)
                     _buildDetailRow('Penerima', order['received_by'] ?? '-'),
                   AppSpacing.gapVerticalMD,
@@ -1517,36 +2673,6 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     ),
                   ],
                 ),
-              ),
-            ),
-            AppSpacing.gapVerticalMD,
-          ],
-
-          if (_canPrintPaymentProof(order)) ...[
-            ElevatedButton.icon(
-              onPressed: _isPrintingPaymentProof
-                  ? null
-                  : () => _printPaymentProofs([
-                        Map<String, dynamic>.from(order),
-                      ]),
-              icon: _isPrintingPaymentProof
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        color: colorScheme.onPrimary,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(Icons.print, color: colorScheme.onPrimary),
-              label: Text(
-                _isPrintingPaymentProof
-                    ? 'Menyiapkan Print...'
-                    : _isPaymentProofPrinted(order)
-                        ? 'Print Ulang Bukti Pembayaran'
-                        : 'Print Bukti Pembayaran',
-                style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold),
               ),
             ),
             AppSpacing.gapVerticalMD,
@@ -2036,6 +3162,110 @@ class _DeliveryPageState extends State<DeliveryPage> {
               value,
               style: textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500, color: colorScheme.onSurface),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _scanBarcode() async {
+    final scannedCode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const _BarcodeScannerPage()),
+    );
+    if (scannedCode != null && scannedCode.isNotEmpty) {
+      setState(() {
+        _receiptController.text = scannedCode;
+      });
+      _searchOrder();
+    }
+  }
+}
+
+class _BarcodeScannerPage extends StatefulWidget {
+  const _BarcodeScannerPage();
+
+  @override
+  State<_BarcodeScannerPage> createState() => _BarcodeScannerPageState();
+}
+
+class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
+  MobileScannerController? _controller;
+  bool _hasScanned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_hasScanned) return;
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode != null && barcode.rawValue != null) {
+      _hasScanned = true;
+      Navigator.pop(context, barcode.rawValue);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Scan Resi / Barcode / QR'),
+        actions: [
+          ValueListenableBuilder(
+            valueListenable: _controller!,
+            builder: (context, state, child) {
+              return IconButton(
+                icon: Icon(
+                  state.torchState == TorchState.on
+                      ? Icons.flash_on
+                      : Icons.flash_off,
+                ),
+                onPressed: () => _controller!.toggleTorch(),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+          ),
+          Center(
+            child: Container(
+              width: 280,
+              height: 200,
+              decoration: BoxDecoration(
+                border: Border.all(color: colorScheme.surface, width: 2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 80,
+            left: 0,
+            right: 0,
+            child: Text(
+              'Arahkan kamera ke QR code atau Barcode resi',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colorScheme.surface.withValues(alpha: 0.8),
+                backgroundColor: Colors.black.withValues(alpha: 0.4),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

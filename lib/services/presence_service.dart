@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as p;
 import '../models/store_model.dart';
 import '../models/shift_store_model.dart';
 import 'dart:io';
@@ -18,11 +20,20 @@ class PresenceService {
     return token;
   }
 
+  static Future<Map<String, String>> getHeaders() async {
+    final token = await getToken();
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   static Future<List<Store>> getStores() async {
     try {
       final response = await http.get(
         Uri.parse(ApiConstants.stores),
-        headers: ApiConstants.headers(await getToken()),
+        headers: await getHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -95,16 +106,30 @@ class PresenceService {
       var request = http.MultipartRequest('POST', uri)
         ..headers.addAll(ApiConstants.headers(token))
         ..fields
-            .addAll(data.map((key, value) => MapEntry(key, value.toString())))
-        ..files.add(await http.MultipartFile.fromPath(
+            .addAll(data.map((key, value) => MapEntry(key, value.toString())));
+
+      if (kIsWeb) {
+        final bytes = await XFile(imageFile.path).readAsBytes();
+        // Pertahankan ekstensi file aktual (mis. .webp di Android, .jpg di iOS)
+        // agar content-type dan validasi backend tetap konsisten.
+        final ext = p.extension(imageFile.path).toLowerCase();
+        request.files.add(http.MultipartFile.fromBytes(
+          isCheckIn ? 'image_in' : 'image_out',
+          bytes,
+          filename: isCheckIn ? 'image_in$ext' : 'image_out$ext',
+        ));
+      } else {
+        request.files.add(await http.MultipartFile.fromPath(
           isCheckIn ? 'image_in' : 'image_out',
           imageFile.path,
         ));
+      }
 
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-      return json.decode(responseData); // Langsung return decoded response
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return json.decode(response.body); // Langsung return decoded response
     } catch (e) {
+      developer.log('Error uploading presence image: $e', name: 'PresenceService');
       throw Exception('Gagal mengirim data presensi');
     }
   }
@@ -161,6 +186,17 @@ class PresenceService {
       developer.log('Error in getUserPresence',
           error: e, name: 'PresenceService');
       throw Exception('Failed to load presence data: $e');
+    }
+  }
+
+  /// Returns true when the current user has an active clock-in for today.
+  static Future<bool> isClockedIn() async {
+    try {
+      final data = await getUserPresence();
+      final presenceData = data['data'] as Map<String, dynamic>?;
+      return presenceData?['today'] != null;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -278,7 +314,7 @@ class PresenceService {
 
   static Future<Map<String, dynamic>> updateDeliveryStatus({
     required String receiptNo,
-    required File imageFile,
+    File? imageFile,
     String? receivedBy,
     int? deliveryStatus,
     String? notes,
@@ -297,11 +333,14 @@ class PresenceService {
             'delivery_status': deliveryStatus.toString(),
           if (notes != null && notes.isNotEmpty)
             'notes': notes,
-        })
-        ..files.add(await http.MultipartFile.fromPath(
+        });
+
+      if (imageFile != null) {
+        request.files.add(await http.MultipartFile.fromPath(
           'image_delivery',
           imageFile.path,
         ));
+      }
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
@@ -318,4 +357,36 @@ class PresenceService {
     }
   }
 
+  /// Check if store has pending utility reports (status = 1 Belum Diperiksa)
+  static Future<bool> checkPendingUtilityReports(int storeId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/utility-usages/store/$storeId/pending'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data']['has_pending'] == true;
+        } else {
+          throw Exception('Gagal memeriksa laporan utility: ${data['message']}');
+        }
+      } else {
+        throw Exception('Gagal memeriksa laporan utility: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error dalam checkPendingUtilityReports: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, String>> _getHeaders() async {
+    final token = await getToken();
+    return {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
 }

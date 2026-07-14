@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
+import 'edit_invoice_page.dart';
 import 'invoice_selection_page.dart';
 
 class InvoiceDetailPage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   InvoicePurchase? _invoice;
   bool _isLoading = true;
   bool _isAdmin = false;
+  int _currentUserId = 0;
   String? _errorMessage;
   List<PaymentReceipt> _paymentReceipts = [];
 
@@ -39,6 +41,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       final userData = json.decode(userString);
       final roles = List<String>.from(userData['roles'] ?? []);
       _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+      _currentUserId = userData['id'] ?? 0;
     }
     _fetchDetail();
   }
@@ -80,6 +83,19 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     }
   }
 
+  Future<void> _navigateToEdit() async {
+    if (_invoice == null) return;
+    final result = await Navigator.push<InvoicePurchase>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditInvoicePage(invoice: _invoice!),
+      ),
+    );
+    if (result != null) {
+      _fetchDetail();
+    }
+  }
+
   Color _paymentStatusColor(String status) {
     switch (status) {
       case '1': return AppColors.warning;
@@ -106,6 +122,17 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Invoice'),
+        actions: _invoice != null &&
+                _invoice!.paymentStatus == '1' &&
+                (_isAdmin || _invoice!.createdById == _currentUserId)
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: _navigateToEdit,
+                  tooltip: 'Edit Invoice',
+                ),
+              ]
+            : null,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

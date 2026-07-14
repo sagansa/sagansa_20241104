@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/hygiene_model.dart';
+import '../models/store_model.dart';
 import '../services/hygiene_service.dart';
+import '../services/store_service.dart';
+import '../services/asset_service.dart';
 import '../utils/image_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../widgets/modern_bottom_sheet.dart';
 
 class HygienePage extends StatefulWidget {
   const HygienePage({super.key});
@@ -21,10 +23,10 @@ class _HygienePageState extends State<HygienePage> {
 
   List<RoomModel> _rooms = [];
   final Map<int, File?> _roomPhotos = {};
-  final Map<int, int> _roomConditions = {};
   final Map<int, String?> _roomNotes = {};
+  List<StoreModel> _stores = [];
+  StoreModel? _selectedStore;
   int? _storeId;
-  String? _storeName;
 
   bool _isLoading = true;
   bool _hasSubmittedToday = false;
@@ -39,18 +41,32 @@ class _HygienePageState extends State<HygienePage> {
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     try {
+      final storeService = StoreService();
+      final assetService = AssetService();
       final results = await Future.wait([
         _hygieneService.getRooms(),
         _hygieneService.checkTodayStatus(),
+        storeService.getStores(),
+        assetService.getCurrentStoreId(),
       ]);
 
       final rooms = results[0] as List<RoomModel>;
       final hasSubmitted = results[1] as bool;
+      final stores = results[2] as List<StoreModel>;
+      final currentStoreId = results[3] as int?;
 
       if (mounted) {
         setState(() {
           _rooms = rooms;
           _hasSubmittedToday = hasSubmitted;
+          _stores = stores;
+          if (currentStoreId != null) {
+            _selectedStore = stores.where((s) => s.id == currentStoreId).firstOrNull;
+          }
+          if (_selectedStore == null && stores.isNotEmpty) {
+            _selectedStore = stores.first;
+          }
+          _storeId = _selectedStore?.id;
           _isLoading = false;
         });
       }
@@ -67,7 +83,7 @@ class _HygienePageState extends State<HygienePage> {
   int get _completedCount {
     int count = 0;
     for (final room in _rooms) {
-      if (_roomPhotos[room.id] != null || _roomConditions.containsKey(room.id)) {
+      if (_roomPhotos[room.id] != null) {
         count++;
       }
     }
@@ -86,13 +102,10 @@ class _HygienePageState extends State<HygienePage> {
         maxWidth: 1024,
       );
       if (image != null && mounted) {
-        final compressed = await ImageUtils.compressToWebP(image.path);
+        final compressed = await ImageUtils.compressImage(image.path);
         if (mounted) {
           setState(() {
             _roomPhotos[roomId] = compressed;
-            if (!_roomConditions.containsKey(roomId)) {
-              _roomConditions[roomId] = 1;
-            }
           });
         }
       }
@@ -105,38 +118,7 @@ class _HygienePageState extends State<HygienePage> {
     }
   }
 
-  Future<void> _pickCondition(int roomId) async {
-    final result = await ModernBottomSheet.show<int>(
-      context: context,
-      title: 'Kondisi Ruangan',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _conditionOption(1, 'Bersih', AppColors.success, Icons.check_circle, roomId),
-          AppSpacing.gapVerticalSM,
-          _conditionOption(2, 'Perlu Perhatian', AppColors.warning, Icons.info, roomId),
-          AppSpacing.gapVerticalSM,
-          _conditionOption(3, 'Kotor', AppColors.error, Icons.warning, roomId),
-        ],
-      ),
-    );
-
-    if (result != null && mounted) {
-      setState(() {
-        _roomConditions[roomId] = result;
-      });
-    }
-  }
-
-  Widget _conditionOption(int value, String label, Color color, IconData icon, int roomId) {
-    final isSelected = _roomConditions[roomId] == value;
-    return ElevatedButton.icon(
-      onPressed: () => Navigator.pop(context, value),
-      icon: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.onPrimary : color),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(),
-    );
-  }
+  // Condition picking removed per requirements (admin determines status, not staff)
 
   Future<void> _addNotes(int roomId) async {
     final controller = TextEditingController(text: _roomNotes[roomId] ?? '');
@@ -173,6 +155,13 @@ class _HygienePageState extends State<HygienePage> {
   }
 
   Future<void> _submit() async {
+    if (_storeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan pilih toko terlebih dahulu!')),
+      );
+      return;
+    }
+
     if (!_isReadyToSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lengkapi semua ruangan terlebih dahulu!')),
@@ -206,7 +195,7 @@ class _HygienePageState extends State<HygienePage> {
         return {
           'room_id': room.id,
           'image_path': _roomPhotos[room.id]?.path,
-          'condition': _roomConditions[room.id],
+          'condition': null,
           'notes': _roomNotes[room.id],
         };
       }).toList();
@@ -287,26 +276,31 @@ class _HygienePageState extends State<HygienePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_storeName != null)
-                        Container(
-                          padding: AppSpacing.cardPadding,
-                          decoration: BoxDecoration(
-                            color: AppColors.info.withValues(alpha:0.1),
-                            borderRadius: AppSpacing.borderRadiusSM,
-                            border: Border.all(color: AppColors.info.withValues(alpha:0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.store, color: AppColors.info),
-                              AppSpacing.gapHorizontalSM,
-                              Text(
-                                _storeName!,
-                                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
+                      DropdownButtonFormField<StoreModel>(
+                        initialValue: _selectedStore,
+                        decoration: const InputDecoration(
+                          labelText: 'Pilih Toko *',
                         ),
-                      if (_storeName != null) AppSpacing.gapVerticalMD,
+                        items: _stores
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.nickname.isNotEmpty
+                                      ? s.nickname
+                                      : 'Store #${s.id}'),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {
+                                _selectedStore = v;
+                                _storeId = v?.id;
+                              });
+                            }
+                          });
+                        },
+                      ),
+                      AppSpacing.gapVerticalMD,
                       Row(
                         children: [
                           Expanded(
@@ -369,17 +363,10 @@ class _HygienePageState extends State<HygienePage> {
 
   Widget _buildRoomCard(RoomModel room) {
     final hasPhoto = _roomPhotos.containsKey(room.id);
-    final condition = _roomConditions[room.id];
     final hasNotes = _roomNotes.containsKey(room.id) && _roomNotes[room.id] != null;
-    final isComplete = hasPhoto || condition != null;
+    final isComplete = hasPhoto;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    Color? conditionColor;
-    String conditionLabel = '';
-    if (condition == 1) { conditionColor = AppColors.success; conditionLabel = 'Bersih'; }
-    else if (condition == 2) { conditionColor = AppColors.warning; conditionLabel = 'Perlu Perhatian'; }
-    else if (condition == 3) { conditionColor = AppColors.error; conditionLabel = 'Kotor'; }
 
     return Card(
       child: Padding(
@@ -448,46 +435,40 @@ class _HygienePageState extends State<HygienePage> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => _pickCondition(room.id),
+                    onTap: () => _addNotes(room.id),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                       decoration: BoxDecoration(
-                        color: conditionColor?.withValues(alpha:0.1) ?? Colors.transparent,
+                        color: hasNotes ? AppColors.info.withValues(alpha:0.1) : Colors.transparent,
                         borderRadius: AppSpacing.borderRadiusSM,
                         border: Border.all(
-                          color: conditionColor ?? colorScheme.outlineVariant,
+                          color: hasNotes ? AppColors.info : colorScheme.outlineVariant,
                         ),
                       ),
-                      child: Text(
-                        conditionLabel.isEmpty ? 'Kondisi' : conditionLabel,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: conditionLabel.isEmpty ? FontWeight.normal : FontWeight.bold,
-                          color: conditionColor ?? colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            hasNotes ? Icons.notes : Icons.notes_outlined,
+                            size: 14,
+                            color: hasNotes ? AppColors.info : colorScheme.onSurfaceVariant,
+                          ),
+                          AppSpacing.gapHorizontalXS,
+                          Flexible(
+                            child: Text(
+                              hasNotes ? (_roomNotes[room.id] ?? 'Ada Catatan') : 'Tambah Catatan',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: hasNotes ? FontWeight.bold : FontWeight.normal,
+                                color: hasNotes ? AppColors.info : colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ),
-                AppSpacing.gapHorizontalXS,
-                GestureDetector(
-                  onTap: () => _addNotes(room.id),
-                  child: Container(
-                    padding: AppSpacing.paddingXS,
-                    decoration: BoxDecoration(
-                      color: hasNotes ? AppColors.info.withValues(alpha:0.1) : Colors.transparent,
-                      borderRadius: AppSpacing.borderRadiusSM,
-                      border: Border.all(
-                        color: hasNotes ? AppColors.info : colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: Icon(
-                      hasNotes ? Icons.notes : Icons.notes_outlined,
-                      size: 16,
-                      color: hasNotes ? AppColors.info : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),

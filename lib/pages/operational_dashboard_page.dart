@@ -11,7 +11,7 @@ import 'home_page.dart';
 import 'printer_settings_page.dart';
 import 'readiness_page.dart';
 import 'hygiene_page.dart';
-import 'closing_store_page.dart';
+import 'utility_usage_list_page.dart';
 import '../services/readiness_service.dart';
 import '../services/hygiene_service.dart';
 
@@ -337,14 +337,14 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                   },
                 ),
                 _buildMenuRow(
-                  icon: Icons.store_outlined,
-                  color: AppColors.warning,
-                  title: 'Closing Store',
-                  subtitle: 'Laporan penutupan toko & setoran.',
+                  icon: Icons.electrical_services_rounded,
+                  color: colorScheme.primary,
+                  title: 'Pemakaian Utility',
+                  subtitle: 'Catat pemakaian listrik, air, gas, dll.',
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ClosingStorePage()),
+                      MaterialPageRoute(builder: (context) => const UtilityUsageListPage()),
                     );
                   },
                 ),

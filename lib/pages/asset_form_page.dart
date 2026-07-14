@@ -88,7 +88,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
       maxWidth: 1024,
     );
     if (picked != null) {
-      final compressed = await ImageUtils.compressToWebP(picked.path);
+      final compressed = await ImageUtils.compressImage(picked.path);
       if (mounted) setState(() => _photo = compressed);
     }
   }

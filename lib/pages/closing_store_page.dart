@@ -1,10 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/closing_store_service.dart';
+import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
 import '../widgets/modern_text_form_field.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/add_fab.dart';
+import '../widgets/status_badge.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/modern_bottom_nav.dart';
 
 class ClosingStorePage extends StatefulWidget {
   const ClosingStorePage({super.key});
@@ -21,8 +29,13 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     decimalDigits: 0,
   );
 
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _errorMessage;
+
+  bool _isCreatingOrEditing = false;
+  List<dynamic> _closingStores = [];
+  bool _isListLoading = true;
+  String? _listErrorMessage;
 
   // Active Draft Data
   Map<String, dynamic>? _closingData;
@@ -49,7 +62,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadClosingStores();
   }
 
   @override
@@ -63,8 +76,171 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     super.dispose();
   }
 
+  Future<void> _loadClosingStores() async {
+    setState(() {
+      _isListLoading = true;
+      _listErrorMessage = null;
+    });
+
+    try {
+      final list = await _service.getClosingStores();
+      setState(() {
+        _closingStores = list;
+        _isListLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _listErrorMessage = e.toString().replaceAll('Exception: ', '');
+        _isListLoading = false;
+      });
+    }
+  }
+
+
+
+  Widget _buildClosingStoreItem(dynamic item) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
+
+    final dateStr = item['date'] ?? '';
+    final storeName = item['store']?['nickname'] ?? 'Toko';
+    final shiftName = item['shift_store']?['name'] ?? 'Shift';
+    final totalTransfer = double.tryParse((item['total_cash_transfer'] ?? 0).toString()) ?? 0;
+    final cashForTomorrow = double.tryParse((item['cash_for_tomorrow'] ?? 0).toString()) ?? 0;
+    final creatorName = item['created_by']?['name'] ?? item['created_by_id']?.toString() ?? '-';
+    
+    String displayDate = dateStr;
+    try {
+      final parsedDate = DateTime.parse(dateStr);
+      displayDate = DateFormat('dd MMMM yyyy', 'id_ID').format(parsedDate);
+    } catch (_) {}
+
+    final status = item['status'] ?? 1;
+    String statusLabel = 'Belum Diperiksa';
+    StatusType statusType = StatusType.warning;
+
+    if (status == 2) {
+      statusLabel = 'Disetujui';
+      statusType = StatusType.success;
+    } else if (status == 3) {
+      statusLabel = 'Ditolak';
+      statusType = StatusType.error;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: AppSpacing.borderRadiusMD,
+        onTap: () {
+          _loadSpecificClosingStore(item['id'] as int);
+        },
+        child: Padding(
+          padding: AppSpacing.paddingMD,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      storeName,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: AppSpacing.borderRadiusSM,
+                    ),
+                    child: Text(
+                      shiftName,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              AppSpacing.gapVerticalXS,
+              Text(
+                displayDate,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Setoran Kas',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        currencyFormatter.format(totalTransfer),
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Kas Besok',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        currencyFormatter.format(cashForTomorrow),
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Oleh: $creatorName',
+                    style: textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  StatusBadge(
+                    label: statusLabel,
+                    type: statusType,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _loadData() async {
     setState(() {
+      _isCreatingOrEditing = true;
       _isLoading = true;
       _errorMessage = null;
     });
@@ -162,10 +338,101 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     }
   }
 
+  Future<void> _loadSpecificClosingStore(int id) async {
+    setState(() {
+      _isCreatingOrEditing = true;
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await _service.getClosingStore(id);
+      final draft = res['closing_store'];
+      
+      setState(() {
+        _closingData = draft;
+        _cashlessList = draft['cashlesses'] ?? [];
+
+        // Pre-fill controllers
+        _cashForTomorrowController.text = (draft['cash_for_tomorrow'] ?? 0).toString();
+        _totalCashTransferController.text = (draft['total_cash_transfer'] ?? 0).toString();
+        _notesController.text = draft['notes'] ?? '';
+
+        _cashlessControllers.clear();
+        for (var c in _cashlessList) {
+          final cid = c['id'] as int;
+          _cashlessControllers[cid] = TextEditingController(
+            text: (c['bruto_apl'] ?? 0).toString(),
+          );
+          _cashlessControllers[cid]!.addListener(() {
+            setState(() {});
+          });
+        }
+
+        _selectedFuelServiceIds.clear();
+        if (draft['fuel_services'] != null) {
+          for (var f in draft['fuel_services']) {
+            _selectedFuelServiceIds.add(f['id'] as int);
+          }
+        }
+
+        _selectedDailySalaryIds.clear();
+        if (draft['daily_salaries'] != null) {
+          for (var s in draft['daily_salaries']) {
+            _selectedDailySalaryIds.add(s['id'] as int);
+          }
+        }
+
+        _selectedInvoicePurchaseIds.clear();
+        if (draft['invoice_purchases'] != null) {
+          for (var i in draft['invoice_purchases']) {
+            _selectedInvoicePurchaseIds.add(i['id'] as int);
+          }
+        }
+
+        final Map<int, dynamic> fuelMap = {};
+        for (var f in res['fuel_services'] ?? []) {
+          fuelMap[f['id'] as int] = f;
+        }
+        _availableFuelServices = fuelMap.values.toList();
+
+        final Map<int, dynamic> salaryMap = {};
+        for (var s in res['daily_salaries'] ?? []) {
+          salaryMap[s['id'] as int] = s;
+        }
+        _availableDailySalaries = salaryMap.values.toList();
+
+        final Map<int, dynamic> invoiceMap = {};
+        for (var i in res['invoice_purchases'] ?? []) {
+          invoiceMap[i['id'] as int] = i;
+        }
+        _availableInvoicePurchases = invoiceMap.values.toList();
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
   // Calculations
   double get _cashFromYesterday => double.tryParse((_closingData?['cash_from_yesterday'] ?? 0).toString()) ?? 0;
   double get _cashForTomorrow => double.tryParse(_cashForTomorrowController.text) ?? 0;
   double get _totalCashTransfer => double.tryParse(_totalCashTransferController.text) ?? 0;
+
+  bool get _isEditable {
+    final status = _closingData?['status'];
+    if (status != null && status != 1) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.hasAnyRole(['staff'])) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   double get _totalCashless {
     double total = 0;
@@ -232,7 +499,11 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Laporan Closing Store berhasil disimpan.')),
       );
-      Navigator.pop(context, true);
+      setState(() {
+        _isCreatingOrEditing = false;
+        _isSubmitting = false;
+      });
+      _loadClosingStores();
     } catch (e) {
       if (!mounted) return;
       showDialog(
@@ -257,7 +528,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
 
   void _showAddFuelServiceBottomSheet() async {
     if (_closingData == null) return;
-    
+
     setState(() => _isLoading = true);
     List<dynamic> vehicles = [];
     List<dynamic> suppliers = [];
@@ -284,13 +555,12 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     final literController = TextEditingController(text: '0');
     final amountController = TextEditingController(text: '0');
     final notesController = TextEditingController();
-
-    // Service details list
     final List<Map<String, dynamic>> serviceDetails = [];
+    File? selectedImage;
 
     ModernBottomSheet.show(
       context: context,
-      title: 'Tambah Fuel / Service Baru',
+      title: 'Tambah Bensin / Servis Baru',
       child: StatefulBuilder(
         builder: (context, setModalState) {
           void updateServiceAmount() {
@@ -303,6 +573,8 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
             }
           }
 
+          final theme = Theme.of(context);
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -313,260 +585,394 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                      
-                      // Type Radio
-                      RadioGroup<int>(
-                        groupValue: selectedType,
-                        onChanged: (val) {
-                          setModalState(() {
-                            selectedType = val!;
-                            if (val == 1) {
-                              amountController.text = '0';
-                            } else {
-                              updateServiceAmount();
-                            }
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Radio<int>(
-                              value: 1,
-                            ),
-                            const Text('Fuel (Bensin)'),
-                            AppSpacing.gapHorizontalLG,
-                            Radio<int>(
-                              value: 2,
-                            ),
-                            const Text('Service (Servis)'),
-                          ],
-                        ),
-                      ),
-                      AppSpacing.gapVerticalSM,
+                  // Close button row
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Tutup',
+                    ),
+                  ),
 
-                      // Date picker
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('Tanggal: ${DateFormat('dd MMMM yyyy').format(selectedDate)}'),
-                        trailing: const Icon(Icons.calendar_today),
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                            lastDate: DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setModalState(() => selectedDate = picked);
-                          }
-                        },
-                      ),
-                      AppSpacing.gapVerticalSM,
-
-                      // Vehicle Dropdown
-                      DropdownButtonFormField<int>(
-                        decoration: const InputDecoration(
-                          labelText: 'Pilih Kendaraan *',
-                        ),
-                        initialValue: selectedVehicleId,
-                        items: vehicles.map((v) {
-                          return DropdownMenuItem<int>(
-                            value: v['id'] as int,
-                            child: Text(v['no_register'] ?? ''),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setModalState(() => selectedVehicleId = val),
-                        validator: (val) => val == null ? 'Pilih kendaraan' : null,
-                      ),
-                      AppSpacing.gapVerticalSM,
-
-                      // Supplier Dropdown
-                      DropdownButtonFormField<int>(
-                        decoration: const InputDecoration(
-                          labelText: 'Pilih Supplier (Opsional)',
-                        ),
-                        initialValue: selectedSupplierId,
-                        items: suppliers.map((s) {
-                          return DropdownMenuItem<int>(
-                            value: s['id'] as int,
-                            child: Text(s['name'] ?? ''),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setModalState(() => selectedSupplierId = val),
-                      ),
-                      AppSpacing.gapVerticalSM,
-
-                      // KM Input
-                      TextFormField(
-                        controller: kmController,
-                        decoration: const InputDecoration(
-                          labelText: 'KM Kendaraan',
-                          suffixText: 'km',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      AppSpacing.gapVerticalSM,
-
-                      // Liter Input (Bensin Only)
-                      if (selectedType == 1) ...[
-                        TextFormField(
-                          controller: literController,
-                          decoration: const InputDecoration(
-                            labelText: 'Jumlah Liter',
-                            suffixText: 'liter',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                        AppSpacing.gapVerticalSM,
+                  // Type Radio
+                  RadioGroup<int>(
+                    groupValue: selectedType,
+                    onChanged: (val) {
+                      setModalState(() {
+                        selectedType = val!;
+                        if (val == 1) {
+                          amountController.text = '0';
+                        } else {
+                          updateServiceAmount();
+                        }
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        Radio<int>(value: 1),
+                        const Text('Fuel (Bensin)'),
+                        AppSpacing.gapHorizontalLG,
+                        Radio<int>(value: 2),
+                        const Text('Service (Servis)'),
                       ],
+                    ),
+                  ),
+                  AppSpacing.gapVerticalSM,
 
-                      // Service Details Repeater (Service Only)
-                      if (selectedType == 2) ...[
+                  // Date picker
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Tanggal: ${DateFormat('dd MMMM yyyy').format(selectedDate)}',
+                    ),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setModalState(() => selectedDate = picked);
+                      }
+                    },
+                  ),
+                  AppSpacing.gapVerticalSM,
+
+                  // Vehicle Dropdown
+                  DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Pilih Kendaraan *'),
+                    initialValue: selectedVehicleId,
+                    items: vehicles.map((v) {
+                      return DropdownMenuItem<int>(
+                        value: v['id'] as int,
+                        child: Text(v['no_register'] ?? ''),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setModalState(() => selectedVehicleId = val),
+                    validator: (val) => val == null ? 'Pilih kendaraan' : null,
+                  ),
+                  AppSpacing.gapVerticalSM,
+
+                  // Supplier (searchable dialog)
+                  InkWell(
+                    onTap: () async {
+                      final result = await showDialog<int>(
+                        context: context,
+                        builder: (dialogCtx) {
+                          String query = '';
+                          return StatefulBuilder(
+                            builder: (dialogCtx, setDialogState) {
+                              final filtered = suppliers.where((s) {
+                                if (query.isEmpty) return true;
+                                return (s['name'] ?? '')
+                                    .toString()
+                                    .toLowerCase()
+                                    .contains(query.toLowerCase());
+                              }).toList();
+                              return Dialog(
+                                insetPadding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md, vertical: 80),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: AppSpacing.paddingSM,
+                                      child: TextField(
+                                        decoration: const InputDecoration(
+                                          hintText: 'Cari supplier...',
+                                          prefixIcon: Icon(Icons.search),
+                                          isDense: true,
+                                        ),
+                                        onChanged: (v) =>
+                                            setDialogState(() => query = v),
+                                        autofocus: true,
+                                      ),
+                                    ),
+                                    const Divider(height: 1),
+                                    Expanded(
+                                      child: filtered.isEmpty
+                                          ? const Center(
+                                              child: Text('Tidak ada supplier'))
+                                          : ListView.separated(
+                                              itemCount: filtered.length,
+                                              separatorBuilder: (_, __) =>
+                                                  const Divider(height: 1),
+                                              itemBuilder: (_, i) => ListTile(
+                                                title: Text(
+                                                    filtered[i]['name'] ?? ''),
+                                                onTap: () => Navigator.pop(
+                                                    dialogCtx,
+                                                    filtered[i]['id']),
+                                              ),
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                      if (result != null) {
+                        setModalState(() => selectedSupplierId = result);
+                      }
+                    },
+                    borderRadius: AppSpacing.borderRadiusXS,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Pilih Supplier (Opsional)',
+                        suffixIcon: Icon(Icons.search),
+                      ),
+                      child: Text(
+                        selectedSupplierId != null
+                            ? (suppliers.firstWhere(
+                                  (s) => s['id'] == selectedSupplierId,
+                                  orElse: () => {'name': ''},
+                                )['name'] ??
+                                '')
+                            : '',
+                      ),
+                    ),
+                  ),
+                  AppSpacing.gapVerticalSM,
+
+                  // KM Input
+                  TextFormField(
+                    controller: kmController,
+                    decoration: const InputDecoration(
+                      labelText: 'KM Kendaraan',
+                      suffixText: 'km',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  AppSpacing.gapVerticalSM,
+
+                  // Liter Input (Bensin only)
+                  if (selectedType == 1) ...[
+                    TextFormField(
+                      controller: literController,
+                      decoration: const InputDecoration(
+                        labelText: 'Jumlah Liter',
+                        suffixText: 'liter',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    AppSpacing.gapVerticalSM,
+                  ],
+
+                  // Service Details Repeater (Service only)
+                  if (selectedType == 2) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                         Text(
                           'Rincian Service:',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        AppSpacing.gapVerticalSM,
-                        ...serviceDetails.map((detail) {
-                          final idx = serviceDetails.indexOf(detail);
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: AppSpacing.sm),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: TextFormField(
-                                    controller: detail['nameController'] as TextEditingController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Nama Item/Part',
-                                    ),
-                                  ),
-                                ),
-                                AppSpacing.gapHorizontalSM,
-                                Expanded(
-                                  flex: 2,
-                                  child: TextFormField(
-                                    controller: detail['costController'] as TextEditingController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Biaya',
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (val) => setModalState(() => updateServiceAmount()),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                                  onPressed: () {
-                                    setModalState(() {
-                                      serviceDetails.removeAt(idx);
-                                      updateServiceAmount();
-                                    });
-                                  },
-                                )
-                              ],
-                            ),
-                          );
-                        }),
                         TextButton.icon(
                           onPressed: () {
                             setModalState(() {
                               serviceDetails.add({
                                 'nameController': TextEditingController(),
-                                'costController': TextEditingController(text: '0'),
+                                'costController':
+                                    TextEditingController(text: '0'),
                               });
                             });
                           },
                           icon: const Icon(Icons.add),
-                          label: const Text('Tambah Item Service'),
+                          label: const Text('Tambah Item'),
                         ),
-                        AppSpacing.gapVerticalSM,
                       ],
-
-                      // Amount Input
-                      TextFormField(
-                        controller: amountController,
-                        decoration: const InputDecoration(
-                          labelText: 'Total Biaya (Amount) *',
-                          prefixText: 'Rp ',
+                    ),
+                    AppSpacing.gapVerticalSM,
+                    ...serviceDetails.map((detail) {
+                      final idx = serviceDetails.indexOf(detail);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: detail['nameController']
+                                    as TextEditingController,
+                                decoration: const InputDecoration(
+                                    labelText: 'Nama Item/Part'),
+                              ),
+                            ),
+                            AppSpacing.gapHorizontalSM,
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: detail['costController']
+                                    as TextEditingController,
+                                decoration:
+                                    const InputDecoration(labelText: 'Biaya'),
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) =>
+                                    setModalState(() => updateServiceAmount()),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete,
+                                  color: Theme.of(context).colorScheme.error),
+                              onPressed: () {
+                                setModalState(() {
+                                  serviceDetails.removeAt(idx);
+                                  updateServiceAmount();
+                                });
+                              },
+                            ),
+                          ],
                         ),
-                        keyboardType: TextInputType.number,
-                        readOnly: selectedType == 2, // Read-only if service
-                        validator: (val) => (double.tryParse(val ?? '0') ?? 0) <= 0 ? 'Masukkan total biaya' : null,
-                      ),
-                      AppSpacing.gapVerticalSM,
+                      );
+                    }),
+                    AppSpacing.gapVerticalSM,
+                  ],
 
-                      // Notes Input
-                      TextFormField(
-                        controller: notesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Catatan / Notes',
-                        ),
-                        maxLines: 2,
-                      ),
-                      AppSpacing.gapVerticalLG,
+                  // Amount Input
+                  TextFormField(
+                    controller: amountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Total Biaya (Amount) *',
+                      prefixText: 'Rp ',
+                    ),
+                    keyboardType: TextInputType.number,
+                    readOnly: selectedType == 2,
+                    validator: (val) =>
+                        (double.tryParse(val ?? '0') ?? 0) <= 0
+                            ? 'Masukkan total biaya'
+                            : null,
+                  ),
+                  AppSpacing.gapVerticalSM,
 
-                      // Actions Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Batal'),
+                  // Notes
+                  TextFormField(
+                    controller: notesController,
+                    decoration:
+                        const InputDecoration(labelText: 'Catatan / Notes'),
+                    maxLines: 2,
+                  ),
+                  AppSpacing.gapVerticalLG,
+
+                  // Foto Bukti
+                  Text('Foto Bukti / Nota *:',
+                      style: theme.textTheme.bodyMedium),
+                  AppSpacing.gapVerticalXS,
+                  Row(
+                    children: [
+                      if (selectedImage != null) ...[
+                        ClipRRect(
+                          borderRadius: AppSpacing.borderRadiusSM,
+                          child: Image.file(
+                            selectedImage!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
                           ),
-                          AppSpacing.gapHorizontalSM,
-                          ElevatedButton(
-                            onPressed: () async {
-                              if (formKey.currentState!.validate()) {
-                                Navigator.pop(context); // Close bottom sheet
-                                setState(() => _isLoading = true);
-                                try {
-                                  final payload = {
-                                    'closing_store_id': _closingData!['id'],
-                                    'date': selectedDate.toIso8601String().split('T')[0],
-                                    'fuel_service': selectedType,
-                                    'vehicle_id': selectedVehicleId,
-                                    'supplier_id': selectedSupplierId,
-                                    'km': double.tryParse(kmController.text) ?? 0,
-                                    'liter': double.tryParse(literController.text) ?? 0,
-                                    'amount': double.tryParse(amountController.text) ?? 0,
-                                    'notes': notesController.text,
-                                    if (selectedType == 2)
-                                      'service_details': serviceDetails.map((d) {
-                                        return {
-                                          'name': (d['nameController'] as TextEditingController).text,
-                                          'price': double.tryParse((d['costController'] as TextEditingController).text) ?? 0,
-                                        };
-                                      }).toList(),
-                                  };
-
-                                  final newFs = await _service.createFuelService(payload);
-                                   
-                                  // Refresh lists
-                                  await _loadData();
-                                   
-                                  // Automatically check/select this new transaction
-                                  setState(() {
-                                    _selectedFuelServiceIds.add(newFs['id'] as int);
-                                  });
-                                } catch (e) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Gagal menyimpan transaksi bensin/servis: $e')),
-                                  );
-                                  setState(() => _isLoading = false);
-                                }
-                              }
-                            },
-                            child: const Text('Simpan'),
-                          )
-                        ],
+                        ),
+                        AppSpacing.gapHorizontalMD,
+                      ],
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final File? file =
+                              await ImageService.selectAndPickImage(context);
+                          if (file != null) {
+                            setModalState(() => selectedImage = file);
+                          }
+                        },
+                        icon: const Icon(Icons.add_a_photo),
+                        label: Text(
+                            selectedImage == null ? 'Unggah Foto *' : 'Ubah Foto'),
                       ),
+                      if (selectedImage != null) ...[
+                        AppSpacing.gapHorizontalSM,
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () =>
+                              setModalState(() => selectedImage = null),
+                        ),
+                      ],
                     ],
                   ),
-                ),
-              );
-            },
-          ),
-        );
+                  AppSpacing.gapVerticalLG,
+
+                  // Simpan button (full width)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        if (selectedImage == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Foto bukti / nota wajib diunggah!')),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context);
+                        setState(() => _isLoading = true);
+                        try {
+                          final payload = {
+                            'closing_store_id': _closingData!['id'],
+                            'date': selectedDate.toIso8601String().split('T')[0],
+                            'fuel_service': selectedType,
+                            'vehicle_id': selectedVehicleId,
+                            'supplier_id': selectedSupplierId,
+                            'payment_type_id': 2, // selalu tunai (cash)
+                            'km': double.tryParse(kmController.text) ?? 0,
+                            'liter': double.tryParse(literController.text) ?? 0,
+                            'amount':
+                                double.tryParse(amountController.text) ?? 0,
+                            'notes': notesController.text,
+                            if (selectedType == 2)
+                              'service_details': serviceDetails.map((d) {
+                                return {
+                                  'name': (d['nameController']
+                                          as TextEditingController)
+                                      .text,
+                                  'price': double.tryParse(
+                                          (d['costController']
+                                                  as TextEditingController)
+                                              .text) ??
+                                      0,
+                                };
+                              }).toList(),
+                          };
+
+                          final newFs = await _service.createFuelService(
+                              payload,
+                              imageFile: selectedImage);
+                          setState(() {
+                            _isLoading = false;
+                            _availableFuelServices.insert(0, newFs);
+                            _selectedFuelServiceIds.add(newFs['id'] as int);
+                          });
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Gagal menyimpan transaksi bensin/servis: $e')),
+                          );
+                          setState(() => _isLoading = false);
+                        }
+                      },
+                      child: const Text('Simpan'),
+                    ),
+                  ),
+                  AppSpacing.gapVerticalMD,
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -574,6 +980,71 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+
+    if (!_isCreatingOrEditing) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Riwayat Tutup Shift'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadClosingStores,
+            )
+          ],
+        ),
+        body: _isListLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _listErrorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: AppSpacing.paddingLG,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                          AppSpacing.gapVerticalMD,
+                          Text(
+                            _listErrorMessage!,
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodyLarge,
+                          ),
+                          AppSpacing.gapVerticalLG,
+                          ElevatedButton(
+                            onPressed: _loadClosingStores,
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _closingStores.isEmpty
+                    ? const EmptyState(
+                        icon: Icons.assignment_turned_in_outlined,
+                        title: 'Belum ada laporan tutup shift.',
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadClosingStores,
+                        child: ListView.builder(
+                          padding: AppSpacing.paddingMD,
+                          itemCount: _closingStores.length,
+                          itemBuilder: (context, index) {
+                            return _buildClosingStoreItem(_closingStores[index]);
+                          },
+                        ),
+                      ),
+        floatingActionButton: AddFab(
+          onPressed: _loadData,
+        ),
+        bottomNavigationBar: ModernBottomNav(
+          currentIndex: 4,
+          onTap: (index) {
+            if (index != 4) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+      );
+    }
 
     if (_isLoading) {
       return const Scaffold(
@@ -583,7 +1054,18 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Tutup Shift Toko')),
+        appBar: AppBar(
+          title: const Text('Tutup Shift Toko'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() {
+                _isCreatingOrEditing = false;
+              });
+              _loadClosingStores();
+            },
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: AppSpacing.paddingLG,
@@ -613,21 +1095,65 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     final shiftName = _closingData?['shift_store']?['name'] ?? 'Shift';
     final closingDate = _closingData?['date'] ?? '-';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tutup Shift Toko'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          )
-        ],
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() {
+          _isCreatingOrEditing = false;
+        });
+        _loadClosingStores();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Tutup Shift Toko'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() {
+                _isCreatingOrEditing = false;
+              });
+              _loadClosingStores();
+            },
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadData,
+            )
+          ],
+        ),
       body: SingleChildScrollView(
         padding: AppSpacing.paddingMD,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!_isEditable)
+              Container(
+                width: double.infinity,
+                padding: AppSpacing.paddingMD,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: AppSpacing.borderRadiusMD,
+                  border: Border.all(color: AppColors.error),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock, color: AppColors.error),
+                    AppSpacing.gapHorizontalMD,
+                    const Expanded(
+                      child: Text(
+                        'Laporan Closing Store ini telah diperiksa oleh admin dan tidak dapat diedit lagi.',
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             // Header Card
             Card(
               child: Padding(
@@ -690,6 +1216,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                     const Divider(),
                     TextFormField(
                       controller: _cashForTomorrowController,
+                      enabled: _isEditable,
                       decoration: const InputDecoration(
                         labelText: 'Kas Untuk Besok *',
                         prefixText: 'Rp ',
@@ -700,6 +1227,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                     SizedBox(height: AppSpacing.sectionGap),
                     TextFormField(
                       controller: _totalCashTransferController,
+                      enabled: _isEditable,
                       decoration: const InputDecoration(
                         labelText: 'Total Setoran Cash (Bank Transfer) *',
                         prefixText: 'Rp ',
@@ -734,6 +1262,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                         padding: EdgeInsets.only(bottom: AppSpacing.sm + AppSpacing.xs),
                         child: TextFormField(
                           controller: _cashlessControllers[id],
+                          enabled: _isEditable,
                           decoration: InputDecoration(
                             labelText: '$providerName | $storeCashlessName',
                             prefixText: 'Rp ',
@@ -760,7 +1289,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.add_circle, color: AppColors.primary),
-                  onPressed: _showAddFuelServiceBottomSheet,
+                  onPressed: _isEditable ? _showAddFuelServiceBottomSheet : null,
                 ),
               ],
             ),
@@ -839,6 +1368,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
               labelText: 'Catatan Closing',
               controller: _notesController,
               maxLines: 3,
+              enabled: _isEditable,
             ),
             AppSpacing.gapVerticalXL,
 
@@ -846,7 +1376,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
+                onPressed: (_isSubmitting || !_isEditable) ? null : _submit,
                 child: _isSubmitting 
                   ? CircularProgressIndicator(color: colorScheme.onPrimary)
                   : Text(
@@ -859,8 +1389,9 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSummaryRow(String label, String value, ColorScheme colorScheme, {bool isBold = false, bool large = false}) {
     final textTheme = Theme.of(context).textTheme;
@@ -905,7 +1436,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
           title: Text('$typeStr | $vehicleNo'),
           subtitle: Text('$date | ${currencyFormatter.format(amount)}'),
           value: isChecked,
-          onChanged: (bool? val) {
+          onChanged: _isEditable ? (bool? val) {
             setState(() {
               if (val == true) {
                 _selectedFuelServiceIds.add(id);
@@ -913,7 +1444,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 _selectedFuelServiceIds.remove(id);
               }
             });
-          },
+          } : null,
         );
       }).toList(),
     );
@@ -935,7 +1466,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
           title: Text(employeeName),
           subtitle: Text('$date | ${currencyFormatter.format(amount)}'),
           value: isChecked,
-          onChanged: (bool? val) {
+          onChanged: _isEditable ? (bool? val) {
             setState(() {
               if (val == true) {
                 _selectedDailySalaryIds.add(id);
@@ -943,7 +1474,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 _selectedDailySalaryIds.remove(id);
               }
             });
-          },
+          } : null,
         );
       }).toList(),
     );
@@ -965,7 +1496,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
           title: Text('Invoice #$invoiceNo'),
           subtitle: Text('$date | ${currencyFormatter.format(amount)}'),
           value: isChecked,
-          onChanged: (bool? val) {
+          onChanged: _isEditable ? (bool? val) {
             setState(() {
               if (val == true) {
                 _selectedInvoicePurchaseIds.add(id);
@@ -973,7 +1504,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 _selectedInvoicePurchaseIds.remove(id);
               }
             });
-          },
+          } : null,
         );
       }).toList(),
     );

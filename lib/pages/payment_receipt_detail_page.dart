@@ -1,8 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
@@ -24,10 +30,14 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
   String? _errorMessage;
   bool _qrisLoading = false;
   Map<String, dynamic>? _qrisData;
+  String? _qrisError;
+  bool _isStaff = false;
 
   @override
   void initState() {
     super.initState();
+    _isStaff = Provider.of<AuthProvider>(context, listen: false)
+        .hasAnyRole(['staff', 'storage-staff']);
     _fetchDetail();
   }
 
@@ -106,7 +116,7 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                         if (_receipt!.supplierName != null)
                           _buildSupplierCard(theme, colorScheme),
                         _buildPaymentCard(theme, colorScheme),
-                        _buildQrisCard(theme, colorScheme),
+                        if (!_isStaff) _buildQrisCard(theme, colorScheme),
                         if (_receipt!.notes != null &&
                             _receipt!.notes!.isNotEmpty)
                           _buildNotesCard(theme, colorScheme),
@@ -142,11 +152,19 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                 children: [
                   Icon(Icons.image, size: 20, color: colorScheme.primary),
                   AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Bukti Pembayaran',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      'Bukti Pembayaran',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share, size: 20),
+                    onPressed: () => _shareImage(url),
+                    tooltip: 'Bagikan',
+                    color: colorScheme.primary,
                   ),
                 ],
               ),
@@ -201,6 +219,14 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
             iconTheme: IconThemeData(color: colorScheme.surface),
             title: Text('Bukti Pembayaran',
                 style: TextStyle(color: colorScheme.surface)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () => _shareImage(url),
+                color: colorScheme.surface,
+                tooltip: 'Bagikan',
+              ),
+            ],
           ),
           body: Container(
             color: Colors.black,
@@ -221,6 +247,21 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _shareImage(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) throw Exception('download failed');
+      final dir = await getTemporaryDirectory();
+      final file =
+          File('${dir.path}/payment_receipt_${widget.receiptId}.jpg');
+      await file.writeAsBytes(response.bodyBytes);
+      await Share.shareXFiles([XFile(file.path)],
+          text: 'Bukti Pembayaran');
+    } catch (_) {
+      if (mounted) await Share.share(url);
+    }
   }
 
   Widget _buildSupplierCard(ThemeData theme, ColorScheme colorScheme) {
@@ -303,7 +344,10 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
 
   Future<void> _loadQris() async {
     if (_qrisLoading || _qrisData != null) return;
-    setState(() => _qrisLoading = true);
+    setState(() {
+      _qrisLoading = true;
+      _qrisError = null;
+    });
     try {
       final data = await _procurementService.getPaymentReceiptQris(widget.receiptId);
       if (mounted) {
@@ -312,8 +356,13 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
           _qrisLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _qrisLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _qrisLoading = false;
+          _qrisError = e.toString().replaceAll('Exception: ', '');
+        });
+      }
     }
   }
 
@@ -385,6 +434,28 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                 ),
               ] else if (_qrisLoading) ...[
                 const Center(child: CircularProgressIndicator()),
+              ] else if (_qrisError != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                    borderRadius: AppSpacing.borderRadiusMD,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: colorScheme.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _qrisError!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ] else ...[
                 SizedBox(
                   width: double.infinity,

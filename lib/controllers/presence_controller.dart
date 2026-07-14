@@ -76,6 +76,15 @@ class PresenceController {
     required Function(String) onError,
   }) async {
     try {
+      // Check for pending utility reports on check-out
+      if (!isCheckIn) {
+        final hasPending = await PresenceService.checkPendingUtilityReports(selectedStore.id);
+        if (hasPending) {
+          onError('Toko ini masih memiliki laporan utility yang belum diperiksa. Silakan lengkapi laporan terlebih dahulu sebelum check-out.');
+          return;
+        }
+      }
+
       final Map<String, dynamic> presenceData = isCheckIn
           ? {
               'store_id': selectedStore.id.toString(),

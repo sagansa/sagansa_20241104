@@ -13,6 +13,7 @@ class ModernTextFormField extends StatelessWidget {
   final Widget? suffixIcon;
   final int? maxLines;
   final String? Function(String?)? validator;
+  final bool? enabled;
 
   const ModernTextFormField({
     super.key,
@@ -27,6 +28,7 @@ class ModernTextFormField extends StatelessWidget {
     this.suffixIcon,
     this.maxLines = 1,
     this.validator,
+    this.enabled,
   });
 
   @override
@@ -35,6 +37,7 @@ class ModernTextFormField extends StatelessWidget {
     // selalu mengikuti tema aktif (light/dark) secara konsisten.
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: labelText,

@@ -8,5 +8,8 @@ pluginManagement {
         }
     }
 }
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
 
 // ... rest of the file remains the same ...

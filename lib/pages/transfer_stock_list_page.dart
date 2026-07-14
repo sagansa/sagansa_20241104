@@ -4,6 +4,7 @@ import '../services/transfer_stock_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/modern_bottom_nav.dart';
 import 'create_transfer_stock_page.dart';
 import 'transfer_stock_detail_page.dart';
 
@@ -202,6 +203,16 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                                             .withValues(alpha: 0.8),
                                       ),
                                     ),
+                    if (transfer.receivedByName != null) ...[
+                      AppSpacing.gapVerticalXS,
+                      Text(
+                        'Diterima oleh: ${transfer.receivedByName}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
                                     const Divider(height: 24),
                                     Text(
                                       '${transfer.details.length} jenis item',
@@ -229,6 +240,14 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
           );
           if (result == true) {
             _fetchTransfers();
+          }
+        },
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 2,
+        onTap: (index) {
+          if (index != 2) {
+            Navigator.pop(context);
           }
         },
       ),

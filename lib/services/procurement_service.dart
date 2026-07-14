@@ -200,6 +200,42 @@ class ProcurementService {
     }
   }
 
+  Future<InvoicePurchase> updateInvoice(int invoiceId, {
+    int? supplierId,
+    int? paymentTypeId,
+    int? taxes,
+    int? discounts,
+    String? notes,
+    List<Map<String, dynamic>>? items,
+  }) async {
+    final token = await _getToken();
+    final body = <String, dynamic>{};
+    if (supplierId != null) body['supplier_id'] = supplierId;
+    if (paymentTypeId != null) body['payment_type_id'] = paymentTypeId;
+    if (taxes != null) body['taxes'] = taxes;
+    if (discounts != null) body['discounts'] = discounts;
+    if (notes != null) body['notes'] = notes;
+    if (items != null) body['items'] = items;
+
+    final response = await http.put(
+      Uri.parse('${ApiConstants.baseUrl}/procurement/invoices/$invoiceId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return InvoicePurchase.fromJson(data['data']);
+    } else {
+      final Map<String, dynamic> errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to update invoice');
+    }
+  }
+
   Future<PaginatedResult<InvoicePurchase>> getInvoices({
     String? orderStatus,
     String? paymentStatus,

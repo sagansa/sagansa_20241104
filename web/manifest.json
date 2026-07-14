@@ -1,6 +1,6 @@
 {
-    "name": "sagansa_20241104",
-    "short_name": "sagansa_20241104",
+    "name": "sagansa",
+    "short_name": "sagansa",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

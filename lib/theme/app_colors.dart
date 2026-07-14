@@ -41,9 +41,9 @@ class AppColors {
   static const Color onWarning = Color(0xFFFFFFFF);
   static const Color onWarningContainer = Color(0xFFE65100);
 
-  static const Color error = Color(0xFFCF6679); // softer red for dark elegance
+  static const Color error = Color(0xFFB71C1C); // dark red
   static const Color errorContainer = Color(0xFF93000A);
-  static const Color onError = Color(0xFF690005);
+  static const Color onError = Color(0xFFFFFFFF);
   static const Color onErrorContainer = Color(0xFFFFDAD6);
 
   static const Color info = Color(0xFF6BA3C9); // muted blue

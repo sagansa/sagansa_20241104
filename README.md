@@ -1,4 +1,4 @@
-# sagansa_20241104
+# sagansa
 
 A new Flutter project.
 

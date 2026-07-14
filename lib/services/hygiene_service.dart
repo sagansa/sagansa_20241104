@@ -34,12 +34,13 @@ class HygieneService {
     throw Exception('Gagal memuat daftar ruangan.');
   }
 
-  Future<bool> checkTodayStatus() async {
+  Future<bool> checkTodayStatus({int? storeId}) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
+    final query = storeId != null ? '?store_id=$storeId' : '';
     final response = await http.get(
-      Uri.parse(ApiConstants.hygieneTodayStatus),
+      Uri.parse('${ApiConstants.hygieneTodayStatus}$query'),
       headers: _authHeaders(token),
     );
 

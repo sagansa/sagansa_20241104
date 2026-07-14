@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 // ignore: depend_on_referenced_packages
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -65,5 +65,45 @@ class ImageService {
       debugPrint('Error resizing image: $e');
       return null;
     }
+  }
+
+  /// Tampilkan dialog pilihan Kamera / Galeri, lalu ambil dan resize gambar.
+  static Future<File?> selectAndPickImage(BuildContext context) async {
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: SimpleDialog(
+          title: const Text('Pilih Sumber Foto'),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogCtx, ImageSource.camera),
+              child: const Row(
+                children: [
+                  Icon(Icons.camera_alt),
+                  SizedBox(width: 10),
+                  Text('Kamera'),
+                ],
+              ),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogCtx, ImageSource.gallery),
+              child: const Row(
+                children: [
+                  Icon(Icons.photo_library),
+                  SizedBox(width: 10),
+                  Text('Galeri'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source != null) {
+      return pickAndResizeImage(source: source);
+    }
+    return null;
   }
 }

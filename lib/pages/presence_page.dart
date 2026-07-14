@@ -14,6 +14,8 @@ import '../theme/app_spacing.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../services/hygiene_service.dart';
+import '../pages/hygiene_page.dart';
 
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
@@ -162,6 +164,45 @@ class PresencePageState extends State<PresencePage> {
     setState(() => isLoading = true);
 
     try {
+      if (widget.isCheckIn) {
+        final hygieneService = HygieneService();
+        final hasHygiene = await hygieneService.checkTodayStatus(storeId: selectedStore!.id);
+        if (!hasHygiene) {
+          if (!mounted) return;
+          setState(() => isLoading = false);
+          
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Laporan Kebersihan Belum Diisi'),
+              content: Text(
+                'Laporan kebersihan untuk toko ${selectedStore!.nickname} belum diisi hari ini. '
+                'Harap isi laporan kebersihan terlebih dahulu sebelum melakukan Check In.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Batal'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HygienePage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Isi Laporan'),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+      }
+
       await _presenceController.submitPresence(
         isCheckIn: widget.isCheckIn,
         currentPosition: currentPosition!,
@@ -232,7 +273,7 @@ class PresencePageState extends State<PresencePage> {
       );
 
       if (photo != null) {
-        final compressed = await ImageUtils.compressToWebP(photo.path);
+        final compressed = await ImageUtils.compressImage(photo.path);
         if (mounted) {
           setState(() {
             _imageFile = compressed;
@@ -379,9 +420,12 @@ class PresencePageState extends State<PresencePage> {
                                 initialZoom: 15.0,
                               ),
                               children: [
+                                // CartoDB Voyager: tile berbasis data OSM dengan
+                                // gaya bersih yang mirip Google Maps (jalan oranye,
+                                // latar terang, label rapi). Gratis tanpa API key.
                                 TileLayer(
                                   urlTemplate:
-                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                                   userAgentPackageName: 'id.sagansa.presence',
                                 ),
                                 if (selectedStore != null)
@@ -552,8 +596,12 @@ class PresencePageState extends State<PresencePage> {
                             DropdownMenuItem(value: 2, child: Text('Tunai')),
                           ],
                           onChanged: (value) {
-                            setState(() {
-                              _selectedPaymentTypeId = value;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                setState(() {
+                                  _selectedPaymentTypeId = value;
+                                });
+                              }
                             });
                           },
                         ),
@@ -584,6 +632,8 @@ class PresencePageState extends State<PresencePage> {
                   text: widget.isCheckIn ? 'Check In' : 'Check Out',
                   onPressed: isButtonEnabled ? _validateAndSubmitPresence : null,
                   isLoading: isLoading,
+                  backgroundColor: widget.isCheckIn ? null : Colors.redAccent,
+                  foregroundColor: widget.isCheckIn ? null : Colors.white,
                 ),
               ),
             ],

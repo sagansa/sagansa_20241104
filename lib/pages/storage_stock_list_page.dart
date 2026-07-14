@@ -3,6 +3,7 @@ import '../models/storage_stock_model.dart';
 import '../services/storage_stock_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/modern_bottom_nav.dart';
 import 'create_storage_stock_page.dart';
 import 'storage_stock_detail_page.dart';
 
@@ -185,6 +186,14 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
           );
           if (result == true) {
             _fetchReports();
+          }
+        },
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 2,
+        onTap: (index) {
+          if (index != 2) {
+            Navigator.pop(context);
           }
         },
       ),

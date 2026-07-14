@@ -3,6 +3,7 @@ import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_spacing.dart';
 import 'create_payment_receipt_page.dart';
+import '../../widgets/list_thumbnail.dart';
 
 class InvoiceSelectionPage extends StatefulWidget {
   final Set<int> initialSelectedIds;
@@ -158,6 +159,10 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                                             value: selected,
                                             onChanged: (_) =>
                                                 _toggleSelection(inv.id),
+                                          ),
+                                          AppSpacing.gapHorizontalSM,
+                                          const ListThumbnail(
+                                            placeholderIcon: Icons.receipt_long,
                                           ),
                                           AppSpacing.gapHorizontalSM,
                                           Expanded(

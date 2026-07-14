@@ -154,6 +154,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                         final creatorName = fs['created_by']?['name'] ?? 'Staff';
                         final statusStr = fs['status'] == 2 ? 'Lunas / Terhubung' : 'Pending';
                         final isPaid = fs['status'] == 2;
+                        final imageUrl = ImageService.buildUrl(fs['image']?.toString());
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
@@ -163,11 +164,10 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ListThumbnail(
-                                  imageUrl: ImageService.buildUrl(fs['image']?.toString()),
+                                  imageUrl: imageUrl,
                                   placeholderIcon: Icons.local_gas_station_outlined,
-                                  onTap: ImageService.buildUrl(fs['image']?.toString()) != null
-                                      ? () => _showImageFullscreen(
-                                          ImageService.buildUrl(fs['image']?.toString())!)
+                                  onTap: imageUrl != null
+                                      ? () => _showImageFullscreen(imageUrl)
                                       : null,
                                 ),
                                 const SizedBox(width: AppSpacing.md),
@@ -224,11 +224,11 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          if (ImageService.buildUrl(fs['image']?.toString()) != null)
+                                          if (imageUrl != null)
                                             IconButton(
                                               icon: const Icon(Icons.share, size: 18),
                                               onPressed: () => _shareImage(
-                                                  ImageService.buildUrl(fs['image']?.toString())!,
+                                                  imageUrl,
                                                   fs['id']),
                                               tooltip: 'Bagikan',
                                               padding: EdgeInsets.zero,

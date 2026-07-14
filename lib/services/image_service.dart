@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import '../utils/constants.dart';
 
 class ImageService {
+  // NOTE: Gambar disajikan via endpoint /media di api service (api.sagansa.id/media),
+  // bukan img.sagansa.id/storage/, karena upload saat ini masih dilakukan dari apps/admin
+  // yang menyimpan file ke storage yang di-serve oleh api service. Setelah migrasi
+  // upload sepenuhnya ke img.sagansa.id, kembalikan base ini ke IMG_SERVICE_URL.
   static const String imgBaseUrl = String.fromEnvironment(
     'IMG_SERVICE_URL',
-    defaultValue: 'https://img.sagansa.id',
+    defaultValue: ApiConstants.baseUrl,
   );
 
   /// Bangun URL publik dari path relatif atau URL absolut.
@@ -16,7 +21,7 @@ class ImageService {
     if (path == null || path.isEmpty) return null;
     if (path.startsWith('http')) return path; // Sudah URL absolut
     final clean = path.replaceAll(RegExp(r'^/+'), '');
-    return '$imgBaseUrl/storage/$clean';
+    return '$imgBaseUrl/media/$clean';
   }
 
   static Future<File?> pickAndResizeImage({

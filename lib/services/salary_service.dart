@@ -52,6 +52,7 @@ class SalaryService {
     int perPage = 20,
     int? userId,
     String? period,
+    String? status,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -62,6 +63,7 @@ class SalaryService {
     };
     if (userId != null) params['user_id'] = userId.toString();
     if (period != null) params['period'] = period;
+    if (status != null) params['status'] = status;
 
     final uri = Uri.parse(ApiConstants.salaries).replace(queryParameters: params);
 
@@ -104,5 +106,110 @@ class SalaryService {
     } else {
       throw Exception(jsonResponse['message'] ?? 'Gagal memuat data karyawan.');
     }
+  }
+
+  /// Generate/regenerate monthly payroll (admin).
+  Future<Map<String, dynamic>> generatePayroll({
+    required int month,
+    required int year,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('${ApiConstants.salaries}/generate'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'month': month, 'year': year}),
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse;
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal generate payroll.');
+  }
+
+  /// Approve single slip (admin).
+  Future<void> approveSalary(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('${ApiConstants.salaries}/$id/approve'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode != 200 || jsonResponse['success'] != true) {
+      throw Exception(jsonResponse['message'] ?? 'Gagal approve slip.');
+    }
+  }
+
+  /// Bulk approve (admin).
+  Future<int> bulkApproveSalaries(List<int> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('${ApiConstants.salaries}/approve'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'ids': ids}),
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse['approved_count'] ?? 0;
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal bulk approve.');
+  }
+
+  /// Bayar gaji (admin).
+  Future<Map<String, dynamic>> paySalary({
+    required int id,
+    required double paidAmount,
+    required String paymentDate,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('${ApiConstants.salaries}/$id/pay'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'paid_amount': paidAmount,
+        'payment_date': paymentDate,
+      }),
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse['data'];
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal membayar gaji.');
+  }
+
+  /// Info pembayaran: bank + breakdown + defaults (admin).
+  Future<Map<String, dynamic>> getPaymentInfo(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.get(
+      Uri.parse('${ApiConstants.salaries}/$id/payment-info'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse['data'];
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal memuat info pembayaran.');
   }
 }

@@ -33,10 +33,16 @@ class _SalaryPageState extends State<SalaryPage> {
   List<Map<String, dynamic>> _employees = [];
   int? _selectedUserId;
   String? _selectedPeriod; // YYYY-MM, null = semua
+  String? _selectedStatus; // null=Semua, draft/processing/paid
 
   // Pagination (admin)
   int _currentPage = 1;
   bool _hasMore = true;
+
+  // Selection mode & generate (admin)
+  bool _isSelectionMode = false;
+  final Set<int> _selectedIds = {};
+  bool _isGenerating = false;
 
   @override
   void initState() {
@@ -60,8 +66,7 @@ class _SalaryPageState extends State<SalaryPage> {
         final userRoles = List<String>.from(userData['roles'] ?? []);
         if (mounted) {
           setState(() {
-            _isAdmin = userRoles.contains('admin') ||
-                userRoles.contains('super_admin');
+            _isAdmin = userRoles.contains('admin');
           });
         }
       }
@@ -95,6 +100,7 @@ class _SalaryPageState extends State<SalaryPage> {
           page: 1,
           userId: _selectedUserId,
           period: _selectedPeriod,
+          status: _selectedStatus,
         );
         data = (result['data'] as List)
             .map((e) => Map<String, dynamic>.from(e))
@@ -137,6 +143,7 @@ class _SalaryPageState extends State<SalaryPage> {
         page: _currentPage + 1,
         userId: _selectedUserId,
         period: _selectedPeriod,
+        status: _selectedStatus,
       );
       final data = (result['data'] as List)
           .map((e) => Map<String, dynamic>.from(e))
@@ -158,12 +165,150 @@ class _SalaryPageState extends State<SalaryPage> {
     setState(() {
       _selectedUserId = null;
       _selectedPeriod = null;
+      _selectedStatus = null;
     });
     _loadData();
   }
 
+  void _showGenerateDialog() {
+    int selectedMonth = DateTime.now().month;
+    int selectedYear = DateTime.now().year;
+    final months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli',
+      'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: const Text('Generate/Regenerate Payroll'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  value: selectedMonth,
+                  decoration: const InputDecoration(labelText: 'Bulan'),
+                  items: List.generate(
+                      12, (i) => DropdownMenuItem(value: i + 1, child: Text(months[i]))),
+                  onChanged: (v) => setDialogState(() => selectedMonth = v!),
+                ),
+                AppSpacing.gapVerticalSM,
+                DropdownButtonFormField<int>(
+                  value: selectedYear,
+                  decoration: const InputDecoration(labelText: 'Tahun'),
+                  items: List.generate(7, (i) => 2024 + i)
+                      .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => selectedYear = v!),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              FilledButton(
+                onPressed: _isGenerating
+                    ? null
+                    : () async {
+                        setDialogState(() => _isGenerating = true);
+                        try {
+                          final result = await _salaryService.generatePayroll(
+                              month: selectedMonth, year: selectedYear);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          await _loadData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(result['message'] ?? 'Selesai.')),
+                            );
+                          }
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            setDialogState(() => _isGenerating = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      e.toString().replaceAll('Exception: ', ''))),
+                            );
+                          }
+                        }
+                      },
+                child: _isGenerating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Generate'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _bulkApprove() async {
+    if (_selectedIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: Text('Approve ${_selectedIds.length} slip?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Ya')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final count =
+          await _salaryService.bulkApproveSalaries(_selectedIds.toList());
+      setState(() {
+        _isSelectionMode = false;
+        _selectedIds.clear();
+      });
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$count slip di-approve.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+      }
+    }
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedIds.clear();
+    });
+  }
+
   Color _getStatusColor(String status, ColorScheme colorScheme) {
     switch (status) {
+      case 'draft':
+        return colorScheme.outline;
       case 'paid':
         return AppColors.success;
       case 'pending':
@@ -177,6 +322,8 @@ class _SalaryPageState extends State<SalaryPage> {
 
   String _getStatusText(String status) {
     switch (status) {
+      case 'draft':
+        return 'Draft';
       case 'paid':
         return 'Dibayarkan';
       case 'pending':
@@ -196,22 +343,29 @@ class _SalaryPageState extends State<SalaryPage> {
         ? DateTime.parse(salary['paymentDate'])
         : null;
     final String userName = salary['user_name'] ?? '';
+    final int salaryId = salary['id'];
+    final bool isSelected = _selectedIds.contains(salaryId);
 
     return Card(
       margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      color: isSelected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+          : null,
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SalaryDetailPage(
-                salaryId: salary['id'],
-                userName: _isAdmin ? userName : null,
-              ),
-            ),
-          );
-        },
+        onTap: _isSelectionMode
+            ? () => _toggleSelection(salaryId)
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SalaryDetailPage(
+                      salaryId: salaryId,
+                      userName: _isAdmin ? userName : null,
+                    ),
+                  ),
+                );
+              },
         child: Padding(
           padding: AppSpacing.paddingMD,
           child: Column(
@@ -239,10 +393,26 @@ class _SalaryPageState extends State<SalaryPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    DateFormat('MMMM yyyy', 'id_ID').format(periodDate),
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      if (_isSelectionMode)
+                        Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.sm),
+                          child: Icon(
+                            isSelected
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.outline,
+                          ),
+                        ),
+                      Text(
+                        DateFormat('MMMM yyyy', 'id_ID').format(periodDate),
+                        style: textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -295,8 +465,34 @@ class _SalaryPageState extends State<SalaryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Gaji'),
+        title: Text(_isSelectionMode
+            ? '${_selectedIds.length} dipilih'
+            : 'Riwayat Gaji'),
         actions: [
+          if (_isAdmin) ...[
+            if (_isSelectionMode) ...[
+              IconButton(
+                icon: const Icon(Icons.check_circle),
+                onPressed: _bulkApprove,
+                tooltip: 'Bulk Approve',
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              ),
+            ] else ...[
+              IconButton(
+                icon: const Icon(Icons.auto_graph),
+                onPressed: _showGenerateDialog,
+                tooltip: 'Generate Payroll',
+              ),
+              IconButton(
+                icon: const Icon(Icons.checklist),
+                onPressed: _toggleSelectionMode,
+                tooltip: 'Pilih untuk Bulk Approve',
+              ),
+            ],
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
@@ -373,7 +569,9 @@ class _SalaryPageState extends State<SalaryPage> {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
-              if (_selectedUserId != null || _selectedPeriod != null)
+              if (_selectedUserId != null ||
+                  _selectedPeriod != null ||
+                  _selectedStatus != null)
                 TextButton(
                   onPressed: _clearFilters,
                   child: const Text('Hapus Filter'),
@@ -418,6 +616,30 @@ class _SalaryPageState extends State<SalaryPage> {
             items: _buildPeriodItems(),
             onChanged: (value) {
               setState(() => _selectedPeriod = value);
+              _loadData();
+            },
+          ),
+          AppSpacing.gapVerticalSM,
+          DropdownButtonFormField<String?>(
+            value: _selectedStatus,
+            decoration: InputDecoration(
+              labelText: 'Status',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusSM),
+            ),
+            items: const [
+              DropdownMenuItem<String?>(value: null, child: Text('Semua')),
+              DropdownMenuItem<String?>(value: 'draft', child: Text('Draft')),
+              DropdownMenuItem<String?>(
+                  value: 'processing', child: Text('Diproses')),
+              DropdownMenuItem<String?>(
+                  value: 'paid', child: Text('Dibayarkan')),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedStatus = value);
               _loadData();
             },
           ),

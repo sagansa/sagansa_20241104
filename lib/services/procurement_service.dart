@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/procurement_model.dart';
 import '../utils/constants.dart';
+import 'image_upload_service.dart';
 
 class ProcurementService {
   Future<String?> _getToken() async {
@@ -170,6 +170,75 @@ class ProcurementService {
     } else {
       final Map<String, dynamic> errorData = json.decode(response.body);
       throw Exception(errorData['message'] ?? 'Failed to cancel item');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDetailRequests({
+    required int storeId,
+    int? paymentTypeId,
+  }) async {
+    final token = await _getToken();
+    final params = <String, String>{
+      'store_id': storeId.toString(),
+    };
+    if (paymentTypeId != null) {
+      params['payment_type_id'] = paymentTypeId.toString();
+    }
+    final uri = Uri.parse('${ApiConstants.baseUrl}/procurement/detail-requests')
+        .replace(queryParameters: params);
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return List<Map<String, dynamic>>.from(jsonResponse['data']);
+    } else {
+      throw Exception(jsonResponse['message'] ?? 'Failed to load detail requests');
+    }
+  }
+
+  Future<int> createInvoiceStandalone({
+    required int supplierId,
+    required int storeId,
+    required int paymentTypeId,
+    required String date,
+    required List<Map<String, dynamic>> items,
+    int? taxes,
+    int? discounts,
+    String? notes,
+  }) async {
+    final token = await _getToken();
+    final body = <String, dynamic>{
+      'supplier_id': supplierId,
+      'store_id': storeId,
+      'payment_type_id': paymentTypeId,
+      'date': date,
+      'items': items,
+    };
+    if (taxes != null) body['taxes'] = taxes;
+    if (discounts != null) body['discounts'] = discounts;
+    if (notes != null) body['notes'] = notes;
+
+    final response = await http.post(
+      Uri.parse('${ApiConstants.baseUrl}/procurement/invoices'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return data['data']['id'] ?? 0;
+    } else {
+      final Map<String, dynamic> errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to create invoice');
     }
   }
 
@@ -361,10 +430,9 @@ class ProcurementService {
       request.fields['notes'] = notes;
     }
     if (image != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('image', image.path,
-            contentType: MediaType('image', 'jpeg')),
-      );
+      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      request.fields['image'] = path;
     }
 
     final streamedResponse = await request.send();

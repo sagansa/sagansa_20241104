@@ -64,6 +64,8 @@ class _SalaryPageState extends State<SalaryPage> {
       if (userString != null) {
         final userData = json.decode(userString);
         final userRoles = List<String>.from(userData['roles'] ?? []);
+        // NOTE: super_admin sengaja TIDAK diakui sebagai admin untuk fitur gaji
+        // (keputusan spesifik). Jangan tambahkan super_admin di sini.
         if (mounted) {
           setState(() {
             _isAdmin = userRoles.contains('admin');

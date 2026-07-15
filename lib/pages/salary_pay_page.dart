@@ -52,9 +52,9 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
 
   Future<void> _submit() async {
     final amount = double.tryParse(_paidAmountCtrl.text);
-    if (amount == null || _dateCtrl.text.isEmpty) {
+    if (amount == null || amount <= 0 || _dateCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Isi nominal & tanggal.')));
+          .showSnackBar(const SnackBar(content: Text('Isi nominal (> 0) & tanggal.')));
       return;
     }
     setState(() => _isSaving = true);
@@ -99,9 +99,9 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildBankCard(theme, colorScheme),
+                          _buildBankCard(theme),
                           AppSpacing.gapVerticalMD,
-                          _buildBreakdownCard(theme, colorScheme),
+                          _buildBreakdownCard(theme),
                           AppSpacing.gapVerticalMD,
                           TextField(
                             controller: _paidAmountCtrl,
@@ -169,7 +169,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
     return 'Sesuai gaji bulanan bersih.';
   }
 
-  Widget _buildBankCard(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildBankCard(ThemeData theme) {
     final bank = _info?['bank'] ?? {};
     return Card(
       child: Padding(
@@ -191,7 +191,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
     );
   }
 
-  Widget _buildBreakdownCard(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildBreakdownCard(ThemeData theme) {
     final b = _info?['breakdown'] ?? {};
     return Card(
       child: Padding(

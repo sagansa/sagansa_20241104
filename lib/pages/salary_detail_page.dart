@@ -65,11 +65,13 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
 
     try {
       final detail = await _salaryService.getSalaryDetail(widget.salaryId);
+      if (!mounted) return;
       setState(() {
         salaryDetail = detail;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Gagal memuat rincian gaji: ${e.toString()}';
         _isLoading = false;
@@ -80,18 +82,16 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
   Future<void> _approveSalary() async {
     try {
       await _salaryService.approveSalary(widget.salaryId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Slip di-approve.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Slip di-approve.')),
+      );
       _loadSalaryDetail();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
     }
   }
 
@@ -510,6 +510,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
 
   Color _getStatusColor(String status, ColorScheme colorScheme) {
     switch (status) {
+      case 'draft':
+        return colorScheme.outline;
       case 'paid':
         return AppColors.success;
       case 'pending':
@@ -527,6 +529,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
 
   IconData _getStatusIcon(String status) {
     switch (status) {
+      case 'draft':
+        return Icons.edit_note;
       case 'paid':
         return Icons.check_circle_outline;
       case 'pending':
@@ -544,6 +548,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
         : null;
 
     switch (status) {
+      case 'draft':
+        return 'Slip gaji masih draft, menunggu persetujuan.';
       case 'paid':
         return 'Gaji telah ditransfer pada ${paymentDate != null ? DateFormat('dd MMMM yyyy', 'id_ID').format(paymentDate) : '-'}';
       case 'pending':

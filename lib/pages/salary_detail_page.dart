@@ -6,10 +6,12 @@ import '../services/salary_service.dart';
 
 class SalaryDetailPage extends StatefulWidget {
   final int salaryId;
+  final String? userName;
 
   const SalaryDetailPage({
     super.key,
     required this.salaryId,
+    this.userName,
   });
 
   @override
@@ -373,7 +375,19 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Slip Gaji ${DateFormat('MMMM yyyy', 'id_ID').format(periodDate)}'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.userName ?? salaryDetail!['user_name'] ?? '',
+              style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Slip Gaji ${DateFormat('MMMM yyyy', 'id_ID').format(periodDate)}',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(

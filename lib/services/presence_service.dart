@@ -8,6 +8,7 @@ import '../models/store_model.dart';
 import '../models/shift_store_model.dart';
 import 'dart:io';
 import '../utils/constants.dart';
+import 'image_upload_service.dart';
 import 'dart:developer' as developer;
 
 class PresenceService {
@@ -108,22 +109,27 @@ class PresenceService {
         ..fields
             .addAll(data.map((key, value) => MapEntry(key, value.toString())));
 
+      final fieldName = isCheckIn ? 'image_in' : 'image_out';
+      String? path;
       if (kIsWeb) {
         final bytes = await XFile(imageFile.path).readAsBytes();
         // Pertahankan ekstensi file aktual (mis. .webp di Android, .jpg di iOS)
         // agar content-type dan validasi backend tetap konsisten.
         final ext = p.extension(imageFile.path).toLowerCase();
-        request.files.add(http.MultipartFile.fromBytes(
-          isCheckIn ? 'image_in' : 'image_out',
+        final filename = isCheckIn ? 'image_in$ext' : 'image_out$ext';
+        path = await ImageUploadService.uploadBytes(
           bytes,
-          filename: isCheckIn ? 'image_in$ext' : 'image_out$ext',
-        ));
+          filename,
+          directory: 'images/Presence',
+        );
       } else {
-        request.files.add(await http.MultipartFile.fromPath(
-          isCheckIn ? 'image_in' : 'image_out',
-          imageFile.path,
-        ));
+        path = await ImageUploadService.upload(
+          imageFile,
+          directory: 'images/Presence',
+        );
       }
+      if (path == null) throw Exception('Gagal upload gambar presensi.');
+      request.fields[fieldName] = path;
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -156,6 +162,33 @@ class PresenceService {
       }
     } catch (e) {
       throw Exception('Error saat submit presensi: $e');
+    }
+  }
+
+  /// Get all employees' presence data for today (admin only).
+  static Future<List<dynamic>> getAllTodayPresences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.tokenKey);
+
+      final response = await http.get(
+        Uri.parse(ApiConstants.todayPresenceEndpoint),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data'] as List<dynamic>? ?? [];
+      } else {
+        throw Exception('Failed to load today presences');
+      }
+    } catch (e) {
+      developer.log('Error in getAllTodayPresences',
+          error: e, name: 'PresenceService');
+      return [];
     }
   }
 
@@ -336,10 +369,12 @@ class PresenceService {
         });
 
       if (imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'image_delivery',
-          imageFile.path,
-        ));
+        final path = await ImageUploadService.upload(
+          imageFile,
+          directory: 'images/Delivery',
+        );
+        if (path == null) throw Exception('Gagal upload bukti pengiriman.');
+        request.fields['image_delivery'] = path;
       }
 
       final response = await request.send();
@@ -354,6 +389,68 @@ class PresenceService {
       }
     } catch (e) {
       throw Exception('Error saat memperbarui pengiriman: $e');
+    }
+  }
+
+  /// Update payment status for a direct sales order (admin only).
+  static Future<Map<String, dynamic>> updatePaymentStatus({
+    required int orderId,
+    required String paymentStatus,
+  }) async {
+    final token = await getToken();
+    final uri = Uri.parse(ApiConstants.updatePaymentStatus);
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: ApiConstants.headers(token),
+        body: json.encode({
+          'order_id': orderId,
+          'payment_status': paymentStatus,
+        }),
+      );
+
+      final decodedData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return decodedData;
+      } else {
+        throw Exception(
+            decodedData['message'] ?? 'Gagal memperbarui status pembayaran.');
+      }
+    } catch (e) {
+      throw Exception('Error saat memperbarui status pembayaran: $e');
+    }
+  }
+
+  /// Update order items for a direct sales order (admin only).
+  static Future<Map<String, dynamic>> updateOrderItems({
+    required int orderId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final token = await getToken();
+    final uri = Uri.parse(ApiConstants.updateOrderItems);
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: ApiConstants.headers(token),
+        body: json.encode({
+          'order_id': orderId,
+          'items': items,
+        }),
+      );
+
+      final decodedData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return decodedData;
+      } else {
+        throw Exception(
+            decodedData['message'] ?? 'Gagal memperbarui item order.');
+      }
+    } catch (e) {
+      throw Exception('Error saat memperbarui item order: $e');
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/asset_category_model.dart';
 import '../models/asset_model.dart';
 import '../utils/constants.dart';
+import 'image_upload_service.dart';
 
 /// Service HTTP untuk modul Asset (CRUD aset + kategori + dashboard summary).
 /// Mengikuti pola StorageStockService: token via SharedPreferences, response
@@ -242,7 +243,9 @@ class AssetService {
     if (nextCheckAt != null) request.fields['next_check_at'] = nextCheckAt;
     if (notes != null) request.fields['notes'] = notes;
     if (photo != null) {
-      request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
+      final path = await ImageUploadService.upload(photo, directory: 'images/Asset');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      request.fields['photo'] = path;
     }
 
     final streamedResponse = await request.send();
@@ -294,7 +297,9 @@ class AssetService {
     if (nextCheckAt != null) request.fields['next_check_at'] = nextCheckAt;
     if (notes != null) request.fields['notes'] = notes;
     if (photo != null) {
-      request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
+      final path = await ImageUploadService.upload(photo, directory: 'images/Asset');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      request.fields['photo'] = path;
     }
 
     final streamedResponse = await request.send();

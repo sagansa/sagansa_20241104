@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/asset_check_model.dart';
 import '../utils/constants.dart';
+import 'image_upload_service.dart';
 
 /// Service untuk submit & melihat riwayat pemeriksaan aset.
 class AssetCheckService {
@@ -108,8 +109,10 @@ class AssetCheckService {
     if (checklist.isNotEmpty) {
       request.fields['checklist'] = jsonEncode(checklist);
     }
-    for (final file in photos) {
-      request.files.add(await http.MultipartFile.fromPath('photos[]', file.path));
+    for (int i = 0; i < photos.length; i++) {
+      final path = await ImageUploadService.upload(photos[i], directory: 'images/AssetCheck');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      request.fields['photos[$i]'] = path;
     }
 
     final streamedResponse = await request.send();

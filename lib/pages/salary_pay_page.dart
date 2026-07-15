@@ -1,0 +1,241 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../theme/app_spacing.dart';
+import '../services/salary_service.dart';
+
+class SalaryPayPage extends StatefulWidget {
+  final int salaryId;
+  const SalaryPayPage({super.key, required this.salaryId});
+
+  @override
+  State<SalaryPayPage> createState() => _SalaryPayPageState();
+}
+
+class _SalaryPayPageState extends State<SalaryPayPage> {
+  final SalaryService _service = SalaryService();
+  final currencyFormatter = NumberFormat.currency(
+      locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  final _paidAmountCtrl = TextEditingController();
+  final _dateCtrl = TextEditingController();
+
+  Map<String, dynamic>? _info;
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    try {
+      final info = await _service.getPaymentInfo(widget.salaryId);
+      if (!mounted) return;
+      setState(() {
+        _info = info;
+        _isLoading = false;
+        final defaults = info['defaults'] ?? {};
+        _paidAmountCtrl.text = (defaults['suggested_paid_amount'] ?? 0).toString();
+        _dateCtrl.text = defaults['today'] ??
+            DateTime.now().toIso8601String().substring(0, 10);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_paidAmountCtrl.text);
+    if (amount == null || _dateCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Isi nominal & tanggal.')));
+      return;
+    }
+    setState(() => _isSaving = true);
+    try {
+      await _service.paySalary(
+          id: widget.salaryId, paidAmount: amount, paymentDate: _dateCtrl.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gaji berhasil dibayar.')));
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', ''))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Bayar Gaji')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingLG,
+                    child: Text(_error!,
+                        style: TextStyle(color: colorScheme.error)),
+                  ),
+                )
+              : _info == null
+                  ? const Center(child: Text('Data tidak ditemukan.'))
+                  : SingleChildScrollView(
+                      padding: AppSpacing.paddingMD,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildBankCard(theme, colorScheme),
+                          AppSpacing.gapVerticalMD,
+                          _buildBreakdownCard(theme, colorScheme),
+                          AppSpacing.gapVerticalMD,
+                          TextField(
+                            controller: _paidAmountCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'Nominal Dibayarkan',
+                              prefixText: 'Rp ',
+                              border: const OutlineInputBorder(),
+                              helperText: _buildSelisihHelper(),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          AppSpacing.gapVerticalSM,
+                          TextField(
+                            controller: _dateCtrl,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                                labelText: 'Tanggal Bayar',
+                                border: OutlineInputBorder()),
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                _dateCtrl.text =
+                                    picked.toIso8601String().substring(0, 10);
+                              }
+                            },
+                          ),
+                          AppSpacing.gapVerticalLG,
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _isSaving ? null : _submit,
+                              icon: _isSaving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white))
+                                  : const Icon(Icons.check),
+                              label: const Text('Konfirmasi Pembayaran'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+    );
+  }
+
+  String? _buildSelisihHelper() {
+    final breakdown = _info?['breakdown'] ?? {};
+    final total = (breakdown['total_salary'] ?? 0) as num;
+    final daily = (breakdown['daily_salary_total'] ?? 0) as num;
+    final expected = total - daily;
+    final input = double.tryParse(_paidAmountCtrl.text);
+    if (input == null) return null;
+    final selisih = expected - input;
+    if (selisih > 0) return 'Kurang bayar: ${currencyFormatter.format(selisih)}';
+    if (selisih < 0) return 'Lebih bayar: ${currencyFormatter.format(selisih.abs())}';
+    return 'Sesuai gaji bulanan bersih.';
+  }
+
+  Widget _buildBankCard(ThemeData theme, ColorScheme colorScheme) {
+    final bank = _info?['bank'] ?? {};
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Rekening Penerima',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            AppSpacing.gapVerticalSM,
+            _row('Bank', bank['bank_name']?.toString() ?? '—'),
+            _row('No. Rekening', bank['bank_account_number']?.toString() ?? '—'),
+            _row('Atas Nama', bank['bank_account_name']?.toString() ?? '—'),
+            _row('Biaya Admin', currencyFormatter.format(bank['admin_fee'] ?? 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreakdownCard(ThemeData theme, ColorScheme colorScheme) {
+    final b = _info?['breakdown'] ?? {};
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Rincian Gaji',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const Divider(),
+            _row('Gaji Utama (A)', currencyFormatter.format(b['base_salary'] ?? 0)),
+            _row('Denda Keterlambatan',
+                '- ${currencyFormatter.format(b['late_penalties'] ?? 0)}'),
+            _row('Denda Manual',
+                '- ${currencyFormatter.format(b['manual_penalties'] ?? 0)}'),
+            _row('Cicilan Kasbon',
+                '- ${currencyFormatter.format(b['loan_installments'] ?? 0)}'),
+            _row('Gaji Bulanan Bersih',
+                currencyFormatter.format(b['monthly_part'] ?? 0)),
+            _row('Gaji Harian (B)',
+                currencyFormatter.format(b['daily_salary_total'] ?? 0)),
+            const Divider(),
+            _row('Total Gaji (A+Pengurangan+B)',
+                currencyFormatter.format(b['total_salary'] ?? 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: theme.textTheme.bodyMedium),
+          Text(value,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}

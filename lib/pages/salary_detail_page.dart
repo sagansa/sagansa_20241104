@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../services/salary_service.dart';
+import 'salary_pay_page.dart';
 
 class SalaryDetailPage extends StatefulWidget {
   final int salaryId;
@@ -28,12 +31,30 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
   final SalaryService _salaryService = SalaryService();
   Map<String, dynamic>? salaryDetail;
   bool _isLoading = true;
+  bool _isAdmin = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     _loadSalaryDetail();
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userString = prefs.getString('user');
+      if (userString != null) {
+        final userData = json.decode(userString);
+        if (mounted) {
+          setState(() {
+            _isAdmin =
+                List<String>.from(userData['roles'] ?? []).contains('admin');
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSalaryDetail() async {
@@ -53,6 +74,24 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
         _errorMessage = 'Gagal memuat rincian gaji: ${e.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _approveSalary() async {
+    try {
+      await _salaryService.approveSalary(widget.salaryId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Slip di-approve.')),
+        );
+      }
+      _loadSalaryDetail();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
     }
   }
 
@@ -423,6 +462,45 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
             _buildBreakdownCard(context),
             _buildWorkHoursSummary(context),
             _buildDailyWorkList(),
+            if (_isAdmin) ...[
+              AppSpacing.gapVerticalMD,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                child: Column(
+                  children: [
+                    if (salaryDetail!['status'] == 'draft')
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _approveSalary,
+                          icon: const Icon(Icons.check),
+                          label: const Text('Approve Slip'),
+                        ),
+                      ),
+                    if (salaryDetail!['status'] == 'processing')
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    SalaryPayPage(salaryId: widget.salaryId),
+                              ),
+                            ).then((ok) {
+                              if (ok == true) _loadSalaryDetail();
+                            });
+                          },
+                          icon: const Icon(Icons.payments),
+                          label: const Text('Bayar Gaji'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             AppSpacing.gapVerticalLG,
           ],
         ),

@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import '../models/supplier_model.dart';
 import 'api_client.dart';
+import 'image_upload_service.dart';
 
 class SupplierService {
   final ApiClient _apiClient = ApiClient();
@@ -34,16 +34,16 @@ class SupplierService {
       if (value != null) fields[key] = value.toString();
     });
 
-    final List<http.MultipartFile> files = [];
     if (image != null) {
-      files.add(await http.MultipartFile.fromPath('image', image.path));
+      final path = await ImageUploadService.upload(image, directory: 'images/Supplier');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
     }
 
     final responseData = await _apiClient.multipart(
       method: 'POST',
       path: 'suppliers',
       fields: fields,
-      files: files,
     );
     return SupplierModel.fromJson(responseData);
   }
@@ -55,9 +55,10 @@ class SupplierService {
       if (value != null) fields[key] = value.toString();
     });
 
-    final List<http.MultipartFile> files = [];
     if (image != null) {
-      files.add(await http.MultipartFile.fromPath('image', image.path));
+      final path = await ImageUploadService.upload(image, directory: 'images/Supplier');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
     }
 
     // Use POST with _method=PUT for multipart form
@@ -65,7 +66,6 @@ class SupplierService {
       method: 'POST',
       path: 'suppliers/$id',
       fields: fields,
-      files: files,
     );
     return SupplierModel.fromJson(responseData);
   }

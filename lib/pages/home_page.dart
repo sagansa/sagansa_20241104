@@ -32,7 +32,8 @@ import 'closing_store_page.dart';
 
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final bool? initialIsAdmin;
+  const HomePage({super.key, this.initialIsAdmin});
 
   @override
   State<HomePage> createState() => HomePageState();
@@ -68,6 +69,7 @@ class HomePageState extends State<HomePage> {
   int invoiceDraftCount = 0;
   int invoiceDoneCount = 0;
   int unpaidInvoicesCount = 0;
+  int unpaidTransferInvoicesCount = 0;
   bool isLoadingProcurement = false;
   int pendingLeavesCount = 0;
   bool hasLeavesThisMonth = false;
@@ -83,11 +85,16 @@ class HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> adminStockMonitorings = [];
   bool isLoadingAdminStockMonitoring = false;
   String latestStockDate = '';
+  List<dynamic> _todayPresences = [];
+  bool _isLoadingTodayPresences = false;
 
   @override
   void initState() {
     super.initState();
     _controller = HomeController(context);
+    if (widget.initialIsAdmin != null) {
+      isAdmin = widget.initialIsAdmin!;
+    }
     _initData();
 
     // Check for app updates
@@ -202,6 +209,7 @@ class HomePageState extends State<HomePage> {
 
       if (hasAdminRole) {
         await _fetchAdminStockMonitoring();
+        await _loadTodayPresences();
       }
     } catch (e) {
       developer.log('Error in _initData',
@@ -241,6 +249,21 @@ class HomePageState extends State<HomePage> {
           }
         }
       }
+
+      // Fetch unpaid transfer invoices count
+      int unpaidTransferCount = 0;
+      try {
+        final invoiceResult = await ProcurementService().getInvoices(
+          paymentStatus: '1',
+          perPage: 100,
+        );
+        unpaidTransferCount = invoiceResult.items
+            .where((inv) => inv.paymentTypeId == 1)
+            .length;
+      } catch (e) {
+        developer.log('Error loading unpaid transfer invoices', error: e);
+      }
+
       if (mounted) {
         setState(() {
           pendingProcurementsCount = pending;
@@ -248,6 +271,7 @@ class HomePageState extends State<HomePage> {
           invoiceDraftCount = summary['invoice_draft'] ?? 0;
           invoiceDoneCount = summary['invoice_done'] ?? 0;
           unpaidInvoicesCount = summary['invoice_unpaid'] ?? 0;
+          unpaidTransferInvoicesCount = unpaidTransferCount;
         });
       }
     } catch (e) {
@@ -271,6 +295,25 @@ class HomePageState extends State<HomePage> {
       }
     } catch (e) {
       developer.log('Error checking storage status', error: e);
+    }
+  }
+
+  Future<void> _loadTodayPresences() async {
+    if (!mounted) return;
+    setState(() => _isLoadingTodayPresences = true);
+    try {
+      final presences = await PresenceService.getAllTodayPresences();
+      if (mounted) {
+        setState(() {
+          _todayPresences = presences;
+          _isLoadingTodayPresences = false;
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading today presences', error: e);
+      if (mounted) {
+        setState(() => _isLoadingTodayPresences = false);
+      }
     }
   }
 
@@ -908,15 +951,22 @@ class HomePageState extends State<HomePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
             padding: AppSpacing.paddingMD,
-            child: isAdmin
-                ? _buildAdminDashboard()
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPresenceSection(),
-                      _buildDashboardGrid(),
-                    ],
-                  ),
+            child: !isUserDataLoaded
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 100),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : isAdmin
+                    ? _buildAdminDashboard()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPresenceSection(),
+                          _buildDashboardGrid(),
+                        ],
+                      ),
           ),
         ),
       ),
@@ -1244,11 +1294,11 @@ class HomePageState extends State<HomePage> {
             AppSpacing.gapHorizontalSM,
             Expanded(
               child: _buildKpiCard(
-                icon: Icons.shopping_cart_outlined,
+                icon: Icons.receipt_outlined,
                 iconColor: colorScheme.tertiary,
-                title: 'Nota Belanja',
-                value: isLoadingProcurement ? '...' : '$pendingProcurementsCount',
-                subtitle: 'Menunggu Approval',
+                title: 'Invoice Belum Dibayar',
+                value: isLoadingProcurement ? '...' : '$unpaidTransferInvoicesCount',
+                subtitle: 'Metode Transfer',
               ),
             ),
           ],
@@ -1277,6 +1327,10 @@ class HomePageState extends State<HomePage> {
             ),
           ],
         ),
+        AppSpacing.gapVerticalLG,
+
+        // Presensi Hari Ini
+        _buildTodayPresencesSection(),
         AppSpacing.gapVerticalLG,
 
         // Laporan Storage Stock Feed
@@ -1335,6 +1389,116 @@ class HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTodayPresencesSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Presensi Hari Ini',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_isLoadingTodayPresences)
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.primary,
+                ),
+              ),
+          ],
+        ),
+        AppSpacing.gapVerticalSM,
+        if (_todayPresences.isEmpty && !_isLoadingTodayPresences)
+          Card(
+            child: Padding(
+              padding: AppSpacing.paddingMD,
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: colorScheme.onSurfaceVariant),
+                  AppSpacing.gapHorizontalSM,
+                  Text(
+                    'Belum ada presensi hari ini.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...(_todayPresences.take(10).map((presence) {
+            final name = presence['user']?['name'] ?? '-';
+            final store = presence['store']?['name'] ?? '-';
+            final clockIn = presence['clock_in'] ?? '-';
+            final clockOut = presence['clock_out'];
+            return Card(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Padding(
+                padding: AppSpacing.paddingMD,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                      child: Icon(Icons.person, size: 20, color: colorScheme.onSurfaceVariant),
+                    ),
+                    AppSpacing.gapHorizontalMD,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            store,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'In: $clockIn',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (clockOut != null)
+                          Text(
+                            'Out: $clockOut',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          })),
+      ],
     );
   }
 

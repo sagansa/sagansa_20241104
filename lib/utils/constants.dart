@@ -25,6 +25,7 @@ class ApiConstants {
   // Presence Endpoints
   static const String userPresence = '$baseUrl/user-presence';
   static const String leaves = '$baseUrl/leaves';
+  static const String adminLeaves = '$baseUrl/admin/leaves';
   static const String salaries = '$baseUrl/salaries';
   static const String checkIn = '$baseUrl/check-in';
   static const String checkOut = '$baseUrl/check-out';
@@ -46,6 +47,27 @@ class ApiConstants {
       '$baseUrl/sales-orders/payment-proofs/printed';
   static const String updateDeliveryStatus =
       '$baseUrl/sales-orders/delivery-update';
+
+  // Sales Order Online - Create (admin)
+  static const String onlineShopProviders =
+      '$baseUrl/sales-orders/online-shop-providers';
+  static const String deliveryServices =
+      '$baseUrl/sales-orders/delivery-services';
+  static const String onlineProducts = '$baseUrl/sales-orders/online-products';
+  static const String createSalesOrderOnline =
+      '$baseUrl/sales-orders/online';
+
+  // Sales Order Admin Endpoints
+  static const String updatePaymentStatus =
+      '$baseUrl/sales-orders/update-payment-status';
+  static const String updateOrderItems =
+      '$baseUrl/sales-orders/update-items';
+
+  // Daily Salary Endpoints
+  static const String dailySalaries = '$baseUrl/daily-salaries';
+
+  // Payment Receipt Endpoints
+  static const String paymentReceipts = '$baseUrl/payment-receipts';
 
   // Asset Management Endpoints (kategorisasi produk + pemeriksaan berkala).
   static const String assetCategories = '$baseUrl/asset-categories';

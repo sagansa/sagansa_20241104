@@ -18,28 +18,30 @@ class StatusBadge extends StatelessWidget {
     this.size = BadgeSize.small,
   });
 
-  Color _textColor() {
+  Color _textColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     switch (type) {
       case StatusType.success:
         return AppColors.success;
       case StatusType.warning:
         return AppColors.warning;
       case StatusType.error:
-        return AppColors.error;
+        return cs.error;
       case StatusType.info:
       case StatusType.neutral:
         return AppColors.onSurfaceVariant;
     }
   }
 
-  Color _bgColor() {
+  Color _bgColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     switch (type) {
       case StatusType.success:
         return AppColors.successContainer;
       case StatusType.warning:
         return AppColors.warningContainer;
       case StatusType.error:
-        return AppColors.errorContainer.withValues(alpha: 0.3);
+        return cs.errorContainer.withValues(alpha: 0.3);
       case StatusType.info:
       case StatusType.neutral:
         return AppColors.surfaceVariant;
@@ -61,13 +63,13 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: _padding(),
       decoration: BoxDecoration(
-        color: _bgColor(),
+        color: _bgColor(context),
         borderRadius: AppSpacing.borderRadiusXL,
       ),
       child: Text(
         label,
         style: (size == BadgeSize.small ? textTheme.labelSmall : textTheme.labelMedium)?.copyWith(
-          color: _textColor(),
+          color: _textColor(context),
           fontWeight: FontWeight.bold,
         ),
       ),

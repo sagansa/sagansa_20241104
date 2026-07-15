@@ -99,7 +99,7 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                         child: Text(
                                           _report!.statusText,
                                           style: textTheme.labelMedium?.copyWith(
-                                            color: colorScheme.primary,
+                                            color: colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),

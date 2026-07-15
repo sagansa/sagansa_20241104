@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../widgets/status_badge.dart';
@@ -126,7 +125,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
               tooltip: 'Edit',
             ),
             IconButton(
-              icon: const Icon(Icons.delete_rounded),
+              icon: const Icon(Icons.delete_outline),
               onPressed: _delete,
               tooltip: 'Hapus',
               color: colorScheme.error,
@@ -476,18 +475,19 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
   }
 
   Widget _buildError() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: AppSpacing.paddingLG,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: AppColors.error),
+            Icon(Icons.error_outline_rounded,
+                size: 48, color: colorScheme.error),
             AppSpacing.gapVerticalMD,
             Text(
               _errorMessage!,
-              style: const TextStyle(color: AppColors.error),
+              style: TextStyle(color: colorScheme.error),
             ),
             AppSpacing.gapVerticalMD,
             ElevatedButton.icon(

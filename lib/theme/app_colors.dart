@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// dan terkesan premium.
 class AppColors {
   // Primary Colors - Metallic Gold
-  static const Color primary = Color(0xFFB8973E); // rich gold (light mode readable)
+  static const Color primary = Color(0xFF9C7C30); // deep gold (better contrast in light mode)
   static const Color primaryContainer = Color(0xFFF5EBC8); // warm cream-gold
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color onPrimaryContainer = Color(0xFF2A2208);
@@ -51,6 +51,12 @@ class AppColors {
   static const Color onInfo = Color(0xFFFFFFFF);
   static const Color onInfoContainer = Color(0xFF0D47A1);
 
+  // Dark Mode Error Colors - brighter variants for dark backgrounds
+  static const Color darkError = Color(0xFFEF5350); // Material Red 400
+  static const Color darkErrorContainer = Color(0xFF4A1515);
+  static const Color darkOnError = Color(0xFFFFFFFF);
+  static const Color darkOnErrorContainer = Color(0xFFFFDAD6);
+
   // Neutral Colors
   static const Color outline = Color(0xFF8B8472); // warm outline
   static const Color outlineVariant = Color(0xFFD4CFC0);
@@ -88,7 +94,7 @@ class AppColors {
 
   // Gradient Colors - Gold & Charcoal Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFD4AF37), Color(0xFFB8973E)],
+    colors: [Color(0xFFD4AF37), Color(0xFF9C7C30)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -121,6 +127,19 @@ class AppColors {
       surface.withValues(alpha: opacity);
   static Color onSurfaceWithOpacity(double opacity) =>
       onSurface.withValues(alpha: opacity);
+
+  // Brightness-aware helpers - use these for widgets not going through ThemeData
+  static Color errorFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkError : error;
+
+  static Color errorContainerFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkErrorContainer : errorContainer;
+
+  static Color onErrorFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkOnError : onError;
+
+  static Color onErrorContainerFor(Brightness brightness) =>
+      brightness == Brightness.dark ? darkOnErrorContainer : onErrorContainer;
 
   // Dark gold accent helper (for legacy widgets still referencing AppTheme)
   static const Color goldAccent = darkPrimary;

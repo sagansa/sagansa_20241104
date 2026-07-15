@@ -108,10 +108,11 @@ class PresencePageState extends State<PresencePage> {
               ? 'Anda berada di area ${nearestStore.nickname} (${shortestDistance.toStringAsFixed(2)} meter)'
               : 'Anda berada di luar area ${nearestStore.nickname}. Jarak: ${shortestDistance.toStringAsFixed(2)} meter';
 
+          final cs = Theme.of(context).colorScheme;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(message),
-              backgroundColor: isLocationValid ? AppColors.success : AppColors.error,
+              content: Text(message, style: const TextStyle(color: Colors.white)),
+              backgroundColor: isLocationValid ? Colors.green.shade600 : cs.error,
             ),
           );
         }
@@ -140,10 +141,11 @@ class PresencePageState extends State<PresencePage> {
       });
 
       if (!isTimeValid) {
+        final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Waktu checkout hanya diperbolehkan sampai jam 02:00'),
-            backgroundColor: AppColors.error,
+            content: const Text('Waktu checkout hanya diperbolehkan sampai jam 02:00', style: TextStyle(color: Colors.white)),
+            backgroundColor: cs.error,
           ),
         );
       }
@@ -152,10 +154,11 @@ class PresencePageState extends State<PresencePage> {
 
   Future<void> _validateAndSubmitPresence() async {
     if (_imageFile == null) {
+      final cs = Theme.of(context).colorScheme;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Harap ambil foto selfie terlebih dahulu'),
-          backgroundColor: AppColors.error,
+          content: const Text('Harap ambil foto selfie terlebih dahulu', style: TextStyle(color: Colors.white)),
+          backgroundColor: cs.error,
         ),
       );
       return;
@@ -164,44 +167,45 @@ class PresencePageState extends State<PresencePage> {
     setState(() => isLoading = true);
 
     try {
-      if (widget.isCheckIn) {
-        final hygieneService = HygieneService();
-        final hasHygiene = await hygieneService.checkTodayStatus(storeId: selectedStore!.id);
-        if (!hasHygiene) {
-          if (!mounted) return;
-          setState(() => isLoading = false);
-          
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Laporan Kebersihan Belum Diisi'),
-              content: Text(
-                'Laporan kebersihan untuk toko ${selectedStore!.nickname} belum diisi hari ini. '
-                'Harap isi laporan kebersihan terlebih dahulu sebelum melakukan Check In.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Batal'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HygienePage(),
-                      ),
-                    );
-                  },
-                  child: const Text('Isi Laporan'),
-                ),
-              ],
-            ),
-          );
-          return;
-        }
-      }
+      // Validasi kebersihan dinonaktifkan sementara
+      // if (widget.isCheckIn) {
+      //   final hygieneService = HygieneService();
+      //   final hasHygiene = await hygieneService.checkTodayStatus(storeId: selectedStore!.id);
+      //   if (!hasHygiene) {
+      //     if (!mounted) return;
+      //     setState(() => isLoading = false);
+      //
+      //     showDialog(
+      //       context: context,
+      //       builder: (ctx) => AlertDialog(
+      //         title: const Text('Laporan Kebersihan Belum Diisi'),
+      //         content: Text(
+      //           'Laporan kebersihan untuk toko ${selectedStore!.nickname} belum diisi hari ini. '
+      //           'Harap isi laporan kebersihan terlebih dahulu sebelum melakukan Check In.',
+      //         ),
+      //         actions: [
+      //           TextButton(
+      //             onPressed: () => Navigator.pop(ctx),
+      //             child: const Text('Batal'),
+      //           ),
+      //           FilledButton(
+      //             onPressed: () {
+      //               Navigator.pop(ctx);
+      //               Navigator.push(
+      //                 context,
+      //                 MaterialPageRoute(
+      //                   builder: (context) => const HygienePage(),
+      //                 ),
+      //               );
+      //             },
+      //             child: const Text('Isi Laporan'),
+      //           ),
+      //         ],
+      //       ),
+      //     );
+      //     return;
+      //   }
+      // }
 
       await _presenceController.submitPresence(
         isCheckIn: widget.isCheckIn,
@@ -219,8 +223,9 @@ class PresencePageState extends State<PresencePage> {
           );
         },
         onError: (error) {
+          final cs = Theme.of(context).colorScheme;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), backgroundColor: AppColors.error),
+            SnackBar(content: Text(error, style: const TextStyle(color: Colors.white)), backgroundColor: cs.error),
           );
         },
       );
@@ -382,8 +387,8 @@ class PresencePageState extends State<PresencePage> {
                               if (!isLocationValid) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter'),
-                                    backgroundColor: AppColors.error,
+                                    content: Text('Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter', style: const TextStyle(color: Colors.white)),
+                                    backgroundColor: colorScheme.error,
                                   ),
                                 );
                               }

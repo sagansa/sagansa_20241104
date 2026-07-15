@@ -131,7 +131,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                 tooltip: 'Edit',
               ),
             IconButton(
-              icon: const Icon(Icons.delete_rounded),
+              icon: const Icon(Icons.delete_outline),
               onPressed: _delete,
               tooltip: 'Hapus',
             ),

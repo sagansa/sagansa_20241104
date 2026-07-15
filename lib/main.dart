@@ -54,7 +54,7 @@ class CustomErrorWidget extends StatelessWidget {
                   child: SingleChildScrollView(
                     child: Text(
                       errorDetails.toString(),
-                      style: TextStyle(color: AppColors.error),
+                      style: TextStyle(color: Colors.redAccent),
                     ),
                   ),
                 ),
@@ -217,6 +217,7 @@ class _MyAppState extends State<MyApp> {
               : ThemeProvider.lightTheme;
 
           return MaterialApp(
+            restorationScopeId: 'sagansa',
             title: 'Sagansa',
             theme: themeData,
             darkTheme: ThemeProvider.darkTheme,

@@ -15,6 +15,7 @@ import 'printer_settings_page.dart';
 import 'leave_page.dart';
 import 'loan_page.dart';
 import 'calendar_page.dart';
+import 'daily_salary_list_page.dart';
 import '../services/salary_service.dart';
 
 class HRDDashboardPage extends StatefulWidget {
@@ -381,6 +382,7 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
                     icon: Icons.wallet_outlined,
                     color: AppColors.success,
                     title: 'Gaji & Slip',
+                    isFirst: true,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -428,6 +430,17 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
                         );
                       },
                     ),
+                  _buildQuickMenuCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: AppColors.success,
+                    title: 'Daily Salary',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const DailySalaryListPage()),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -593,13 +606,17 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
     required Color color,
     required String title,
     required VoidCallback onTap,
+    bool isFirst = false,
   }) {
     final theme = Theme.of(context);
 
     return SizedBox(
       width: 105,
       child: Card(
-        margin: const EdgeInsets.only(right: AppSpacing.sm),
+        margin: EdgeInsets.only(
+          left: isFirst ? AppSpacing.sm : 0,
+          right: AppSpacing.sm,
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: AppSpacing.borderRadiusMD,

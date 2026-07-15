@@ -310,7 +310,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
                         suffixText: _selectedUtility?['unit']?.toString(),
                         helperText: _previousReading != null
                             ? 'Laporan sebelumnya: $_formatPrevious(_previousReading!)'
-                            : null,
+                            : 'Belum ada laporan sebelumnya',
                       ),
                     ],
                   ),

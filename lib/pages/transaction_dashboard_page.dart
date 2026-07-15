@@ -252,67 +252,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildMenuRow(
-                  icon: Icons.storefront_outlined,
-                  color: AppColors.primary,
-                  title: 'Tutup Shift Toko',
-                  subtitle: 'Catat laci kasir, setoran EDC & closing toko.',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ClosingStorePage()),
-                    );
-                  },
-                ),
-                _buildMenuRow(
-                  icon: Icons.local_gas_station_outlined,
-                  color: AppColors.success,
-                  title: 'Bensin & Servis',
-                  subtitle: 'Catat pengeluaran bensin dan servis kendaraan.',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const FuelServiceListPage()),
-                    );
-                  },
-                ),
-                _buildMenuRow(
-                  icon: Icons.receipt_outlined,
-                  color: AppColors.success,
-                  title: 'Request & Purchase',
-                  subtitle: 'Kelola request belanja toko & approve item transfer.',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProcurementDashboardPage()),
-                    );
-                  },
-                ),
-                _buildMenuRow(
-                  icon: Icons.receipt_long_outlined,
-                  color: AppColors.primary,
-                  title: 'Invoice Purchase',
-                  subtitle: 'Lihat daftar invoice purchase & status pembayaran.',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const InvoiceDashboardPage()),
-                    );
-                  },
-                ),
-                _buildMenuRow(
-                  icon: Icons.payments_outlined,
-                  color: AppColors.success,
-                  title: 'Payment Receipt',
-                  subtitle: 'Riwayat pembayaran transfer invoice purchase.',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PaymentReceiptDashboardPage()),
-                    );
-                  },
-                ),
-                if (isStorageStaff) ...[
+                if (isStorageStaff || isAdmin) ...[
                   _buildMenuRow(
                     icon: Icons.local_shipping_outlined,
                     color: AppColors.info,
@@ -373,6 +313,66 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
                     },
                   ),
                 ],
+                _buildMenuRow(
+                  icon: Icons.storefront_outlined,
+                  color: AppColors.primary,
+                  title: 'Tutup Shift Toko',
+                  subtitle: 'Catat laci kasir, setoran EDC & closing toko.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ClosingStorePage()),
+                    );
+                  },
+                ),
+                _buildMenuRow(
+                  icon: Icons.local_gas_station_outlined,
+                  color: AppColors.success,
+                  title: 'Bensin & Servis',
+                  subtitle: 'Catat pengeluaran bensin dan servis kendaraan.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const FuelServiceListPage()),
+                    );
+                  },
+                ),
+                _buildMenuRow(
+                  icon: Icons.receipt_outlined,
+                  color: AppColors.success,
+                  title: 'Request & Purchase',
+                  subtitle: 'Kelola request belanja toko & approve item transfer.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProcurementDashboardPage()),
+                    );
+                  },
+                ),
+                _buildMenuRow(
+                  icon: Icons.receipt_long_outlined,
+                  color: AppColors.primary,
+                  title: 'Invoice Purchase',
+                  subtitle: 'Lihat daftar invoice purchase & status pembayaran.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const InvoiceDashboardPage()),
+                    );
+                  },
+                ),
+                _buildMenuRow(
+                  icon: Icons.payments_outlined,
+                  color: AppColors.success,
+                  title: 'Payment Receipt',
+                  subtitle: 'Riwayat pembayaran transfer invoice purchase.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PaymentReceiptDashboardPage()),
+                    );
+                  },
+                ),
                 if (isAdmin || isSupervisor) ...[
                   _buildMenuRow(
                     icon: Icons.store_mall_directory_outlined,

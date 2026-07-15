@@ -293,14 +293,14 @@ class _StockDashboardPageState extends State<StockDashboardPage> {
                       trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                               decoration: BoxDecoration(
-                                color: _hasReportedToday ? AppColors.success.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
+                                color: _hasReportedToday ? AppColors.success.withValues(alpha: 0.1) : colorScheme.error.withValues(alpha: 0.1),
                                 borderRadius: AppSpacing.borderRadiusMD,
                               ),
                               child: Text(
                                 '$_reportedStores/$_totalStores',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: _hasReportedToday ? AppColors.success : AppColors.error,
+                                  color: _hasReportedToday ? AppColors.success : colorScheme.error,
                                 ),
                               ),
                             ),

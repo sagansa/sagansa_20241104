@@ -89,16 +89,23 @@ class TransferStockService {
     required int toStoreId,
     required String date,
     required List<Map<String, dynamic>> items,
+    int? sentById,
+    int? receivedById,
+    String? notes,
   }) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
-    final body = json.encode({
+    final body = <String, dynamic>{
       'from_store_id': fromStoreId,
       'to_store_id': toStoreId,
       'date': date,
+      'status': 'pending',
       'items': items,
-    });
+    };
+    if (sentById != null) body['sent_by_id'] = sentById;
+    if (receivedById != null) body['received_by_id'] = receivedById;
+    if (notes != null) body['notes'] = notes;
 
     final response = await http.post(
       Uri.parse('${ApiConstants.baseUrl}/transfer-stocks'),

@@ -103,8 +103,12 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
 
   void _showError(String msg) {
     if (!mounted) return;
+    final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: cs.error,
+      ),
     );
   }
 

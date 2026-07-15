@@ -283,14 +283,14 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                           decoration: BoxDecoration(
                             color: _hasReadinessToday
                                 ? AppColors.success.withValues(alpha: 0.1)
-                                : AppColors.error.withValues(alpha: 0.1),
+                                : colorScheme.error.withValues(alpha: 0.1),
                             borderRadius: AppSpacing.borderRadiusMD,
                           ),
                           child: Text(
                             _hasReadinessToday ? 'Sudah' : 'Belum',
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: _hasReadinessToday ? AppColors.success : AppColors.error,
+                              color: _hasReadinessToday ? AppColors.success : colorScheme.error,
                             ),
                           ),
                         ),
@@ -317,14 +317,14 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                           decoration: BoxDecoration(
                             color: _hasHygieneToday
                                 ? AppColors.success.withValues(alpha: 0.1)
-                                : AppColors.error.withValues(alpha: 0.1),
+                                : colorScheme.error.withValues(alpha: 0.1),
                             borderRadius: AppSpacing.borderRadiusMD,
                           ),
                           child: Text(
                             _hasHygieneToday ? 'Sudah' : 'Belum',
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: _hasHygieneToday ? AppColors.success : AppColors.error,
+                              color: _hasHygieneToday ? AppColors.success : colorScheme.error,
                             ),
                           ),
                         ),

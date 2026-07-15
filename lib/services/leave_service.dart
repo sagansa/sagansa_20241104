@@ -92,4 +92,103 @@ class LeaveService {
       throw Exception(errorData['message'] ?? 'Gagal mengupdate cuti');
     }
   }
+
+  // Admin methods
+
+  /// Get all leaves (admin sees all staff leaves)
+  Future<Map<String, dynamic>> getAdminLeaves({
+    int page = 1,
+    int perPage = 20,
+    String? status,
+    int? userId,
+    String? search,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final params = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (status != null) params['status'] = status;
+    if (userId != null) params['user_id'] = userId.toString();
+    if (search != null && search.isNotEmpty) params['search'] = search;
+
+    final uri = Uri.parse(ApiConstants.adminLeaves)
+        .replace(queryParameters: params);
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return {
+        'data': data['data']['data'] ?? [],
+        'meta': {
+          'current_page': data['data']['current_page'],
+          'last_page': data['data']['last_page'],
+          'total': data['data']['total'],
+        },
+      };
+    } else {
+      throw Exception('Gagal memuat data cuti');
+    }
+  }
+
+  /// Approve a leave request (admin only)
+  Future<bool> approveLeave(int leaveId, {String? notes}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.post(
+      Uri.parse('${ApiConstants.adminLeaves}/$leaveId/approve'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'notes': notes ?? 'Permintaan cuti disetujui',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['success'] == true;
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Gagal menyetujui cuti');
+    }
+  }
+
+  /// Reject a leave request (admin only)
+  Future<bool> rejectLeave(int leaveId, {String? rejectNote}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.post(
+      Uri.parse('${ApiConstants.adminLeaves}/$leaveId/reject'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'reject_note': rejectNote ?? 'Permintaan cuti ditolak',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['success'] == true;
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Gagal menolak cuti');
+    }
+  }
 }

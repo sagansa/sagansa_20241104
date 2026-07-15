@@ -160,7 +160,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                     child: Text(
                       shiftName,
                       style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.primary,
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -817,7 +817,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.delete,
+                              icon: Icon(Icons.delete_outline,
                                   color: Theme.of(context).colorScheme.error),
                               onPressed: () {
                                 setModalState(() {
@@ -891,7 +891,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                       if (selectedImage != null) ...[
                         AppSpacing.gapHorizontalSM,
                         IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
                           onPressed: () =>
                               setModalState(() => selectedImage = null),
                         ),
@@ -1134,19 +1134,19 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                 padding: AppSpacing.paddingMD,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
+                  color: colorScheme.error.withValues(alpha: 0.1),
                   borderRadius: AppSpacing.borderRadiusMD,
-                  border: Border.all(color: AppColors.error),
+                  border: Border.all(color: colorScheme.error),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.lock, color: AppColors.error),
+                    Icon(Icons.lock, color: colorScheme.error),
                     AppSpacing.gapHorizontalMD,
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Laporan Closing Store ini telah diperiksa oleh admin dan tidak dapat diedit lagi.',
                         style: TextStyle(
-                          color: AppColors.error,
+                          color: colorScheme.error,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1162,7 +1162,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                   children: [
                     CircleAvatar(
                       backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                      child: Icon(Icons.storefront, color: colorScheme.primary),
+                      child: Icon(Icons.storefront, color: colorScheme.onSurfaceVariant),
                     ),
                     AppSpacing.gapHorizontalMD,
                     Expanded(

@@ -429,7 +429,7 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.delete, color: colorScheme.error),
+                                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
                                     onPressed: () {
                                       setState(() {
                                         _serviceServiceDetails.removeAt(idx);
@@ -499,7 +499,7 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             if (_selectedImage != null) ...[
                               AppSpacing.gapHorizontalSM,
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
                                 onPressed: () {
                                   setState(() {
                                     _selectedImage = null;

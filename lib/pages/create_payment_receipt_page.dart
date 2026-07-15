@@ -1,160 +1,246 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import '../../models/procurement_model.dart';
-import '../../models/supplier_model.dart';
-import '../../services/procurement_service.dart';
-import '../../services/supplier_service.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
-import '../widgets/modern_bottom_sheet.dart';
+import 'package:intl/intl.dart';
+import '../models/procurement_model.dart';
+import '../services/closing_store_service.dart';
+import '../services/image_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class CreatePaymentReceiptPage extends StatefulWidget {
-  final List<InvoicePurchase> invoices;
-
-  const CreatePaymentReceiptPage({super.key, required this.invoices});
+  final List<InvoicePurchase>? invoices;
+  final List<dynamic>? dailySalaries;
+  const CreatePaymentReceiptPage({super.key, this.invoices, this.dailySalaries});
 
   @override
-  State<CreatePaymentReceiptPage> createState() =>
-      _CreatePaymentReceiptPageState();
+  State<CreatePaymentReceiptPage> createState() => _CreatePaymentReceiptPageState();
 }
 
 class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
-  final ProcurementService _procurementService = ProcurementService();
-  final SupplierService _supplierService = SupplierService();
+  final ClosingStoreService _service = ClosingStoreService();
   final _formKey = GlobalKey<FormState>();
-  final _notesController = TextEditingController();
-  final _amountController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
 
+  bool _isLoadingData = true;
   bool _isSubmitting = false;
-  File? _imageFile;
-  SupplierModel? _supplier;
-  bool _loadingSupplier = false;
+  String? _errorMessage;
 
-  List<InvoicePurchase> get _invoices => widget.invoices;
+  // Payment type: 1 = FuelService, 2 = DailySalary
+  int _paymentFor = 1;
 
-  int get _totalAmount {
-    return _invoices.fold(0, (sum, inv) => sum + inv.totalPrice);
-  }
+  // Fuel Service states
+  List<dynamic> _fuelServiceUsers = [];
+  List<dynamic> _fuelServices = [];
+  int? _selectedFuelServiceUserId;
+  final Set<int> _selectedFuelServiceIds = {};
 
-  int? _supplierId;
+  // Daily Salary states
+  List<dynamic> _employees = [];
+  List<dynamic> _dailySalaries = [];
+  int? _selectedEmployeeId;
+  final Set<int> _selectedDailySalaryIds = {};
+
+  // Invoice states (for backward compatibility)
+  List<InvoicePurchase> _invoices = [];
+  int? _selectedSupplierId;
+
+  // Common states
+  final _transferAmountController = TextEditingController();
+  final _notesController = TextEditingController();
+  File? _selectedImage;
 
   @override
   void initState() {
     super.initState();
-    _amountController.text = _formatAmount(_totalAmount);
-    _determineSupplier();
-  }
-
-  void _determineSupplier() {
-    final ids = _invoices.map((inv) => inv.supplierId).toSet().toList();
-    if (ids.length == 1 && ids.first != null) {
-      _supplierId = ids.first!;
-      _fetchSupplier(_supplierId!);
-    }
-  }
-
-  Future<void> _fetchSupplier(int id) async {
-    setState(() => _loadingSupplier = true);
-    try {
-      final supplier = await _supplierService.getSupplier(id);
-      if (mounted) {
-        setState(() {
-          _supplier = supplier;
-          _loadingSupplier = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loadingSupplier = false);
+    if (widget.invoices != null && widget.invoices!.isNotEmpty) {
+      _invoices = widget.invoices!;
+      _paymentFor = 3; // InvoicePurchase
+      _selectedSupplierId = _invoices.first.supplierId;
+      final totalAmount = _invoices.fold<int>(0, (sum, inv) => sum + inv.totalPrice);
+      _transferAmountController.text = totalAmount.toString();
+      _isLoadingData = false;
+    } else if (widget.dailySalaries != null && widget.dailySalaries!.isNotEmpty) {
+      _paymentFor = 2; // DailySalary
+      _dailySalaries = widget.dailySalaries!;
+      _selectedDailySalaryIds.addAll(_dailySalaries.map((s) => s['id'] as int));
+      _selectedEmployeeId = _dailySalaries.first['created_by']?['id'];
+      _updateTotalAmount();
+      _isLoadingData = false;
+    } else {
+      _loadInitialData();
     }
   }
 
   @override
   void dispose() {
+    _transferAmountController.dispose();
     _notesController.dispose();
-    _amountController.dispose();
     super.dispose();
   }
 
-  String _formatAmount(int amount) {
-    return amount.toString().replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.');
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoadingData = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        _service.getUsersForFuelServicePayment(),
+        _service.getEmployeesForDailySalary(),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _fuelServiceUsers = results[0];
+        _employees = results[1];
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoadingData = false;
+      });
+    }
   }
 
-  int _parseAmount(String text) {
-    return int.tryParse(text.replaceAll('.', '')) ?? 0;
+  Future<void> _loadFuelServices(int userId) async {
+    try {
+      final services = await _service.getFuelServicesForPayment(createdById: userId);
+      if (!mounted) return;
+      setState(() {
+        _fuelServices = services;
+        _selectedFuelServiceIds.clear();
+        _transferAmountController.clear();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data bensin/servis: $e')),
+      );
+    }
+  }
+
+  Future<void> _loadDailySalaries(int userId) async {
+    try {
+      final salaries = await _service.getDailySalariesForPayment(userId: userId);
+      if (!mounted) return;
+      setState(() {
+        _dailySalaries = salaries;
+        _selectedDailySalaryIds.clear();
+        _transferAmountController.clear();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data daily salary: $e')),
+      );
+    }
+  }
+
+  void _updateTotalAmount() {
+    int total = 0;
+    if (_paymentFor == 1) {
+      for (final service in _fuelServices) {
+        if (_selectedFuelServiceIds.contains(service['id'])) {
+          total += int.tryParse(service['amount'].toString()) ?? 0;
+        }
+      }
+    } else {
+      for (final salary in _dailySalaries) {
+        if (_selectedDailySalaryIds.contains(salary['id'])) {
+          total += int.tryParse(salary['amount'].toString()) ?? 0;
+        }
+      }
+    }
+    _transferAmountController.text = total.toString();
   }
 
   Future<void> _pickImage() async {
-    final XFile? picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
+    try {
+      final photo = await ImageService.selectAndPickImage(context);
+      if (photo != null && mounted) {
+        setState(() => _selectedImage = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: $e')),
+      );
     }
-  }
-
-  Future<void> _pickFromGallery() async {
-    final XFile? picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
-    }
-  }
-
-  void _showImageSourceDialog() {
-    ModernBottomSheet.show(
-      context: context,
-      child: Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.camera_alt),
-            title: const Text('Kamera'),
-            onTap: () {
-              Navigator.pop(context);
-              _pickImage();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: const Text('Galeri'),
-            onTap: () {
-              Navigator.pop(context);
-              _pickFromGallery();
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_paymentFor == 1 && _selectedFuelServiceIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih minimal 1 item bensin/servis.')),
+      );
+      return;
+    }
+
+    if (_paymentFor == 2 && _selectedDailySalaryIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih minimal 1 item daily salary.')),
+      );
+      return;
+    }
+
+    final transferAmount = int.tryParse(_transferAmountController.text) ?? 0;
+    if (transferAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah transfer harus lebih dari 0.')),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
-      final receipt = await _procurementService.createPaymentReceipt(
-        invoiceIds: _invoices.map((inv) => inv.id).toList(),
-        transferAmount: _parseAmount(_amountController.text),
-        totalAmount: _totalAmount,
-        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
-        image: _imageFile,
-      );
-      if (!mounted) return;
-      Navigator.pop(context, receipt);
-    } catch (e) {
+      final data = <String, dynamic>{
+        'payment_for': _paymentFor,
+        'transfer_amount': transferAmount,
+      };
+
+      if (_paymentFor == 1) {
+        data['fuel_service_created_by'] = _selectedFuelServiceUserId;
+        data['fuelServices'] = _selectedFuelServiceIds.toList();
+      } else if (_paymentFor == 2) {
+        data['user_id'] = _selectedEmployeeId;
+        data['dailySalaries'] = _selectedDailySalaryIds.toList();
+      } else if (_paymentFor == 3) {
+        data['supplier_id'] = _selectedSupplierId;
+        data['invoicePurchases'] = _invoices.map((inv) => inv.id).toList();
+      }
+
+      if (_notesController.text.isNotEmpty) {
+        data['notes'] = _notesController.text;
+      }
+
+      await _service.createPaymentReceipt(data, imageFile: _selectedImage);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        const SnackBar(
+          content: Text('Payment receipt berhasil dibuat.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      final cs = Theme.of(context).colorScheme;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: cs.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -167,446 +253,391 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Buat Payment Receipt'),
-      ),
-      body: SingleChildScrollView(
-        padding: AppSpacing.paddingMD,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSupplierBankCard(theme, colorScheme),
-              AppSpacing.gapVerticalMD,
-              _buildInvoiceList(theme, colorScheme),
-              AppSpacing.gapVerticalLG,
-              _buildImagePicker(theme, colorScheme),
-              AppSpacing.gapVerticalLG,
-              _buildAmountField(theme, colorScheme),
-              AppSpacing.gapVerticalMD,
-              _buildNotesField(theme, colorScheme),
-              AppSpacing.gapVerticalLG,
-              _buildSubmitButton(theme, colorScheme),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSupplierBankCard(ThemeData theme, ColorScheme colorScheme) {
-    if (_loadingSupplier) {
-      return Card(
-        child: const Padding(
-          padding: AppSpacing.paddingMD,
-          child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-        ),
-      );
-    }
-
-    if (_supplier == null) return const SizedBox.shrink();
-
-    final bank = _supplier!;
-    return Card(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.account_balance, size: 20, color: colorScheme.primary),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Informasi Bank Supplier',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalMD,
-            _bankInfoRow('Supplier', bank.name, theme),
-            if (bank.bankName != null) ...[
-              AppSpacing.gapVerticalXS,
-              _bankInfoRow('Bank', bank.bankName!, theme),
-            ],
-            if (bank.bankAccountName != null) ...[
-              AppSpacing.gapVerticalXS,
-              _bankInfoRow('Atas Nama', bank.bankAccountName!, theme),
-            ],
-            if (bank.bankAccountNo != null) ...[
-              AppSpacing.gapVerticalXS,
-              _bankInfoRowWithCopy('No. Rekening', bank.bankAccountNo!, theme, colorScheme),
-            ],
-            if (bank.qris != null && bank.qris!.isNotEmpty) ...[
-              AppSpacing.gapVerticalXS,
-              Row(
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: Text(
-                      'QRIS',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Row(
+      appBar: AppBar(title: const Text('Buat Payment Receipt')),
+      body: _isLoadingData
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingLG,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check_circle, size: 14, color: AppColors.success),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          'Tersedia',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.success,
-                          ),
-                        ),
+                        Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                        AppSpacing.gapVerticalMD,
+                        Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bankInfoRowWithCopy(String label, String value, ThemeData theme, ColorScheme colorScheme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        SizedBox(width: AppSpacing.xs),
-        InkWell(
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: value));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No. Rekening disalin'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          child: Icon(Icons.copy, size: 16, color: colorScheme.primary),
-        ),
-      ],
-    );
-  }
-
-  Widget _bankInfoRow(String label, String value, ThemeData theme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInvoiceList(ThemeData theme, ColorScheme colorScheme) {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.receipt_long, size: 20, color: colorScheme.primary),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Invoice yang Dibayar (${_invoices.length})',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalMD,
-            ..._invoices.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final inv = entry.value;
-              return Padding(
-                padding: EdgeInsets.only(bottom: idx < _invoices.length - 1 ? AppSpacing.sm + AppSpacing.xs : 0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            inv.storeName,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                )
+              : Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: AppSpacing.paddingMD,
+                    children: [
+                      // Payment Type Selection
+                      Card(
+                        child: Padding(
+                          padding: AppSpacing.paddingMD,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Jenis Pembayaran',
+                                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                              AppSpacing.gapVerticalSM,
+                              SegmentedButton<int>(
+                                segments: const [
+                                  ButtonSegment(value: 1, label: Text('Bensin & Servis'), icon: Icon(Icons.local_gas_station)),
+                                  ButtonSegment(value: 2, label: Text('Daily Salary'), icon: Icon(Icons.account_balance_wallet)),
+                                  ButtonSegment(value: 3, label: Text('Invoice'), icon: Icon(Icons.receipt_long)),
+                                ],
+                                selected: {_paymentFor},
+                                onSelectionChanged: widget.invoices != null
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _paymentFor = value.first;
+                                          _selectedFuelServiceUserId = null;
+                                          _selectedEmployeeId = null;
+                                          _fuelServices = [];
+                                          _dailySalaries = [];
+                                          _selectedFuelServiceIds.clear();
+                                          _selectedDailySalaryIds.clear();
+                                          _transferAmountController.clear();
+                                        });
+                                      },
+                              ),
+                            ],
                           ),
-                          AppSpacing.gapVerticalXS,
-                          Text(
-                            '${inv.date} • ${inv.supplierName ?? ""}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    AppSpacing.gapHorizontalSM,
-                    Text(
-                      'Rp ${_formatAmount(inv.totalPrice)}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Semua Invoice',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Rp ${_formatAmount(_totalAmount)}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                      AppSpacing.gapVerticalMD,
 
-  Widget _buildImagePicker(ThemeData theme, ColorScheme colorScheme) {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.image, size: 20, color: colorScheme.primary),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Bukti Pembayaran',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalMD,
-            GestureDetector(
-              onTap: _showImageSourceDialog,
-              child: Container(
-                width: double.infinity,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                  borderRadius: AppSpacing.borderRadiusMD,
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                    width: 1,
-                    strokeAlign: BorderSide.strokeAlignInside,
-                  ),
-                ),
-                child: _imageFile != null
-                    ? ClipRRect(
-                        borderRadius: AppSpacing.borderRadiusMD,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(_imageFile!, fit: BoxFit.cover),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: () => setState(() => _imageFile = null),
-                                child: Container(
-                                  padding: AppSpacing.paddingXS,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.scrim.withValues(alpha: 0.54),
-                                    shape: BoxShape.circle,
+                      // Fuel Service Section
+                      if (_paymentFor == 1) ...[
+                        Card(
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Pilih Created By',
+                                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                AppSpacing.gapVerticalSM,
+                                DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Created By *',
+                                    isDense: true,
                                   ),
-                                  child: Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: colorScheme.onPrimary,
-                                  ),
+                                  value: _selectedFuelServiceUserId,
+                                  items: _fuelServiceUsers.map((user) {
+                                    return DropdownMenuItem<int>(
+                                      value: user['id'],
+                                      child: Text(user['name'] ?? '-'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() => _selectedFuelServiceUserId = value);
+                                    if (value != null) _loadFuelServices(value);
+                                  },
+                                  validator: (v) => v == null ? 'Pilih created by' : null,
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        AppSpacing.gapVerticalMD,
+
+                        if (_fuelServices.isNotEmpty) ...[
+                          Card(
+                            child: Padding(
+                              padding: AppSpacing.paddingMD,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Pilih Item',
+                                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                      TextButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            if (_selectedFuelServiceIds.length == _fuelServices.length) {
+                                              _selectedFuelServiceIds.clear();
+                                            } else {
+                                              _selectedFuelServiceIds.addAll(
+                                                  _fuelServices.map((s) => s['id'] as int));
+                                            }
+                                          });
+                                          _updateTotalAmount();
+                                        },
+                                        child: Text(
+                                          _selectedFuelServiceIds.length == _fuelServices.length
+                                              ? 'Batal Pilih Semua'
+                                              : 'Pilih Semua',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  AppSpacing.gapVerticalSM,
+                                  ...(_fuelServices.map((service) {
+                                    final id = service['id'] as int;
+                                    final amount = double.tryParse(service['amount'].toString()) ?? 0;
+                                    final isSelected = _selectedFuelServiceIds.contains(id);
+                                    return CheckboxListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text('Item #$id'),
+                                      subtitle: Text(currencyFormatter.format(amount)),
+                                      value: isSelected,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _selectedFuelServiceIds.add(id);
+                                          } else {
+                                            _selectedFuelServiceIds.remove(id);
+                                          }
+                                        });
+                                        _updateTotalAmount();
+                                      },
+                                    );
+                                  })),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo,
-                            size: 40,
-                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                           ),
-                          AppSpacing.gapVerticalSM,
-                          Text(
-                            'Ketuk untuk ambil foto bukti transfer',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                          AppSpacing.gapVerticalMD,
+                        ],
+                      ],
+
+                      // Daily Salary Section
+                      if (_paymentFor == 2) ...[
+                        Card(
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Pilih Karyawan',
+                                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                AppSpacing.gapVerticalSM,
+                                DropdownButtonFormField<int>(
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Karyawan *',
+                                    isDense: true,
+                                  ),
+                                  value: _selectedEmployeeId,
+                                  items: _employees.map((emp) {
+                                    return DropdownMenuItem<int>(
+                                      value: emp['id'],
+                                      child: Text(emp['name'] ?? '-'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() => _selectedEmployeeId = value);
+                                    if (value != null) _loadDailySalaries(value);
+                                  },
+                                  validator: (v) => v == null ? 'Pilih karyawan' : null,
+                                ),
+                              ],
                             ),
                           ),
+                        ),
+                        AppSpacing.gapVerticalMD,
+
+                        if (_dailySalaries.isNotEmpty) ...[
+                          Card(
+                            child: Padding(
+                              padding: AppSpacing.paddingMD,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Pilih Item',
+                                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                      TextButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            if (_selectedDailySalaryIds.length == _dailySalaries.length) {
+                                              _selectedDailySalaryIds.clear();
+                                            } else {
+                                              _selectedDailySalaryIds.addAll(
+                                                  _dailySalaries.map((s) => s['id'] as int));
+                                            }
+                                          });
+                                          _updateTotalAmount();
+                                        },
+                                        child: Text(
+                                          _selectedDailySalaryIds.length == _dailySalaries.length
+                                              ? 'Batal Pilih Semua'
+                                              : 'Pilih Semua',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  AppSpacing.gapVerticalSM,
+                                  ...(_dailySalaries.map((salary) {
+                                    final id = salary['id'] as int;
+                                    final amount = double.tryParse(salary['amount'].toString()) ?? 0;
+                                    final date = salary['date'] ?? '';
+                                    final isSelected = _selectedDailySalaryIds.contains(id);
+                                    return CheckboxListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text('Salary #$id'),
+                                      subtitle: Text('$date - ${currencyFormatter.format(amount)}'),
+                                      value: isSelected,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _selectedDailySalaryIds.add(id);
+                                          } else {
+                                            _selectedDailySalaryIds.remove(id);
+                                          }
+                                        });
+                                        _updateTotalAmount();
+                                      },
+                                    );
+                                  })),
+                                ],
+                              ),
+                            ),
+                          ),
+                          AppSpacing.gapVerticalMD,
                         ],
+                      ],
+
+                      // Invoice Section
+                      if (_paymentFor == 3 && _invoices.isNotEmpty) ...[
+                        Card(
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Invoice Terpilih',
+                                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                AppSpacing.gapVerticalSM,
+                                ...(_invoices.map((inv) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Invoice #${inv.id}',
+                                                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                              Text(inv.supplierName ?? '-',
+                                                  style: theme.textTheme.bodySmall),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          currencyFormatter.format(inv.totalPrice),
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                })),
+                              ],
+                            ),
+                          ),
+                        ),
+                        AppSpacing.gapVerticalMD,
+                      ],
+
+                      // Payment Details
+                      Card(
+                        child: Padding(
+                          padding: AppSpacing.paddingMD,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Detail Pembayaran',
+                                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                              AppSpacing.gapVerticalSM,
+                              TextFormField(
+                                controller: _transferAmountController,
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Total Pembayaran',
+                                  prefixText: 'Rp ',
+                                  isDense: true,
+                                ),
+                              ),
+                              AppSpacing.gapVerticalSM,
+                              TextFormField(
+                                controller: _notesController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Catatan',
+                                  isDense: true,
+                                ),
+                                maxLines: 2,
+                              ),
+                              AppSpacing.gapVerticalSM,
+                              // Image preview
+                              if (_selectedImage != null) ...[
+                                ClipRRect(
+                                  borderRadius: AppSpacing.borderRadiusMD,
+                                  child: kIsWeb
+                                      ? Image.network(
+                                          _selectedImage!.path,
+                                          height: 150,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          _selectedImage!,
+                                          height: 150,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                                AppSpacing.gapVerticalSM,
+                              ],
+                              OutlinedButton.icon(
+                                onPressed: _pickImage,
+                                icon: Icon(
+                                  _selectedImage == null ? Icons.add_a_photo : Icons.edit,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  _selectedImage == null ? 'Unggah Bukti (Opsional)' : 'Ganti Foto',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                      AppSpacing.gapVerticalMD,
 
-  Widget _buildAmountField(ThemeData theme, ColorScheme colorScheme) {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.payments, size: 20, color: colorScheme.primary),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Detail Pembayaran',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _isSubmitting ? null : _submit,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Buat Payment Receipt'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-            AppSpacing.gapVerticalMD,
-            TextFormField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Jumlah Transfer (Rp)',
-                prefixText: 'Rp ',
-              ),
-              validator: (val) {
-                if (val == null || val.isEmpty) return 'Jumlah transfer wajib diisi';
-                final num = int.tryParse(val.replaceAll('.', ''));
-                if (num == null || num <= 0) return 'Jumlah harus lebih besar dari 0';
-                return null;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotesField(ThemeData theme, ColorScheme colorScheme) {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.notes, size: 20, color: colorScheme.primary),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Catatan',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalMD,
-            TextFormField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Keterangan pembayaran (opsional)',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton(ThemeData theme, ColorScheme colorScheme) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.success,
-          foregroundColor: AppColors.onSuccess,
-        ),
-        onPressed: _isSubmitting ? null : _submit,
-        icon: _isSubmitting
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSuccess),
-              )
-            : const Icon(Icons.check_circle),
-        label: Text(
-          _isSubmitting ? 'Memproses...' : 'Konfirmasi Pembayaran',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-      ),
     );
   }
 }

@@ -153,10 +153,11 @@ class PresenceController {
       }
     } catch (e) {
       const errorMessage = 'Gagal mengirim data presensi';
+      final cs = Theme.of(context).colorScheme;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: AppColors.error,
+        SnackBar(
+          content: const Text(errorMessage, style: TextStyle(color: Colors.white)),
+          backgroundColor: cs.error,
         ),
       );
       onError(errorMessage);

@@ -77,8 +77,12 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
 
   void _showError(String msg) {
     if (!mounted) return;
+    final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: cs.error,
+      ),
     );
   }
 
@@ -134,7 +138,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                      Icon(Icons.delete_outline, color: AppColors.error),
                       AppSpacing.gapHorizontalSM,
                       const Text('Hapus Aset'),
                     ],

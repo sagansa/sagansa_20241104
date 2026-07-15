@@ -38,15 +38,24 @@ class StorageStockModel {
   });
 
   factory StorageStockModel.fromJson(Map<String, dynamic> json) {
-    var detailsList = json['product_storage_stocks'] as List? ?? [];
+    // Backend (stock_cards) menyimpan detail pada relasi `detail_stock_cards`
+    // dan pembuat pada `user` (kolom user_id). Mendukung fallback ke struktur
+    // lama (`product_storage_stocks` / `created_by`) demi kompatibilitas.
+    var detailsList = json['detail_stock_cards'] as List? ?? [];
+    var legacyDetailsList = json['product_storage_stocks'] as List? ?? [];
     return StorageStockModel(
       id: json['id'],
       storeId: json['store_id'],
       date: json['date'] ?? '',
       status: json['status'] ?? 1,
       storeName: json['store'] != null ? json['store']['nickname'] ?? '' : '',
-      createdByName: json['created_by'] != null ? json['created_by']['name'] ?? '' : '',
-      details: detailsList.map((i) => ProductStorageStockModel.fromJson(i)).toList(),
+      createdByName: (json['user'] != null
+              ? json['user']['name']
+              : (json['created_by'] != null ? json['created_by']['name'] : null)) ??
+          '',
+      details: (detailsList.isNotEmpty ? detailsList : legacyDetailsList)
+          .map((i) => ProductStorageStockModel.fromJson(i))
+          .toList(),
     );
   }
 

@@ -3,8 +3,8 @@ import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import 'create_invoice_form_page.dart';
 import 'invoice_detail_page.dart';
-import 'procurement_dashboard_page.dart';
 import '../../widgets/modern_bottom_nav.dart';
 
 class InvoiceDashboardPage extends StatefulWidget {
@@ -17,7 +17,8 @@ class InvoiceDashboardPage extends StatefulWidget {
 class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     with SingleTickerProviderStateMixin {
   final ProcurementService _procurementService = ProcurementService();
-  final ScrollController _scrollController = ScrollController();
+  final List<ScrollController> _scrollControllers =
+      List.generate(5, (_) => ScrollController());
 
   List<InvoicePurchase> _invoices = [];
   bool _isLoading = true;
@@ -31,20 +32,26 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
-    _scrollController.addListener(_onScroll);
+    for (final c in _scrollControllers) {
+      c.addListener(_onScroll);
+    }
     _fetchInvoices();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _scrollController.dispose();
+    for (final c in _scrollControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
+    final controller = _scrollControllers[_tabController.index];
+    if (controller.hasClients &&
+        controller.position.pixels >=
+            controller.position.maxScrollExtent - 200 &&
         !_loadingMore &&
         _hasMore) {
       _loadMore();
@@ -215,7 +222,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                     return RefreshIndicator(
                       onRefresh: _fetchInvoices,
                       child: ListView.builder(
-                        controller: _scrollController,
+                        controller: _scrollControllers[index],
                         padding: AppSpacing.paddingMD,
                         itemCount:
                             invoices.length + (_loadingMore ? 1 : 0),
@@ -374,13 +381,16 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                   }),
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const ProcurementDashboardPage(),
+              builder: (context) => const CreateInvoiceFormPage(),
             ),
           );
+          if (result == true) {
+            _fetchInvoices();
+          }
         },
         child: const Icon(Icons.add),
       ),

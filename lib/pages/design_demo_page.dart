@@ -302,7 +302,7 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
                 ),
                 child: Icon(
                   item['icon'] as IconData,
-                  color: colorScheme.primary,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               title: Text(
@@ -334,7 +334,7 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
     final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(

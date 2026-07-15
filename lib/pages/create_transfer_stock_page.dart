@@ -3,6 +3,7 @@ import '../models/transfer_stock_model.dart';
 import '../models/store_model.dart';
 import '../services/transfer_stock_service.dart';
 import '../services/store_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 
 class CreateTransferStockPage extends StatefulWidget {
@@ -16,15 +17,20 @@ class CreateTransferStockPage extends StatefulWidget {
 class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
   final StoreService _storeService = StoreService();
   final TransferStockService _transferStockService = TransferStockService();
+  final UserService _userService = UserService();
+  final _notesController = TextEditingController();
 
   List<StoreModel> _stores = [];
   List<TransferStockProduct> _products = [];
+  List<Map<String, dynamic>> _users = [];
   bool _isLoadingData = true;
   String? _errorMessage;
 
   StoreModel? _selectedFromStore;
   StoreModel? _selectedToStore;
   DateTime _selectedDate = DateTime.now();
+  Map<String, dynamic>? _selectedSender;
+  Map<String, dynamic>? _selectedReceiver;
   final List<Map<String, dynamic>> _items = [];
   bool _isSubmitting = false;
 
@@ -36,6 +42,7 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
 
   @override
   void dispose() {
+    _notesController.dispose();
     for (var item in _items) {
       (item['controller'] as TextEditingController).dispose();
     }
@@ -44,12 +51,16 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
 
   Future<void> _loadInitialData() async {
     try {
-      final stores = await _storeService.getStores();
-      final products = await _transferStockService.getProducts();
+      final results = await Future.wait([
+        _storeService.getStores(),
+        _transferStockService.getProducts(),
+        _userService.getUsers(),
+      ]);
 
       setState(() {
-        _stores = stores;
-        _products = products;
+        _stores = results[0] as List<StoreModel>;
+        _products = results[1] as List<TransferStockProduct>;
+        _users = results[2] as List<Map<String, dynamic>>;
         _isLoadingData = false;
       });
     } catch (e) {
@@ -173,6 +184,11 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
         toStoreId: _selectedToStore!.id,
         date: dateStr,
         items: itemsApi,
+        sentById: _selectedSender?['id'],
+        receivedById: _selectedReceiver?['id'],
+        notes: _notesController.text.isNotEmpty
+            ? _notesController.text
+            : null,
       );
 
       if (!mounted) return;
@@ -279,6 +295,54 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                     '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
                                   ),
                                 ),
+                              ),
+                              AppSpacing.gapVerticalMD,
+                              DropdownButtonFormField<int>(
+                                decoration: const InputDecoration(
+                                  labelText: 'Pengirim',
+                                  prefixIcon: Icon(Icons.person_outline),
+                                ),
+                                value: _selectedSender?['id'],
+                                items: _users
+                                    .map<DropdownMenuItem<int>>((u) => DropdownMenuItem<int>(
+                                          value: u['id'] is int ? u['id'] : int.parse(u['id'].toString()),
+                                          child: Text(u['name'] ?? ''),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val == null) return;
+                                  setState(() => _selectedSender =
+                                      _users.firstWhere(
+                                          (u) => u['id'] == val));
+                                },
+                              ),
+                              AppSpacing.gapVerticalMD,
+                              DropdownButtonFormField<int>(
+                                decoration: const InputDecoration(
+                                  labelText: 'Penerima',
+                                  prefixIcon: Icon(Icons.person),
+                                ),
+                                value: _selectedReceiver?['id'],
+                                items: _users
+                                    .map<DropdownMenuItem<int>>((u) => DropdownMenuItem<int>(
+                                          value: u['id'] is int ? u['id'] : int.parse(u['id'].toString()),
+                                          child: Text(u['name'] ?? ''),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() => _selectedReceiver =
+                                      _users.firstWhere(
+                                          (u) => u['id'] == val));
+                                },
+                              ),
+                              AppSpacing.gapVerticalMD,
+                              TextFormField(
+                                controller: _notesController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Catatan',
+                                  prefixIcon: Icon(Icons.notes),
+                                ),
+                                maxLines: 2,
                               ),
                               AppSpacing.gapVerticalLG,
                               Row(

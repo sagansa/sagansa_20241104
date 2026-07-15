@@ -395,7 +395,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                     style: textTheme.labelSmall?.copyWith(
                       color: _lastConnectionResult!
                           ? AppColors.success
-                          : AppColors.error,
+                          : colorScheme.error,
                     ),
                   ),
                 ],

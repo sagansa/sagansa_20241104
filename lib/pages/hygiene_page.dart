@@ -96,8 +96,42 @@ class _HygienePageState extends State<HygienePage> {
 
   Future<void> _pickImage(int roomId) async {
     try {
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: SimpleDialog(
+            title: const Text('Pilih Sumber Foto'),
+            children: [
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+                child: const Row(
+                  children: [
+                    Icon(Icons.camera_alt),
+                    SizedBox(width: 10),
+                    Text('Kamera'),
+                  ],
+                ),
+              ),
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+                child: const Row(
+                  children: [
+                    Icon(Icons.photo_library),
+                    SizedBox(width: 10),
+                    Text('Galeri'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null || !mounted) return;
+
       final XFile? image = await _picker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 75,
         maxWidth: 1024,
       );
@@ -112,7 +146,7 @@ class _HygienePageState extends State<HygienePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membuka kamera: $e')),
+          SnackBar(content: Text('Gagal memilih foto: $e')),
         );
       }
     }
@@ -226,15 +260,18 @@ class _HygienePageState extends State<HygienePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kebersihan Toko'),
+    return PopScope(
+      canPop: !_isLoading && !_isSubmitting,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Kebersihan Toko'),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _hasSubmittedToday
+                ? _buildSubmittedView()
+                : _buildForm(),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _hasSubmittedToday
-              ? _buildSubmittedView()
-              : _buildForm(),
     );
   }
 

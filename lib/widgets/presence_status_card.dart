@@ -116,11 +116,12 @@ class PresenceStatusCard extends StatelessWidget {
     String? status,
   ) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     Color statusColor;
     if (status == 'tepat_waktu') {
       statusColor = AppColors.success;
     } else if (status == 'terlambat') {
-      statusColor = AppColors.error;
+      statusColor = colorScheme.error;
     } else {
       statusColor = AppColors.info;
     }

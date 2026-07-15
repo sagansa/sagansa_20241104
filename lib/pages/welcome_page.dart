@@ -18,7 +18,7 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Future<void> _navigateToLogin() async {
-    await Future.delayed(const Duration(seconds: 3)); // Tunggu 3 detik
+    await Future.delayed(const Duration(seconds: 1)); // Tunggu 1 detik
     if (!mounted) return;
     Navigator.pushReplacement(
       context,

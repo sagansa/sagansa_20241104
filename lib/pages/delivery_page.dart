@@ -9,11 +9,15 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/presence_service.dart';
 import '../services/thermal_printer_service.dart';
 import '../providers/printer_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_bottom_nav.dart';
+import 'create_sales_order_online_page.dart';
 
 class DeliveryPage extends StatefulWidget {
   final String orderFor;
@@ -48,12 +52,31 @@ class _DeliveryPageState extends State<DeliveryPage> {
   List<dynamic> _orders = [];
   int _currentPage = 1;
   bool _hasMore = true;
+  bool _isAdmin = false;
+  bool _isUpdatingPaymentStatus = false;
 
   @override
   void initState() {
     super.initState();
+    _loadAdminRole();
     _loadInitialOrders();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadAdminRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      final userData = json.decode(userString);
+      final roles = List<String>.from(userData['roles'] ?? []);
+      if (mounted) {
+        setState(() {
+          _isAdmin = roles.contains('admin') ||
+              roles.contains('super_admin') ||
+              roles.contains('supervisor');
+        });
+      }
+    }
   }
 
   @override
@@ -98,8 +121,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memuat list order: $e'),
-          backgroundColor: AppColors.error,
+          content: Text('Gagal memuat list order: $e', style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -138,8 +161,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memuat data lanjutan: $e'),
-          backgroundColor: AppColors.error,
+          content: Text('Gagal memuat data lanjutan: $e', style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -156,8 +179,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (receiptNo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Silakan masukkan nomor resi terlebih dahulu.'),
-          backgroundColor: AppColors.error,
+          content: const Text('Silakan masukkan nomor resi terlebih dahulu.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -187,8 +210,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Order tidak ditemukan.'),
-            backgroundColor: AppColors.error,
+            content: Text(result['message'] ?? 'Order tidak ditemukan.', style: const TextStyle(color: Colors.white)),
+            backgroundColor: colorScheme.error,
           ),
         );
       }
@@ -196,8 +219,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -210,9 +233,38 @@ class _DeliveryPageState extends State<DeliveryPage> {
   }
 
   Future<void> _takePhoto() async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Kamera'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galeri'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+    await _processPickedImage(source);
+  }
+
+  Future<void> _processPickedImage(ImageSource source) async {
     try {
       final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 75,
         maxWidth: 1024,
       );
@@ -230,8 +282,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal mengambil foto: $e'),
-          backgroundColor: AppColors.error,
+          content: Text('Gagal mengambil foto: $e', style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     }
@@ -246,8 +298,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (_selectedStatus == 3 && _imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Harap ambil foto bukti pengiriman terlebih dahulu.'),
-          backgroundColor: AppColors.error,
+          content: const Text('Harap ambil foto bukti pengiriman terlebih dahulu.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -257,8 +309,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (widget.orderFor == '3' && _selectedStatus == 3 && _receiverController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Harap isi nama penerima terlebih dahulu.'),
-          backgroundColor: AppColors.error,
+          content: const Text('Harap isi nama penerima terlebih dahulu.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -267,8 +319,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (_selectedStatus == 6 && _notesController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Harap isi alasan barang dikembalikan pada catatan.'),
-          backgroundColor: AppColors.error,
+          content: const Text('Harap isi alasan barang dikembalikan pada catatan.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -292,8 +344,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                result['message'] ?? 'Status pengiriman berhasil diperbarui.'),
-            backgroundColor: AppColors.success,
+                result['message'] ?? 'Status pengiriman berhasil diperbarui.', style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.green.shade600,
           ),
         );
         setState(() {
@@ -308,8 +360,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Gagal memperbarui pengiriman.'),
-            backgroundColor: AppColors.error,
+            content: Text(result['message'] ?? 'Gagal memperbarui pengiriman.', style: const TextStyle(color: Colors.white)),
+            backgroundColor: colorScheme.error,
           ),
         );
       }
@@ -317,8 +369,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -337,8 +389,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (orderId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('ID order tidak tersedia.'),
-          backgroundColor: AppColors.error,
+          content: const Text('ID order tidak tersedia.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -359,8 +411,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                result['message'] ?? 'Order berhasil ditandai siap dikirim.'),
-            backgroundColor: AppColors.success,
+                result['message'] ?? 'Order berhasil ditandai siap dikirim.', style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.green.shade600,
           ),
         );
 
@@ -376,7 +428,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
           SnackBar(
             content: Text(result['message'] ??
                 'Gagal mengubah status menjadi siap dikirim.'),
-            backgroundColor: AppColors.error,
+            backgroundColor: colorScheme.error,
           ),
         );
       }
@@ -384,8 +436,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -421,8 +473,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
     }
 
     return _isPaymentProofPrinted(order)
-        ? 'Bukti bayar sudah diprint'
-        : 'Bukti bayar belum diprint';
+        ? 'Bukti bayar sudah dicetak'
+        : 'Bukti bayar belum dicetak';
   }
 
   String _getPaymentStatusText(dynamic status) {
@@ -455,12 +507,19 @@ class _DeliveryPageState extends State<DeliveryPage> {
     }
   }
 
+  List<dynamic> get _filteredOrders {
+    if (_isAdmin || widget.orderFor == '3') return _orders;
+    return _orders
+        .where((order) => order['payment_status']?.toString() != '3')
+        .toList();
+  }
+
   Color _getPaymentProofPrintStatusColor(Map<String, dynamic> order) {
     if (!_hasPaymentProof(order)) {
       return AppColors.onSurfaceVariant;
     }
 
-    return _isPaymentProofPrinted(order) ? AppColors.success : colorScheme.primary;
+    return _isPaymentProofPrinted(order) ? AppColors.success : AppColors.primary;
   }
 
   int _getPaymentProofPrintCount(Map<String, dynamic> order) {
@@ -489,8 +548,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-              'Tidak ada bukti pembayaran status belum dikirim untuk diprint.'),
-          backgroundColor: AppColors.error,
+              'Tidak ada bukti pembayaran status belum dikirim untuk dicetak.', style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -625,7 +684,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
               updatedOrder['payment_proof_printed_at'] = printedAt;
               updatedOrder['payment_proof_print_status'] = 'printed';
               updatedOrder['payment_proof_print_status_label'] =
-                  'Sudah pernah diprint';
+                  'Sudah pernah dicetak';
               updatedOrder['payment_proof_print_count'] =
                   _getPaymentProofPrintCount(updatedOrder) + 1;
               return updatedOrder;
@@ -654,8 +713,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Status print ${printedOrderIds.length} bukti pembayaran diperbarui.$failedMessage'),
-            backgroundColor: AppColors.success,
+                'Status cetak ${printedOrderIds.length} bukti pembayaran diperbarui.$failedMessage', style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.green.shade600,
           ),
         );
       }
@@ -663,8 +722,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -714,16 +773,16 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
-          backgroundColor: ok ? AppColors.success : AppColors.error,
+          content: Text(message, style: const TextStyle(color: Colors.white)),
+          backgroundColor: ok ? Colors.green.shade600 : colorScheme.error,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     } finally {
@@ -770,8 +829,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
         ),
       );
     }
@@ -871,6 +930,27 @@ class _DeliveryPageState extends State<DeliveryPage> {
               : _buildOrderListView(),
         ),
       ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 3,
+        onTap: (index) {
+          if (index != 3) {
+            Navigator.pop(context);
+          }
+        },
+      ),
+      floatingActionButton: (_isAdmin && widget.orderFor == '3' && _selectedOrder == null)
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateSalesOrderOnlinePage(),
+                  ),
+                ).then((_) => _loadInitialOrders());
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 
@@ -977,23 +1057,23 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 : Icon(Icons.print, color: colorScheme.onPrimary),
             label: Text(
               _isPrintingPaymentProof
-                  ? 'Menyiapkan Print...'
-                  : 'Print Bukti Pembayaran Belum Dikirim & Belum Diprint',
+                  ? 'Menyiapkan Cetakan...'
+                  : 'Cetak Bukti Pembayaran Belum Dikirim & Belum Dicetak',
               style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           AppSpacing.gapVerticalSM,
         ],
 
-        if (_orders.isEmpty && !_isLoadingList)
+        if (_filteredOrders.isEmpty && !_isLoadingList)
           _buildEmptyState()
         else ...[
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _orders.length + (_hasMore ? 1 : 0),
+            itemCount: _filteredOrders.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == _orders.length) {
+              if (index == _filteredOrders.length) {
                 return Padding(
                   padding: AppSpacing.paddingVerticalMD,
                   child: Center(
@@ -1002,7 +1082,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 );
               }
 
-              final order = _orders[index];
+              final order = _filteredOrders[index];
               final int? status = order['delivery_status'];
 
               return Card(
@@ -1236,9 +1316,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                             decoration: BoxDecoration(
-                              color: _getPaymentProofPrintStatusColor(
+                              color: _isPaymentProofPrinted(
                                       Map<String, dynamic>.from(order))
-                                  .withValues(alpha: 0.12),
+                                  ? AppColors.success.withValues(alpha: 0.15)
+                                  : colorScheme.primaryContainer,
                               borderRadius: AppSpacing.borderRadiusSM,
                             ),
                             child: Row(
@@ -1282,8 +1363,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               label: Text(
                                 _isPaymentProofPrinted(
                                         Map<String, dynamic>.from(order))
-                                    ? 'Print Ulang Bukti Pembayaran'
-                                    : 'Print Bukti Pembayaran',
+                                    ? 'Cetak Ulang Bukti Pembayaran'
+                                    : 'Cetak Bukti Pembayaran',
                               ),
                             ),
                           ],
@@ -1393,13 +1474,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             Icon(
                               Icons.shopping_bag,
                               size: 14,
-                              color: colorScheme.primary,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               providerName,
                               style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.primary,
+                                color: colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1514,7 +1595,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         ),
                         child: Icon(
                           Icons.person_pin_circle,
-                          color: colorScheme.primary,
+                          color: colorScheme.onSurfaceVariant,
                           size: 20,
                         ),
                       ),
@@ -1523,7 +1604,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         'Penerima & Alamat Kirim',
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: colorScheme.primary,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -1862,7 +1943,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                 '${item['quantity']} ${item['product_unit'] ?? 'pcs'}',
                                 style: textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -2018,10 +2099,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   : Icon(Icons.print, color: colorScheme.onPrimary),
               label: Text(
                 _isPrintingPaymentProof
-                    ? 'Menyiapkan Print...'
+                    ? 'Menyiapkan Cetakan...'
                     : _isPaymentProofPrinted(order)
-                        ? 'Print Ulang Bukti Pembayaran'
-                        : 'Print Bukti Pembayaran',
+                        ? 'Cetak Ulang Bukti Pembayaran'
+                        : 'Cetak Bukti Pembayaran',
                 style: textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.bold),
               ),
@@ -2228,11 +2309,11 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     ],
                     ElevatedButton.icon(
                       onPressed: _takePhoto,
-                      icon: Icon(Icons.camera_alt, color: colorScheme.onSurface),
+                      icon: Icon(Icons.add_a_photo, color: colorScheme.onSurface),
                       label: Text(
                         _imageFile == null
-                            ? 'Ambil Foto Bukti Pengiriman'
-                            : 'Ambil Ulang Foto',
+                            ? 'Unggah Foto Bukti Pengiriman'
+                            : 'Ganti Foto',
                         style: TextStyle(color: colorScheme.onSurface),
                       ),
                     ),
@@ -2245,8 +2326,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                 if (_receiverController.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: const Text('Harap isi nama penerima terlebih dahulu.'),
-                                      backgroundColor: AppColors.error,
+                                      content: const Text('Harap isi nama penerima terlebih dahulu.', style: TextStyle(color: Colors.white)),
+                                      backgroundColor: colorScheme.error,
                                     ),
                                   );
                                   return;
@@ -2296,8 +2377,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
             AppSpacing.gapVerticalMD,
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
+                foregroundColor: colorScheme.error,
+                side: BorderSide(color: colorScheme.error),
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -2322,15 +2403,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
               IconData icon = Icons.local_shipping;
               Color iconColor = colorScheme.primary;
+              Color textColor = colorScheme.primary;
               String statusText = 'Orderan ini sudah dikirim.';
 
               if (isStatusTwo) {
                 icon = Icons.check_circle;
                 iconColor = AppColors.success;
+                textColor = AppColors.success;
                 statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
               } else if (isStatusSix) {
                 icon = Icons.assignment_return;
-                iconColor = AppColors.error;
+                iconColor = Colors.redAccent;
+                textColor = Colors.white;
                 statusText = 'Orderan ini dikembalikan.';
               }
 
@@ -2349,7 +2433,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         child: Text(
                           statusText,
                           style: TextStyle(
-                            color: iconColor,
+                            color: textColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -2403,7 +2487,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+                backgroundColor: colorScheme.error,
                 foregroundColor: Colors.white,
               ),
               onPressed: () {
@@ -2420,6 +2504,126 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildAdminPaymentStatusField(Map<String, dynamic> order) {
+    final currentStatus = order['payment_status']?.toString() ?? '4';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          Icon(Icons.payment, size: 16, color: colorScheme.primary),
+          AppSpacing.gapHorizontalSM,
+          Text('Status Bayar: ', style: textTheme.bodySmall),
+          Expanded(
+            child: _isUpdatingPaymentStatus
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : DropdownButton<String>(
+                    value: currentStatus,
+                    isDense: true,
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: '1', child: Text('Sudah Dibayar')),
+                      DropdownMenuItem(value: '2', child: Text('Valid')),
+                      DropdownMenuItem(value: '3', child: Text('Tidak Valid')),
+                      DropdownMenuItem(value: '4', child: Text('Menunggu Pembayaran')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null && value != currentStatus) {
+                        _updatePaymentStatus(order['id'], value);
+                      }
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updatePaymentStatus(int orderId, String newStatus) async {
+    setState(() => _isUpdatingPaymentStatus = true);
+    try {
+      final result = await PresenceService.updatePaymentStatus(
+        orderId: orderId,
+        paymentStatus: newStatus,
+      );
+      if (!mounted) return;
+      if (result['success'] == true) {
+        setState(() {
+          _selectedOrder = {
+            ..._selectedOrder!,
+            'payment_status': newStatus,
+          };
+          _isUpdatingPaymentStatus = false;
+        });
+        _loadInitialOrders();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Status pembayaran berhasil diubah.', style: const TextStyle(color: Colors.white)),
+              backgroundColor: Colors.green.shade600,
+            ),
+          );
+        }
+      } else {
+        setState(() => _isUpdatingPaymentStatus = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Gagal mengubah status pembayaran.', style: const TextStyle(color: Colors.white)),
+              backgroundColor: colorScheme.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdatingPaymentStatus = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Widget _buildAdminProductEditSection(Map<String, dynamic> order) {
+    return Card(
+      color: colorScheme.surface,
+      child: Padding(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.edit_outlined, color: colorScheme.primary, size: 18),
+                AppSpacing.gapHorizontalSM,
+                Text(
+                  'Edit Item Order',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.gapVerticalSM,
+            Text(
+              'Hubungi admin backend untuk mengubah jenis produk yang dibeli.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2519,8 +2723,11 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   else ...[
                     _buildDetailRow(
                         'Metode Bayar', order['payment_method'] ?? '-'),
-                    _buildDetailRow('Status Bayar',
-                        _getPaymentStatusText(order['payment_status'])),
+                    if (_isAdmin)
+                      _buildAdminPaymentStatusField(order)
+                    else
+                      _buildDetailRow('Status Bayar',
+                          _getPaymentStatusText(order['payment_status'])),
                     if (order['bank_name'] != null)
                       _buildDetailRow(
                         'Rekening Tujuan',
@@ -2571,6 +2778,10 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     Text('Tidak ada rincian produk.',
                         style: textTheme.bodySmall?.copyWith(
                             color: AppColors.onSurfaceVariant)),
+                  if (_isAdmin && !isLocked) ...[
+                    AppSpacing.gapVerticalMD,
+                    _buildAdminProductEditSection(order),
+                  ],
                 ],
               ),
             ),
@@ -2960,15 +3171,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
               IconData icon = Icons.local_shipping;
               Color iconColor = colorScheme.primary;
+              Color textColor = colorScheme.primary;
               String statusText = 'Orderan ini sudah dikirim.';
 
               if (isStatusTwo) {
                 icon = Icons.check_circle;
                 iconColor = AppColors.success;
+                textColor = AppColors.success;
                 statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
               } else if (isStatusSix) {
                 icon = Icons.assignment_return;
-                iconColor = AppColors.error;
+                iconColor = Colors.redAccent;
+                textColor = Colors.white;
                 statusText = 'Orderan ini dikembalikan.';
               }
 
@@ -2987,7 +3201,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         child: Text(
                           statusText,
                           style: TextStyle(
-                            color: iconColor,
+                            color: textColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),

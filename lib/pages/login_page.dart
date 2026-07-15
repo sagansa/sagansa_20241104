@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:convert';
 import 'home_page.dart';
 import '../widgets/modern_text_field.dart';
 import '../widgets/modern_button.dart';
@@ -63,15 +64,28 @@ class LoginPageState extends State<LoginPage> {
 
       if (success) {
         debugPrint('Login berhasil, navigating to HomePage...');
-        
+
         // Simpan email dan password agar tidak perlu mengetik ulang
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('saved_email', emailController.text.trim());
         await prefs.setString('saved_password', passwordController.text);
 
+        // Determine admin role from stored user data
+        bool initialIsAdmin = false;
+        final userString = prefs.getString('user');
+        if (userString != null) {
+          final userData = json.decode(userString);
+          final roles = List<String>.from(userData['roles'] ?? []);
+          initialIsAdmin = roles.contains('admin') ||
+              roles.contains('super_admin') ||
+              roles.contains('supervisor');
+        }
+
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          MaterialPageRoute(
+            builder: (context) => HomePage(initialIsAdmin: initialIsAdmin),
+          ),
         );
       } else {
         final errorMsg = context.read<AuthProvider>().errorMessage;

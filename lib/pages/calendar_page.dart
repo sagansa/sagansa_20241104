@@ -3,6 +3,8 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/presence_model.dart';
 import '../models/leave_model.dart';
 import '../services/leave_service.dart';
+import '../services/closing_store_service.dart';
+import '../services/storage_stock_service.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -18,9 +20,20 @@ class CalendarPage extends StatefulWidget {
 }
 
 class CalendarPageState extends State<CalendarPage> {
-  late List<Appointment> _appointments;
+  late List<Appointment> _allAppointments;
+  List<Appointment> _filteredAppointments = [];
   List<Leave> _leaves = [];
+  List<dynamic> _dailySalaries = [];
+  List<dynamic> _closingStores = [];
+  List<dynamic> _storageStocks = [];
   bool _isLoading = true;
+
+  // Filter states
+  bool _showPresence = true;
+  bool _showLeave = true;
+  bool _showSalary = true;
+  bool _showClosing = true;
+  bool _showStock = true;
 
   @override
   void initState() {
@@ -30,17 +43,29 @@ class CalendarPageState extends State<CalendarPage> {
 
   Future<void> _loadData() async {
     try {
-      final leaves = await LeaveService().getLeaves();
+      final results = await Future.wait([
+        LeaveService().getLeaves(),
+        ClosingStoreService().getDailySalaries(page: 1, perPage: 100),
+        ClosingStoreService().getClosingStores(),
+        StorageStockService().getStorageStocks(),
+      ]);
+
+      _leaves = results[0] as List<Leave>;
+      final salaryResult = results[1] as Map<String, dynamic>;
+      _dailySalaries = salaryResult['data'] ?? [];
+      _closingStores = results[2] as List<dynamic>;
+      _storageStocks = results[3] as List<dynamic>;
+
       setState(() {
-        _leaves = leaves;
-        _appointments = _getAppointments();
+        _allAppointments = _getAppointments();
+        _filteredAppointments = _allAppointments;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal memuat data')),
+        const SnackBar(content: Text('Gagal memuat data kalender')),
       );
     }
   }
@@ -48,6 +73,7 @@ class CalendarPageState extends State<CalendarPage> {
   List<Appointment> _getAppointments() {
     final appointments = <Appointment>[];
 
+    // Presensi
     for (final presence in widget.presences) {
       final checkInTime = DateTime.parse(presence.checkIn).toLocal();
       final checkOutTime = presence.checkOut != null
@@ -65,12 +91,11 @@ class CalendarPageState extends State<CalendarPage> {
       ));
     }
 
+    // Cuti
     for (final leave in _leaves) {
       appointments.add(Appointment(
-        startTime: DateTime(leave.fromDate.year, leave.fromDate.month,
-            leave.fromDate.day),
-        endTime: DateTime(leave.untilDate.year, leave.untilDate.month,
-            leave.untilDate.day, 23, 59, 59),
+        startTime: DateTime(leave.fromDate.year, leave.fromDate.month, leave.fromDate.day),
+        endTime: DateTime(leave.untilDate.year, leave.untilDate.month, leave.untilDate.day, 23, 59, 59),
         subject: 'Cuti: ${leave.reasonText}',
         notes: leave.notes ?? '',
         color: _getLeaveStatusColor(leave.status),
@@ -79,7 +104,89 @@ class CalendarPageState extends State<CalendarPage> {
       ));
     }
 
+    // Daily Salary
+    for (final salary in _dailySalaries) {
+      final date = salary['date'] ?? '';
+      if (date.isNotEmpty) {
+        final amount = double.tryParse(salary['amount'].toString()) ?? 0;
+        final employeeName = salary['created_by']?['name'] ?? 'Staff';
+        final status = salary['status'];
+
+        String statusText;
+        if (status == 1 || status == '1') {
+          statusText = 'Belum Dibayar';
+        } else if (status == 2 || status == '2') {
+          statusText = 'Sudah Dibayar';
+        } else if (status == 3 || status == '3') {
+          statusText = 'Siap Dibayar';
+        } else {
+          statusText = 'Perbaiki';
+        }
+
+        appointments.add(Appointment(
+          startTime: DateTime.parse(date),
+          endTime: DateTime.parse(date).add(const Duration(hours: 1)),
+          subject: 'Gaji: $employeeName - Rp ${amount.toStringAsFixed(0)}',
+          notes: statusText,
+          color: AppColors.info,
+          isAllDay: false,
+          resourceIds: ['salary'],
+        ));
+      }
+    }
+
+    // Closing Store
+    for (final closing in _closingStores) {
+      final date = closing['date'] ?? '';
+      if (date.isNotEmpty) {
+        final storeName = closing['store']?['nickname'] ?? 'Toko';
+        final amount = closing['total_cash_transfer'] ?? 0;
+
+        appointments.add(Appointment(
+          startTime: DateTime.parse(date),
+          endTime: DateTime.parse(date).add(const Duration(hours: 1)),
+          subject: 'Closing: $storeName',
+          notes: 'Rp ${amount.toString()}',
+          color: AppColors.primary,
+          isAllDay: false,
+          resourceIds: ['closing'],
+        ));
+      }
+    }
+
+    // Storage Stock
+    for (final stock in _storageStocks) {
+      final date = stock['date'] ?? '';
+      if (date.isNotEmpty) {
+        final storeName = stock['store']?['nickname'] ?? 'Gudang';
+
+        appointments.add(Appointment(
+          startTime: DateTime.parse(date),
+          endTime: DateTime.parse(date).add(const Duration(hours: 1)),
+          subject: 'Stok: $storeName',
+          notes: 'Laporan stok gudang',
+          color: AppColors.warning,
+          isAllDay: false,
+          resourceIds: ['stock'],
+        ));
+      }
+    }
+
     return appointments;
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredAppointments = _allAppointments.where((apt) {
+        final resourceId = apt.resourceIds?.first ?? '';
+        if (resourceId == 'presence' && !_showPresence) return false;
+        if (resourceId == 'leave' && !_showLeave) return false;
+        if (resourceId == 'salary' && !_showSalary) return false;
+        if (resourceId == 'closing' && !_showClosing) return false;
+        if (resourceId == 'stock' && !_showStock) return false;
+        return true;
+      }).toList();
+    });
   }
 
   Color _getStatusColor(PresenceModel presence) {
@@ -107,186 +214,62 @@ class CalendarPageState extends State<CalendarPage> {
 
   void _onTap(CalendarTapDetails details) {
     if (details.targetElement != CalendarElement.calendarCell) return;
-    ModernBottomSheet.show(
-      context: context,
-      title: _formatDate(details.date!),
-      child: _getContentForDate(details.date!),
-    );
-  }
-
-  Widget _getContentForDate(DateTime date) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    if (_leaves.any((l) =>
-        _isSameDay(date, l.fromDate) ||
-        _isSameDay(date, l.untilDate) ||
-        (date.isAfter(l.fromDate) && date.isBefore(l.untilDate)))) {
-      return _buildLeaveDetails(date);
-    }
-
-    if (widget.presences.any((p) {
-      final checkInTime = DateTime.parse(p.checkIn).toLocal();
-      return _isSameDay(date, checkInTime);
-    })) {
-      return _buildPresenceDetails(date);
-    }
-
-    return Center(
-      child: Padding(
-        padding: AppSpacing.paddingVerticalXL,
-        child: Text(
-          'Tidak ada data untuk tanggal ini',
-          style: textTheme.titleMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+    final appointments = details.appointments;
+    if (appointments != null && appointments.isNotEmpty) {
+      _showEventsForDate(details.date!, appointments);
+    } else {
+      ModernBottomSheet.show(
+        context: context,
+        title: _formatDate(details.date!),
+        child: Center(
+          child: Padding(
+            padding: AppSpacing.paddingVerticalXL,
+            child: Text(
+              'Tidak ada aktivitas untuk tanggal ini',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
           ),
         ),
+      );
+    }
+  }
+
+  void _showEventsForDate(DateTime date, List<dynamic> events) {
+    ModernBottomSheet.show(
+      context: context,
+      title: _formatDate(date),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: events.map((event) {
+          final appointment = event as Appointment;
+          return ListTile(
+            leading: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: appointment.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            title: Text(
+              appointment.subject,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+            subtitle: appointment.notes?.isNotEmpty == true
+                ? Text(
+                    appointment.notes!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
+                : null,
+            contentPadding: EdgeInsets.zero,
+          );
+        }).toList(),
       ),
     );
-  }
-
-  Widget _buildPresenceDetails(DateTime date) {
-    final textTheme = Theme.of(context).textTheme;
-    try {
-      final presence = widget.presences.firstWhere((p) {
-        final checkInTime = DateTime.parse(p.checkIn).toLocal();
-        return _isSameDay(date, checkInTime);
-      });
-
-      return Container(
-        width: double.infinity,
-        padding: AppSpacing.paddingVerticalSM,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              presence.store,
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            AppSpacing.gapVerticalSM,
-            Text('Shift: ${presence.shiftStore}'),
-            AppSpacing.gapVerticalMD,
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Check In',
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(_formatDateTime(DateTime.parse(presence.checkIn))),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: presence
-                            .getStatusColor(presence.checkInStatus)
-                            .withValues(alpha: 0.2),
-                        borderRadius: AppSpacing.borderRadiusXS,
-                      ),
-                      child: Text(
-                        presence.getStatusText(presence.checkInStatus),
-                        style: textTheme.bodySmall?.copyWith(
-                          color:
-                              presence.getStatusColor(presence.checkInStatus),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (presence.checkOut != null)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Check Out',
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(_formatDateTime(
-                          DateTime.parse(presence.checkOut!))),
-                      if (presence.checkOutStatus != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: presence
-                                .getStatusColor(presence.checkOutStatus!)
-                                .withValues(alpha: 0.2),
-                            borderRadius: AppSpacing.borderRadiusXS,
-                          ),
-                          child: Text(
-                            presence.getStatusText(presence.checkOutStatus!),
-                            style: textTheme.bodySmall?.copyWith(
-                              color: presence
-                                  .getStatusColor(presence.checkOutStatus!),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildLeaveDetails(DateTime date) {
-    final textTheme = Theme.of(context).textTheme;
-    try {
-      final leave = _leaves.firstWhere(
-        (l) =>
-            (date.isAfter(l.fromDate.subtract(const Duration(days: 1))) ||
-                _isSameDay(date, l.fromDate)) &&
-            (date.isBefore(l.untilDate.add(const Duration(days: 1))) ||
-                _isSameDay(date, l.untilDate)),
-      );
-
-      return Container(
-        width: double.infinity,
-        padding: AppSpacing.paddingVerticalSM,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cuti: ${leave.reasonText}',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            AppSpacing.gapVerticalSM,
-            Text('Status: ${leave.statusText}'),
-            AppSpacing.gapVerticalSM,
-            Text(
-              'Tanggal: ${_formatDate(leave.fromDate)} - ${_formatDate(leave.untilDate)}',
-            ),
-            if (leave.notes != null && leave.notes!.isNotEmpty) ...[
-              AppSpacing.gapVerticalSM,
-              Text('Catatan: ${leave.notes}'),
-            ],
-          ],
-        ),
-      );
-    } catch (e) {
-      return const SizedBox.shrink();
-    }
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -296,9 +279,11 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}-'
-        '${date.month.toString().padLeft(2, '0')}-'
-        '${date.year}';
+    final months = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${date.day} ${months[date.month]} ${date.year}';
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -310,7 +295,6 @@ class CalendarPageState extends State<CalendarPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textTheme = theme.textTheme;
 
     if (_isLoading) {
       return Scaffold(
@@ -323,46 +307,55 @@ class CalendarPageState extends State<CalendarPage> {
       appBar: AppBar(
         title: const Text('Kalender'),
       ),
-      body: SfCalendar(
-        view: CalendarView.month,
-        dataSource: AppointmentDataSource(_appointments),
-        onTap: _onTap,
-        monthViewSettings: MonthViewSettings(
-          appointmentDisplayMode: MonthAppointmentDisplayMode.indicator,
-          showAgenda: true,
-          agendaViewHeight: 200,
-          numberOfWeeksInView: 6,
-          agendaStyle: AgendaStyle(
-            backgroundColor: colorScheme.surface,
-            appointmentTextStyle: textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface,
-            ),
-            dateTextStyle: textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            dayTextStyle: textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
+      body: Column(
+        children: [
+          // Filter chips
+          _buildFilterChips(),
+          // Calendar
+          Expanded(
+            child: SfCalendar(
+              view: CalendarView.month,
+              dataSource: AppointmentDataSource(_filteredAppointments),
+              onTap: _onTap,
+              monthViewSettings: MonthViewSettings(
+                appointmentDisplayMode: MonthAppointmentDisplayMode.indicator,
+                showAgenda: true,
+                agendaViewHeight: 200,
+                numberOfWeeksInView: 6,
+                agendaStyle: AgendaStyle(
+                  backgroundColor: colorScheme.surface,
+                  appointmentTextStyle: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface,
+                  ),
+                  dateTextStyle: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  dayTextStyle: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              timeSlotViewSettings: TimeSlotViewSettings(
+                startHour: 0,
+                endHour: 24,
+                timeFormat: 'HH:mm',
+                timeIntervalHeight: 60,
+                timeTextStyle: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              showDatePickerButton: true,
+              allowViewNavigation: true,
+              showNavigationArrow: true,
+              todayHighlightColor: colorScheme.primary,
+              cellBorderColor: colorScheme.outlineVariant,
             ),
           ),
-        ),
-        timeSlotViewSettings: TimeSlotViewSettings(
-          startHour: 0,
-          endHour: 24,
-          timeFormat: 'HH:mm',
-          timeIntervalHeight: 60,
-          timeTextStyle: textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: colorScheme.onSurface,
-          ),
-        ),
-        showDatePickerButton: true,
-        allowViewNavigation: true,
-        showNavigationArrow: true,
-        todayHighlightColor: colorScheme.primary,
-        cellBorderColor: colorScheme.outlineVariant,
+        ],
       ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
@@ -373,6 +366,92 @@ class CalendarPageState extends State<CalendarPage> {
         },
         presences: widget.presences,
       ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildFilterChip(
+              label: 'Presensi',
+              color: AppColors.success,
+              selected: _showPresence,
+              onToggle: (value) {
+                setState(() => _showPresence = value);
+                _applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              label: 'Cuti',
+              color: AppColors.warning,
+              selected: _showLeave,
+              onToggle: (value) {
+                setState(() => _showLeave = value);
+                _applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              label: 'Gaji',
+              color: AppColors.info,
+              selected: _showSalary,
+              onToggle: (value) {
+                setState(() => _showSalary = value);
+                _applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              label: 'Closing',
+              color: AppColors.primary,
+              selected: _showClosing,
+              onToggle: (value) {
+                setState(() => _showClosing = value);
+                _applyFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              label: 'Stok',
+              color: AppColors.warning,
+              selected: _showStock,
+              onToggle: (value) {
+                setState(() => _showStock = value);
+                _applyFilters();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required Color color,
+    required bool selected,
+    required Function(bool) onToggle,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : color,
+        fontWeight: FontWeight.w500,
+        fontSize: 12,
+      ),
+      selected: selected,
+      onSelected: onToggle,
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      backgroundColor: color.withValues(alpha: 0.1),
+      side: BorderSide(color: color.withValues(alpha: 0.3)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

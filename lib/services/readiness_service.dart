@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'image_upload_service.dart';
 
 class ReadinessService {
   static const String _baseUrl = '${ApiConstants.baseUrl}/readiness';
@@ -39,9 +41,19 @@ class ReadinessService {
       'Authorization': 'Bearer $token',
     });
 
-    request.files.add(await http.MultipartFile.fromPath('image_selfie', selfiePath));
-    request.files.add(await http.MultipartFile.fromPath('left_hand', leftHandPath));
-    request.files.add(await http.MultipartFile.fromPath('right_hand', rightHandPath));
+    final uploadedSelfie =
+        await ImageUploadService.upload(File(selfiePath), directory: 'images/Readiness');
+    if (uploadedSelfie == null) throw Exception('Gagal upload selfie.');
+    final uploadedLeft =
+        await ImageUploadService.upload(File(leftHandPath), directory: 'images/Readiness');
+    if (uploadedLeft == null) throw Exception('Gagal upload left hand.');
+    final uploadedRight =
+        await ImageUploadService.upload(File(rightHandPath), directory: 'images/Readiness');
+    if (uploadedRight == null) throw Exception('Gagal upload right hand.');
+
+    request.fields['image_selfie'] = uploadedSelfie;
+    request.fields['left_hand'] = uploadedLeft;
+    request.fields['right_hand'] = uploadedRight;
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);

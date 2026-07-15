@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../models/hygiene_model.dart';
+import 'image_upload_service.dart';
 
 class HygieneService {
   Future<String?> _getToken() async {
@@ -77,12 +79,12 @@ class HygieneService {
         request.fields['rooms[$i][notes]'] = room['notes'] as String;
       }
       if (room['image_path'] != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'rooms[$i][image]',
-            room['image_path'] as String,
-          ),
+        final path = await ImageUploadService.upload(
+          File(room['image_path'] as String),
+          directory: 'images/Hygiene',
         );
+        if (path == null) throw Exception('Gagal upload gambar ke img service.');
+        request.fields['rooms[$i][image]'] = path;
       }
     }
 

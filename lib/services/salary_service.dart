@@ -212,4 +212,32 @@ class SalaryService {
     }
     throw Exception(jsonResponse['message'] ?? 'Gagal memuat info pembayaran.');
   }
+
+  /// Rekap presensi untuk satu periode cut-off gaji (YYYY-MM).
+  /// [userId] = karyawan lain (admin); null = diri sendiri.
+  Future<Map<String, dynamic>> getMonthlyPresence({
+    required String period,
+    int? userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final params = <String, String>{'period': period};
+    if (userId != null) params['user_id'] = userId.toString();
+    final uri = Uri.parse('${ApiConstants.baseUrl}/presences/monthly')
+        .replace(queryParameters: params);
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return Map<String, dynamic>.from(jsonResponse['data'] as Map);
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal memuat rekap presensi.');
+  }
 }

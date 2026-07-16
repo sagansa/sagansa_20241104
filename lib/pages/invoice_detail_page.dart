@@ -486,10 +486,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     ),
                   ),
                 ),
-       bottomSheet: _invoice != null &&
+      bottomSheet: (_invoice != null &&
               _invoice!.paymentStatus == '1' &&
               _invoice!.paymentTypeId == 1 &&
-              _isAdmin
+              _isAdmin) ||
+              (_invoice != null &&
+                  _invoice!.orderStatus == '1' &&
+                  _canReceive)
           ? Container(
               padding: AppSpacing.paddingMD,
               decoration: BoxDecoration(
@@ -500,31 +503,73 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   ),
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => InvoiceSelectionPage(
-                          initialSelectedIds: {_invoice!.id},
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Existing: Buat Payment Receipt (admin + draft + transfer type)
+                  if (_invoice != null &&
+                      _invoice!.paymentStatus == '1' &&
+                      _invoice!.paymentTypeId == 1 &&
+                      _isAdmin) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => InvoiceSelectionPage(
+                                initialSelectedIds: {_invoice!.id},
+                              ),
+                            ),
+                          );
+                          if (result != null) {
+                            _fetchDetail();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md),
+                        ),
+                        icon: const Icon(Icons.payments),
+                        label: const Text(
+                          'Buat Payment Receipt',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    );
-                    if (result != null) {
-                      _fetchDetail();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  ),
-                  icon: const Icon(Icons.payments),
-                  label: Text(
-                    'Buat Payment Receipt',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+                    ),
+                    AppSpacing.gapVerticalSM,
+                  ],
+                  // New: Tandai Sudah Diterima (staff/admin/super_admin + order_status 1)
+                  if (_invoice != null &&
+                      _invoice!.orderStatus == '1' &&
+                      _canReceive)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isReceiving ? null : _markAsReceived,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md),
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: _isReceiving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check_circle),
+                        label: Text(
+                          _isReceiving ? 'Memproses...' : 'Tandai Sudah Diterima',
+                          style:
+                              const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             )
           : null,

@@ -273,7 +273,7 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             ),
             items: [
               const DropdownMenuItem<int?>(
-                  value: null, child: Text('Semua (milik sendiri)')),
+                  value: null, child: Text('Semua Karyawan')),
               ..._employees.map((emp) => DropdownMenuItem<int?>(
                     value: emp['id'] as int?,
                     child: Text(emp['name']?.toString() ?? '-',
@@ -420,6 +420,8 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
     final String? checkInStatus = map['check_in_status'] as String?;
     final int lateMinutes =
         (map['late_minutes'] ?? 0) as int;
+    // Nama karyawan hanya ada saat admin lihat semua/karyawan lain (mode all/single).
+    final String? userName = map['user_name'] as String?;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -432,6 +434,23 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (userName != null && userName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline, size: 16, color: cs.primary),
+                      AppSpacing.gapHorizontalXS,
+                      Expanded(
+                        child: Text(userName,
+                            style: tt.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   Expanded(

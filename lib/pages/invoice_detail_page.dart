@@ -27,6 +27,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   int _currentUserId = 0;
   String? _errorMessage;
   List<PaymentReceipt> _paymentReceipts = [];
+  bool _canReceive = false;
+  bool _isReceiving = false;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       final roles = List<String>.from(userData['roles'] ?? []);
       _isAdmin = roles.contains('admin') || roles.contains('super_admin');
       _currentUserId = userData['id'] ?? 0;
+      _canReceive = roles.any((r) => ['staff', 'admin', 'super_admin'].contains(r));
     }
     _fetchDetail();
   }
@@ -93,6 +96,52 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     );
     if (result != null) {
       _fetchDetail();
+    }
+  }
+
+  Future<void> _markAsReceived() async {
+    if (_invoice == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tandai Sudah Diterima'),
+        content: const Text(
+          'Tandai invoice ini sudah diterima? Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ya, Tandai'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _isReceiving = true);
+    try {
+      await _procurementService.receiveInvoice(widget.invoiceId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invoice ditandai sudah diterima.')),
+      );
+      _fetchDetail();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReceiving = false);
+      }
     }
   }
 
@@ -473,7 +522,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   icon: const Icon(Icons.payments),
                   label: Text(
                     'Buat Payment Receipt',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

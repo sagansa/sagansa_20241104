@@ -120,6 +120,16 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
 
   // ---- Status helpers (konsisten dgn PresenceModel.getStatusColor/getStatusText) ----
 
+  /// Parse angka dari JSON (bisa int, double, atau String) ke int secara aman.
+  /// JSON tidak membedakan int/double, dan Carbon diffInMinutes() mengembalikan
+  /// float, jadi `value as int` bisa melempar TypeError. Selalu konversi eksplisit.
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
   Color _checkInStatusColor(String? status, ColorScheme cs) {
     switch (status) {
       case 'tepat_waktu':
@@ -275,7 +285,7 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
               const DropdownMenuItem<int?>(
                   value: null, child: Text('Semua Karyawan')),
               ..._employees.map((emp) => DropdownMenuItem<int?>(
-                    value: emp['id'] as int?,
+                    value: _toInt(emp['id']),
                     child: Text(emp['name']?.toString() ?? '-',
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   )),
@@ -418,8 +428,7 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             .format(DateTime.parse(checkIn))
         : '-';
     final String? checkInStatus = map['check_in_status'] as String?;
-    final int lateMinutes =
-        (map['late_minutes'] ?? 0) as int;
+    final int lateMinutes = _toInt(map['late_minutes']);
     // Nama karyawan hanya ada saat admin lihat semua/karyawan lain (mode all/single).
     final String? userName = map['user_name'] as String?;
 

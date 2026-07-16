@@ -173,6 +173,24 @@ class ProcurementService {
     }
   }
 
+  Future<bool> receiveInvoice(int invoiceId) async {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('${ApiConstants.baseUrl}/procurement/invoices/$invoiceId/receive'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      final Map<String, dynamic> errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Gagal menandai invoice sudah diterima.');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getDetailRequests({
     required int storeId,
     int? paymentTypeId,

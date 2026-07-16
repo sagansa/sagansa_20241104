@@ -16,6 +16,7 @@ import 'leave_page.dart';
 import 'loan_page.dart';
 import 'calendar_page.dart';
 import 'daily_salary_list_page.dart';
+import 'presence_monthly_page.dart';
 import '../services/salary_service.dart';
 
 class HRDDashboardPage extends StatefulWidget {
@@ -415,6 +416,19 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const LeavePage()),
+                      );
+                    },
+                  ),
+                  _buildQuickMenuCard(
+                    icon: Icons.fact_check_outlined,
+                    color: AppColors.info,
+                    title: 'Rekap Presensi',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PresenceMonthlyPage(),
+                        ),
                       );
                     },
                   ),

@@ -1,0 +1,549 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/salary_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+
+/// Rekap presensi untuk satu periode cut-off gaji bulanan (mis. "Juni 2026"
+/// = presensi 26 Mei – 25 Jun).
+///
+/// Role-aware:
+/// - Admin (role `admin` / `super_admin`): pilih karyawan mana pun + periode.
+/// - Non-admin: hanya miliknya sendiri, tanpa filter karyawan.
+///
+/// Sumber data: `GET /presences/monthly` → `formatPresence()` backend (sama
+/// dengan `/user-presence` yang dipakai `home_page.dart`). Field per baris:
+/// `check_in`, `check_out`, `check_in_status` (tepat_waktu/terlambat),
+/// `check_out_status` (tepat_waktu/pulang_cepat/terlambat_checkout/...),
+/// `late_minutes`, `store`, `shift_store`, `image_in`, `image_out`.
+class PresenceMonthlyPage extends StatefulWidget {
+  const PresenceMonthlyPage({super.key});
+
+  @override
+  State<PresenceMonthlyPage> createState() => _PresenceMonthlyPageState();
+}
+
+class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
+  final SalaryService _salaryService = SalaryService();
+
+  bool _isAdmin = false;
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _data;
+
+  List<Map<String, dynamic>> _employees = [];
+  int? _selectedUserId;
+  late String _selectedPeriod; // YYYY-MM
+
+  // Baris mana yang sedang di-expand (null = semua tertutup; satu-per-satu).
+  final Map<int, bool> _expanded = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPeriod = _defaultPeriod();
+    _loadUserRole();
+  }
+
+  /// "Bulan gaji" untuk hari ini: bila tanggal >= 26 → bulan depan, else
+  /// bulan ini. Sama dengan logika `_resolvePeriodDate()` di salary_page.dart.
+  String _defaultPeriod() {
+    final now = DateTime.now();
+    final salaryMonth = now.day >= 26
+        ? DateTime(now.year, now.month + 1, 1)
+        : DateTime(now.year, now.month, 1);
+    return '${salaryMonth.year}-${salaryMonth.month.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userString = prefs.getString('user');
+      if (userString != null) {
+        final roles =
+            List<String>.from(json.decode(userString)['roles'] ?? []);
+        if (mounted) {
+          setState(() {
+            _isAdmin =
+                roles.contains('admin') || roles.contains('super_admin');
+          });
+        }
+      }
+    } catch (_) {}
+    await _loadData();
+  }
+
+  Future<void> _loadEmployees() async {
+    try {
+      final employees = await _salaryService.getEmployeesForSalary();
+      if (mounted) setState(() => _employees = employees);
+    } catch (_) {
+      // Abaikan; dropdown tetap "Semua".
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      if (_isAdmin && _employees.isEmpty) _loadEmployees();
+      final data = await _salaryService.getMonthlyPresence(
+        period: _selectedPeriod,
+        userId: _isAdmin ? _selectedUserId : null,
+      );
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedUserId = null;
+      _selectedPeriod = _defaultPeriod();
+    });
+    _loadData();
+  }
+
+  // ---- Status helpers (konsisten dgn PresenceModel.getStatusColor/getStatusText) ----
+
+  Color _checkInStatusColor(String? status, ColorScheme cs) {
+    switch (status) {
+      case 'tepat_waktu':
+        return AppColors.success;
+      case 'terlambat':
+        return AppColors.error;
+      default:
+        return cs.onSurfaceVariant;
+    }
+  }
+
+  String _checkInStatusText(String? status) {
+    switch (status) {
+      case 'tepat_waktu':
+        return 'Tepat Waktu';
+      case 'terlambat':
+        return 'Terlambat';
+      default:
+        return '-';
+    }
+  }
+
+  Color _checkOutStatusColor(String? status, ColorScheme cs) {
+    switch (status) {
+      case 'tepat_waktu':
+        return AppColors.success;
+      case 'pulang_cepat':
+        return AppColors.warning;
+      case 'terlambat_checkout':
+      case 'tidak_absen':
+        return AppColors.error;
+      default:
+        return cs.onSurfaceVariant;
+    }
+  }
+
+  String _checkOutStatusText(String? status) {
+    switch (status) {
+      case 'tepat_waktu':
+        return 'Tepat Waktu';
+      case 'pulang_cepat':
+        return 'Pulang Cepat';
+      case 'terlambat_checkout':
+        return 'Terlambat Checkout';
+      case 'tidak_absen':
+        return 'Tidak Absen Pulang';
+      case 'belum_checkout':
+        return 'Belum Checkout';
+      default:
+        return '-';
+    }
+  }
+
+  String _formatTime(String? iso) {
+    if (iso == null || iso.isEmpty) return '-';
+    final dt = DateTime.tryParse(iso);
+    return dt != null ? DateFormat('HH:mm').format(dt) : '-';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rekap Presensi'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+            tooltip: 'Muat Ulang',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: Column(
+          children: [
+            if (_isAdmin) _buildFilterSection(),
+            if (!_isAdmin)
+              Container(
+                padding: AppSpacing.paddingMD,
+                color: AppColors.primary.withValues(alpha: 0.1),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppColors.primary),
+                    AppSpacing.gapHorizontalSM,
+                    const Expanded(
+                      child: Text(
+                          'Periode cut-off gaji bulanan (26 bln lalu – 25 bln periode).'),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<DropdownMenuItem<String>> _buildPeriodItems() {
+    final items = <DropdownMenuItem<String>>[];
+    final now = DateTime.now();
+    final fmt = DateFormat('MMMM yyyy', 'id_ID');
+    for (int i = 0; i < 12; i++) {
+      final d = DateTime(now.year, now.month - i, 1);
+      final value = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+      items.add(DropdownMenuItem<String>(value: value, child: Text(fmt.format(d))));
+    }
+    return items;
+  }
+
+  Widget _buildFilterSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final hasFilter = _selectedUserId != null;
+    return Container(
+      padding: AppSpacing.paddingMD,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        border: Border(
+          bottom: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.filter_list, size: 20, color: colorScheme.primary),
+              AppSpacing.gapHorizontalSM,
+              Text('Filter',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (hasFilter)
+                TextButton(
+                    onPressed: _clearFilters, child: const Text('Hapus Filter')),
+            ],
+          ),
+          AppSpacing.gapVerticalSM,
+          DropdownButtonFormField<int?>(
+            value: _selectedUserId,
+            decoration: InputDecoration(
+              labelText: 'Karyawan',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusSM),
+            ),
+            items: [
+              const DropdownMenuItem<int?>(
+                  value: null, child: Text('Semua (milik sendiri)')),
+              ..._employees.map((emp) => DropdownMenuItem<int?>(
+                    value: emp['id'] as int?,
+                    child: Text(emp['name']?.toString() ?? '-',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: (v) {
+              setState(() => _selectedUserId = v);
+              _loadData();
+            },
+          ),
+          AppSpacing.gapVerticalSM,
+          DropdownButtonFormField<String>(
+            value: _selectedPeriod,
+            decoration: InputDecoration(
+              labelText: 'Periode (cut-off gaji)',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusSM),
+            ),
+            items: _buildPeriodItems(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _selectedPeriod = v);
+              _loadData();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) {
+      return ListView(
+        children: [
+          AppSpacing.gapVerticalLG,
+          Center(
+            child: Padding(
+              padding: AppSpacing.paddingLG,
+              child: Column(
+                children: [
+                  Text(_errorMessage!,
+                      style: TextStyle(color: colorScheme.error),
+                      textAlign: TextAlign.center),
+                  AppSpacing.gapVerticalMD,
+                  ElevatedButton(
+                      onPressed: _loadData, child: const Text('Coba Lagi')),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    final presences = (_data?['presences'] as List?) ?? [];
+    if (presences.isEmpty) {
+      return ListView(
+        children: [
+          AppSpacing.gapVerticalLG,
+          const Center(
+              child: Padding(
+            padding: AppSpacing.paddingMD,
+            child: Text('Tidak ada presensi pada periode ini.'),
+          )),
+        ],
+      );
+    }
+
+    final summary =
+        (_data?['summary'] as Map?) ?? <String, dynamic>{};
+    return ListView(
+      children: [
+        _buildSummaryCard(summary, textTheme, colorScheme),
+        ...presences.asMap().entries.map(
+              (e) => _buildPresenceCard(e.value, e.key, textTheme, colorScheme),
+            ),
+        AppSpacing.gapVerticalLG,
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(Map summary, TextTheme tt, ColorScheme cs) {
+    Widget cell(String label, String value, {Color? valueColor}) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              children: [
+                Text(value,
+                    style: tt.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: valueColor)),
+                Text(label,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        );
+    return Card(
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      child: Padding(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ringkasan',
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const Divider(height: 24),
+            Row(children: [
+              cell('Hadir', '${summary['total_hadir'] ?? 0}'),
+              cell('Tepat Waktu', '${summary['count_tepat_waktu'] ?? 0}',
+                  valueColor: AppColors.success),
+              cell('Terlambat', '${summary['count_terlambat'] ?? 0}',
+                  valueColor: AppColors.error),
+            ]),
+            Row(children: [
+              cell('Pulang Cepat', '${summary['count_pulang_cepat'] ?? 0}',
+                  valueColor: AppColors.warning),
+              cell('Menit Terlambat',
+                  '${summary['total_menit_terlambat'] ?? 0}'),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresenceCard(
+      dynamic p, int index, TextTheme tt, ColorScheme cs) {
+    final map = Map<String, dynamic>.from(p as Map);
+    final bool expanded = _expanded[index] ?? false;
+    final String checkIn = map['check_in'] as String? ?? '';
+    final String dateLabel = checkIn.isNotEmpty
+        ? DateFormat('EEE, dd MMM', 'id_ID')
+            .format(DateTime.parse(checkIn))
+        : '-';
+    final String? checkInStatus = map['check_in_status'] as String?;
+    final int lateMinutes =
+        (map['late_minutes'] ?? 0) as int;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      child: InkWell(
+        borderRadius: AppSpacing.borderRadiusMD,
+        onTap: () => setState(() => _expanded[index] = !expanded),
+        child: Padding(
+          padding: AppSpacing.paddingMD,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(dateLabel,
+                        style: tt.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(
+                      color: _checkInStatusColor(checkInStatus, cs)
+                          .withValues(alpha: 0.1),
+                      borderRadius: AppSpacing.borderRadiusMD,
+                    ),
+                    child: Text(_checkInStatusText(checkInStatus),
+                        style: tt.labelSmall
+                            ?.copyWith(color: _checkInStatusColor(checkInStatus, cs))),
+                  ),
+                ],
+              ),
+              if (lateMinutes > 0) ...[
+                AppSpacing.gapVerticalXS,
+                Text('Terlambat $lateMinutes menit',
+                    style: tt.bodySmall?.copyWith(color: AppColors.error)),
+              ],
+              if (expanded) _buildExpandedDetail(map, tt, cs),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedDetail(Map<String, dynamic> m, TextTheme tt, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _detailRow('Check-in', _formatTime(m['check_in'] as String?)),
+          _detailRow('Check-out', _formatTime(m['check_out'] as String?)),
+          _detailRow(
+              'Status Pulang', _checkOutStatusText(m['check_out_status'] as String?),
+              valueColor: _checkOutStatusColor(
+                  m['check_out_status'] as String?, cs)),
+          _detailRow('Toko', (m['store'] ?? '-') as String),
+          _detailRow(
+              'Shift',
+              '${m['shift_store'] ?? '-'} '
+              '(${m['shift_start_time'] ?? ''}–${m['shift_end_time'] ?? ''})'),
+          if (m['image_in'] != null || m['image_out'] != null) ...[
+            AppSpacing.gapVerticalSM,
+            Row(
+              children: [
+                if (m['image_in'] != null)
+                  _photo(m['image_in'] as String, 'Masuk'),
+                if (m['image_out'] != null)
+                  _photo(m['image_out'] as String, 'Pulang'),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 130,
+              child: Text(label, style: const TextStyle(color: Colors.grey))),
+          Expanded(
+              child: Text(value,
+                  style: valueColor != null
+                      ? TextStyle(color: valueColor)
+                      : null)),
+        ],
+      ),
+    );
+  }
+
+  Widget _photo(String url, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.sm),
+      child: GestureDetector(
+        onTap: () => _showFullScreenImage(url),
+        child: Column(
+          children: [
+            ClipRRect(
+              borderRadius: AppSpacing.borderRadiusSM,
+              child: Image.network(url,
+                  width: 72, height: 72, fit: BoxFit.cover),
+            ),
+            const SizedBox(height: 2),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String url) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(),
+        body: Center(child: Image.network(url)),
+      ),
+    ));
+  }
+}

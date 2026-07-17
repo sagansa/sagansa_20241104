@@ -63,6 +63,10 @@ class ApiConstants {
   static const String updateOrderItems =
       '$baseUrl/sales-orders/update-items';
 
+  // Inventory Anomaly Comparison (admin)
+  static const String compareInventoryAnomaly =
+      '$baseUrl/inventory-anomalies/compare';
+
   // Daily Salary Endpoints
   static const String dailySalaries = '$baseUrl/daily-salaries';
 

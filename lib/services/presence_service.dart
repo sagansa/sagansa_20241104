@@ -463,4 +463,25 @@ class PresenceService {
     }
   }
 
+  /// Check if there are pending utility reports for a store.
+  static Future<bool> checkPendingUtilityReports(int storeId) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/utility-reports/pending?store_id=$storeId'),
+        headers: await getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        return body['has_pending'] == true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
 }

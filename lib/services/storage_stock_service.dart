@@ -168,4 +168,9 @@ class StorageStockService {
       return {'total_stores': 0, 'reported_stores': 0, 'user_store_reported': 0};
     }
   }
+
+  Future<int> countReportedStoresToday() async {
+    final status = await checkTodayStatus();
+    return status['reported_stores'] ?? 0;
+  }
 }

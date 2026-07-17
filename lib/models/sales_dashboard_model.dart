@@ -54,12 +54,14 @@ class SalesSummary {
 class SalesTrendPoint {
   final String label;
   final int omzet;
+  final int? omzetPrev;
 
-  const SalesTrendPoint({required this.label, required this.omzet});
+  const SalesTrendPoint({required this.label, required this.omzet, this.omzetPrev});
 
   factory SalesTrendPoint.fromJson(Map<String, dynamic> j) => SalesTrendPoint(
         label: j['label'] as String? ?? '',
         omzet: (j['omzet'] as num? ?? 0).toInt(),
+        omzetPrev: (j['omzet_prev'] as num?)?.toInt(),
       );
 }
 

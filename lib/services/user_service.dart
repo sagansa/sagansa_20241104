@@ -109,7 +109,7 @@ class UserService {
     }
   }
 
-  Future<Map<String, dynamic>> getAdminProfileDetail(String profileId) async {
+  Future<Map<String, dynamic>> getAdminProfileDetail(dynamic profileId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
     if (token == null) throw Exception('Tidak ada token autentikasi.');
@@ -124,13 +124,13 @@ class UserService {
 
     final jsonResponse = json.decode(response.body);
     if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return jsonResponse['data'];
+      return jsonResponse['data'] ?? jsonResponse;
     } else {
       throw Exception(jsonResponse['message'] ?? 'Failed to load profile detail');
     }
   }
 
-  Future<void> setProfileStatus(String profileId, String status) async {
+  Future<Map<String, dynamic>> setProfileStatus(dynamic profileId, String status) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
     if (token == null) throw Exception('Tidak ada token autentikasi.');
@@ -146,7 +146,9 @@ class UserService {
     );
 
     final jsonResponse = json.decode(response.body);
-    if (response.statusCode != 200 || jsonResponse['success'] != true) {
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      return jsonResponse['data'] ?? jsonResponse;
+    } else {
       throw Exception(jsonResponse['message'] ?? 'Failed to update profile status');
     }
   }

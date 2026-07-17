@@ -6,6 +6,7 @@ import '../models/sales_dashboard_model.dart';
 import '../services/sales_dashboard_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/format_utils.dart';
 
 class SalesDashboardPage extends StatefulWidget {
   const SalesDashboardPage({super.key});
@@ -192,13 +193,6 @@ class _SummaryTabState extends State<_SummaryTab> {
     }
   }
 
-  String _fmtRupiah(int value) {
-    if (value >= 1000000000) return 'Rp ${(value / 1000000000).toStringAsFixed(1)}M';
-    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
-    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)}rb';
-    return 'Rp $value';
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -229,7 +223,7 @@ class _SummaryTabState extends State<_SummaryTab> {
         AppSpacing.gapVerticalSM,
         Row(
           children: [
-            Expanded(child: _kpiCard('Omzet', _fmtRupiah(s.omzet))),
+            Expanded(child: _kpiCard('Omzet', FormatUtils.formatCurrencyCompact(s.omzet))),
             AppSpacing.gapHorizontalSM,
             Expanded(child: _kpiCard('Order', '${s.orderCount}')),
             AppSpacing.gapHorizontalSM,
@@ -314,7 +308,7 @@ class _SummaryTabState extends State<_SummaryTab> {
                         final idx = ts.spotIndex;
                         final point = _trend[idx];
                         return LineTooltipItem(
-                          '${point.label}\n${_fmtRupiah(point.omzet)}',
+                          '${point.label}\n${FormatUtils.formatCurrencyCompact(point.omzet)}',
                           const TextStyle(fontSize: 11),
                         );
                       }).toList();
@@ -427,12 +421,6 @@ class _ProductsTabState extends State<_ProductsTab> {
     }
   }
 
-  String _fmtRupiah(int value) {
-    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
-    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)}rb';
-    return 'Rp $value';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -519,7 +507,7 @@ class _ProductsTabState extends State<_ProductsTab> {
       ),
       title: Text(item.productName ?? 'Produk #${item.productId}'),
       subtitle: Text(
-        '${_fmtRupiah(item.revenue)}${item.unit != null ? ' · ${item.unit}' : ''}',
+        '${FormatUtils.formatCurrencyCompact(item.revenue)}${item.unit != null ? ' · ${item.unit}' : ''}',
         style: const TextStyle(fontSize: 11),
       ),
       trailing: Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -599,12 +587,6 @@ class _ChannelsTabState extends State<_ChannelsTab> {
     }
   }
 
-  String _fmtRupiah(int value) {
-    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
-    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)}rb';
-    return 'Rp $value';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -646,7 +628,9 @@ class _ChannelsTabState extends State<_ChannelsTab> {
         PieChartData(
           sectionsSpace: 2,
           centerSpaceRadius: 60,
-          sections: _items.map((item) {
+          sections: _items
+              .where((item) => item.omzet > 0)
+              .map((item) {
             return PieChartSectionData(
               value: item.omzet.toDouble(),
               color: _colorFor(item.channel),
@@ -701,7 +685,7 @@ class _ChannelsTabState extends State<_ChannelsTab> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(_fmtRupiah(item.omzet),
+              Text(FormatUtils.formatCurrencyCompact(item.omzet),
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               Text('${item.percentage.toStringAsFixed(1)}%',
                   style: const TextStyle(

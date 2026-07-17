@@ -143,10 +143,12 @@ class _SummaryTabState extends State<_SummaryTab> {
   bool _loadingTrend = false;
   String? _errorSummary;
   String? _errorTrend;
+  int? _compareYear;
 
   @override
   void initState() {
     super.initState();
+    _compareYear = DateTime.now().year - 1; // default: tahun lalu
     _loadSummary();
     _loadTrend();
   }
@@ -178,7 +180,7 @@ class _SummaryTabState extends State<_SummaryTab> {
       _errorTrend = null;
     });
     try {
-      final t = await _service.getTrend(widget.periode);
+      final t = await _service.getTrend(widget.periode, compareYear: _compareYear);
       if (!mounted) return;
       setState(() {
         _trend = t;
@@ -193,6 +195,11 @@ class _SummaryTabState extends State<_SummaryTab> {
     }
   }
 
+  Future<void> _changeCompareYear(int? year) async {
+    setState(() => _compareYear = year);
+    await _loadTrend();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -200,9 +207,74 @@ class _SummaryTabState extends State<_SummaryTab> {
       children: [
         _buildKpiRow(),
         AppSpacing.gapVerticalMD,
+        _buildCompareChip(),
+        AppSpacing.gapVerticalSM,
         _buildChart(),
         AppSpacing.gapVerticalLG,
       ],
+    );
+  }
+
+  Widget _buildCompareChip() {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        ActionChip(
+          label: Text(_compareYear == null
+              ? 'Bandingkan: —'
+              : 'Bandingkan: $_compareYear'),
+          avatar: const Icon(Icons.compare_arrows, size: 16),
+          onPressed: _showCompareYearSheet,
+          backgroundColor: cs.surfaceContainerHighest,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showCompareYearSheet() async {
+    final currentYear = DateTime.now().year;
+    final years = List.generate(8, (i) => currentYear - 1 - i); // 2025, 2024, ..., 2018
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: AppSpacing.paddingMD,
+                child: const Text('Tahun Pembanding',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                title: const Text('Tidak ada'),
+                leading: Radio<int?>(
+                  value: null,
+                  groupValue: _compareYear,
+                  onChanged: (v) {
+                    Navigator.pop(ctx);
+                    _changeCompareYear(v);
+                  },
+                ),
+              ),
+              ...years.map((y) => ListTile(
+                    title: Text('$y'),
+                    leading: Radio<int?>(
+                      value: y,
+                      groupValue: _compareYear,
+                      onChanged: (v) {
+                        Navigator.pop(ctx);
+                        _changeCompareYear(v);
+                      },
+                    ),
+                  )),
+              AppSpacing.gapVerticalSM,
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -272,18 +344,54 @@ class _SummaryTabState extends State<_SummaryTab> {
           height: 200, child: Center(child: Text('Tidak ada data trend.')));
     }
 
-    final spots = <FlSpot>[];
+    final cs = Theme.of(context).colorScheme;
+    final hasCompare = _compareYear != null && _trend.any((p) => p.omzetPrev != null);
+
+    final currentSpots = <FlSpot>[];
     double maxY = 0;
     for (var i = 0; i < _trend.length; i++) {
       final v = _trend[i].omzet.toDouble();
-      spots.add(FlSpot(i.toDouble(), v));
+      currentSpots.add(FlSpot(i.toDouble(), v));
       if (v > maxY) maxY = v;
+    }
+
+    final prevSpots = <FlSpot>[];
+    if (hasCompare) {
+      for (var i = 0; i < _trend.length; i++) {
+        final v = (_trend[i].omzetPrev ?? 0).toDouble();
+        prevSpots.add(FlSpot(i.toDouble(), v));
+        if (v > maxY) maxY = v;
+      }
+    }
+
+    final lineBars = <LineChartBarData>[
+      LineChartBarData(
+        spots: currentSpots,
+        isCurved: true,
+        color: cs.secondary,
+        barWidth: 2.5,
+        dotData: const FlDotData(show: false),
+        belowBarData: BarAreaData(
+          show: true,
+          color: cs.secondary.withValues(alpha: 0.15),
+        ),
+      ),
+    ];
+    if (hasCompare) {
+      lineBars.add(LineChartBarData(
+        spots: prevSpots,
+        isCurved: true,
+        color: cs.outline,
+        barWidth: 2,
+        dashArray: const [4, 4],
+        dotData: const FlDotData(show: false),
+      ));
     }
 
     return Container(
       padding: AppSpacing.paddingMD,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: cs.surface,
         borderRadius: AppSpacing.borderRadiusMD,
         boxShadow: const [
           BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
@@ -294,6 +402,18 @@ class _SummaryTabState extends State<_SummaryTab> {
         children: [
           const Text('Tren Omzet',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          if (hasCompare) ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              Icon(Icons.circle, size: 10, color: cs.secondary),
+              const SizedBox(width: 4),
+              Text('Periode ini', style: const TextStyle(fontSize: 11)),
+              const SizedBox(width: 12),
+              Icon(Icons.linear_scale, size: 10, color: cs.outline),
+              const SizedBox(width: 4),
+              Text('$_compareYear', style: const TextStyle(fontSize: 11)),
+            ]),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             height: 180,
@@ -307,6 +427,12 @@ class _SummaryTabState extends State<_SummaryTab> {
                       return touchedSpots.map((ts) {
                         final idx = ts.spotIndex;
                         final point = _trend[idx];
+                        if (hasCompare) {
+                          return LineTooltipItem(
+                            '${point.label}\n• ${FormatUtils.formatCurrencyCompact(point.omzet)}\n• $_compareYear: ${FormatUtils.formatCurrencyCompact(point.omzetPrev ?? 0)}',
+                            const TextStyle(fontSize: 11),
+                          );
+                        }
                         return LineTooltipItem(
                           '${point.label}\n${FormatUtils.formatCurrencyCompact(point.omzet)}',
                           const TextStyle(fontSize: 11),
@@ -318,19 +444,7 @@ class _SummaryTabState extends State<_SummaryTab> {
                 gridData: const FlGridData(show: false),
                 titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: AppColors.secondary,
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppColors.secondary.withValues(alpha: 0.15),
-                    ),
-                  ),
-                ],
+                lineBarsData: lineBars,
               ),
             ),
           ),

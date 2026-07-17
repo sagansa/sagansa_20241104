@@ -10,7 +10,10 @@ import 'hrd_dashboard_page.dart';
 import 'stock_dashboard_page.dart';
 import 'transaction_dashboard_page.dart';
 import 'printer_settings_page.dart';
+import 'profile_page.dart';
+import 'admin_profile_list_page.dart';
 import '../widgets/theme_toggle_button.dart';
+import '../widgets/app_version_text.dart';
 import '../controllers/home_controller.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_colors.dart';
@@ -28,9 +31,16 @@ import 'asset_dashboard_page.dart';
 import '../services/asset_service.dart';
 import '../services/hygiene_service.dart';
 import 'hygiene_page.dart';
+import 'hygiene_list_page.dart';
 import '../services/readiness_service.dart';
 import 'readiness_page.dart';
+import 'readiness_list_page.dart';
 import 'closing_store_page.dart';
+import '../services/user_service.dart';
+import '../services/sales_dashboard_service.dart';
+import '../models/sales_dashboard_model.dart';
+import '../services/inventory_anomaly_service.dart';
+import '../utils/format_utils.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -67,6 +77,8 @@ class HomePageState extends State<HomePage> {
   final HygieneService _hygieneService = HygieneService();
   bool _hasReportedReadinessToday = false;
   final ReadinessService _readinessService = ReadinessService();
+  int _readinessCount = 0;
+  int _hygieneCount = 0;
   int approvedProcurementsCount = 0;
   int invoiceDraftCount = 0;
   int invoiceDoneCount = 0;
@@ -83,12 +95,24 @@ class HomePageState extends State<HomePage> {
   int _assetDueTodayCount = 0;
   bool _isLoadingAsset = false;
 
+  // Sales dashboard + inventory anomaly (home grid cards).
+  final SalesDashboardService _salesDashboardService = SalesDashboardService();
+  final InventoryAnomalyService _inventoryAnomalyService = InventoryAnomalyService();
+
   bool isAdmin = false;
   List<Map<String, dynamic>> adminStockMonitorings = [];
   bool isLoadingAdminStockMonitoring = false;
   String latestStockDate = '';
   List<dynamic> _todayPresences = [];
   bool _isLoadingTodayPresences = false;
+  int _totalEmployees = 0;
+  int _lateCount = 0;
+  int _onTimeCount = 0;
+  int? _yesterdayOmzet;
+  bool _isLoadingYesterdayOmzet = false;
+  int? _anomalyMismatchCount;
+  int _anomalyMatchCount = 0;
+  bool _isLoadingAnomaly = false;
 
   @override
   void initState() {
@@ -124,7 +148,7 @@ class HomePageState extends State<HomePage> {
       developer.log('User data loaded: ${userData['name']}');
       final userRoles = List<String>.from(userData['roles'] ?? []);
       final hasStorageStaffRole = userRoles.contains('storage-staff');
-      final hasAdminRole = userRoles.contains('admin') || userRoles.contains('super_admin') || userRoles.contains('supervisor');
+      final hasAdminRole = userRoles.contains('admin') || userRoles.contains('super_admin');
 
       // Load presence data
       developer.log('Loading presence data');
@@ -209,9 +233,26 @@ class HomePageState extends State<HomePage> {
       // Ringkasan aset untuk SEMUA user (backend memfilter ke aset miliknya).
       await _loadAssetSummary();
 
-      if (hasAdminRole) {
+      if (hasAdminRole || hasStorageStaffRole) {
         await _fetchAdminStockMonitoring();
         await _loadTodayPresences();
+        await _loadYesterdayOmzet();
+        await _loadAnomalySummary();
+      }
+
+      if (hasAdminRole) {
+        try {
+          final readiness = await _readinessService.getHistory();
+          final hygiene = await _hygieneService.getHistory();
+          if (mounted) {
+            setState(() {
+              _readinessCount = readiness.length;
+              _hygieneCount = hygiene.length;
+            });
+          }
+        } catch (e) {
+          developer.log('Error loading admin lists', error: e);
+        }
       }
     } catch (e) {
       developer.log('Error in _initData',
@@ -288,11 +329,24 @@ class HomePageState extends State<HomePage> {
   Future<void> _checkStorageStatus() async {
     try {
       final status = await _storageStockService.checkTodayStatus();
+      int reported = status['reported_stores'] ?? 0;
+      final total = status['total_stores'] ?? 0;
+
+      // Fallback: bila endpoint today-status belum menghitung laporan yang
+      // baru dibuat (masih 0), hitung ulang dari daftar laporan hari ini.
+      if (reported == 0 && total > 0) {
+        try {
+          reported = await _storageStockService.countReportedStoresToday();
+        } catch (e) {
+          developer.log('Error recounting reported stores', error: e);
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _reportedStores = status['reported_stores'] ?? 0;
-          _totalStores = status['total_stores'] ?? 0;
-          _hasReportedStorageToday = _reportedStores > 0;
+          _reportedStores = reported;
+          _totalStores = total;
+          _hasReportedStorageToday = reported > 0;
         });
       }
     } catch (e) {
@@ -303,19 +357,78 @@ class HomePageState extends State<HomePage> {
   Future<void> _loadTodayPresences() async {
     if (!mounted) return;
     setState(() => _isLoadingTodayPresences = true);
+
+    // Panggil terpisah agar kegagalan satu endpoint (mis. /users 500) tidak
+    // menjatuhkan endpoint lain (mis. presensi tetap bisa dimuat).
+    List<dynamic> presences = [];
+    int totalEmployees = 0;
+
     try {
-      final presences = await PresenceService.getAllTodayPresences();
+      final result = await PresenceService.getAllTodayPresences();
+      presences = result.presences;
+      final summary = result.summary;
       if (mounted) {
         setState(() {
-          _todayPresences = presences;
-          _isLoadingTodayPresences = false;
+          _lateCount = (summary?['late_count'] as num?)?.toInt() ?? 0;
+          _onTimeCount = (summary?['on_time_count'] as num?)?.toInt() ?? 0;
         });
       }
     } catch (e) {
       developer.log('Error loading today presences', error: e);
-      if (mounted) {
-        setState(() => _isLoadingTodayPresences = false);
-      }
+    }
+
+    try {
+      final users = await UserService().getUsers(role: 'staff');
+      totalEmployees = users.length;
+    } catch (e) {
+      developer.log('Error loading users count', error: e);
+    }
+
+    if (mounted) {
+      setState(() {
+        _todayPresences = presences;
+        _totalEmployees = totalEmployees;
+        _isLoadingTodayPresences = false;
+      });
+    }
+  }
+
+  Future<void> _loadYesterdayOmzet() async {
+    setState(() => _isLoadingYesterdayOmzet = true);
+    try {
+      final summary = await _salesDashboardService.getSummary(SalesPeriode.yesterday);
+      if (!mounted) return;
+      setState(() {
+        _yesterdayOmzet = summary.omzet;
+        _isLoadingYesterdayOmzet = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _yesterdayOmzet = null;
+        _isLoadingYesterdayOmzet = false;
+      });
+      developer.log('Error loading yesterday omzet: $e');
+    }
+  }
+
+  Future<void> _loadAnomalySummary() async {
+    setState(() => _isLoadingAnomaly = true);
+    try {
+      final response = await _inventoryAnomalyService.getComparison();
+      if (!mounted) return;
+      setState(() {
+        _anomalyMismatchCount = response.summary.mismatchCount;
+        _anomalyMatchCount = response.summary.matchCount;
+        _isLoadingAnomaly = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _anomalyMismatchCount = null;
+        _isLoadingAnomaly = false;
+      });
+      developer.log('Error loading anomaly summary: $e');
     }
   }
 
@@ -896,6 +1009,17 @@ class HomePageState extends State<HomePage> {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Profil Saya'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.print_outlined),
               title: const Text('Printer Thermal'),
               onTap: () {
@@ -906,6 +1030,19 @@ class HomePageState extends State<HomePage> {
                 );
               },
             ),
+            if (isAdmin)
+              ListTile(
+                leading: const Icon(Icons.manage_accounts_outlined),
+                title: const Text('Kelola Profil'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AdminProfileListPage()),
+                  );
+                },
+              ),
 
             ListTile(
               leading: const Icon(Icons.help),
@@ -944,16 +1081,24 @@ class HomePageState extends State<HomePage> {
                 }
               },
             ),
+            const AppVersionText(),
           ],
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: AppSpacing.paddingMD,
-            child: !isUserDataLoaded
+      body: SafeArea(
+        child: RefreshIndicator(
+          key: const Key('homeRefresh'),
+          onRefresh: _onRefresh,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints:
+                      BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Padding(
+                    padding: AppSpacing.paddingMD,
+                    child: !isUserDataLoaded
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 100),
@@ -969,6 +1114,10 @@ class HomePageState extends State<HomePage> {
                           _buildDashboardGrid(),
                         ],
                       ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -1133,36 +1282,6 @@ class HomePageState extends State<HomePage> {
               },
             ),
             _buildCompactDashboardCard(
-              icon: Icons.cleaning_services_outlined,
-                iconColor: colorScheme.primary,
-              title: 'Kebersihan',
-              value: _hasReportedHygieneToday ? 'Selesai' : 'Isi Form!',
-              subtitle: _hasReportedHygieneToday ? 'Sudah Laporan' : 'Belum Laporan',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HygienePage()),
-                ).then((_) {
-                  _checkHygieneStatus();
-                });
-              },
-            ),
-            _buildCompactDashboardCard(
-              icon: Icons.checklist_rtl_outlined,
-              iconColor: colorScheme.primary,
-              title: 'Kesiapan Diri',
-              value: _hasReportedReadinessToday ? 'Selesai' : 'Isi Form!',
-              subtitle: _hasReportedReadinessToday ? 'Sudah Laporan' : 'Belum Laporan',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ReadinessPage()),
-                ).then((_) {
-                  _checkReadinessStatus();
-                });
-              },
-            ),
-            _buildCompactDashboardCard(
               icon: Icons.store_outlined,
               iconColor: AppColors.warning,
               title: 'Closing Store',
@@ -1251,7 +1370,7 @@ class HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Welcome Header
+        // Welcome header (tetap)
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1272,355 +1391,418 @@ class HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: _onRefresh,
-              tooltip: 'Segarkan Halaman',
-            ),
           ],
         ),
         AppSpacing.gapVerticalMD,
 
-        // 2x2 Grid of KPIs
-        Row(
+        // 3-column grid: 6 cards
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.sm,
+          childAspectRatio: 1.0,
           children: [
-            Expanded(
-              child: _buildKpiCard(
-                icon: Icons.receipt_long_outlined,
-                iconColor: AppColors.warning,
-                title: 'Pengajuan Cuti',
-                value: isLoadingLeaveAndSalary ? '...' : '$pendingLeavesCount',
-                subtitle: 'Menunggu Persetujuan',
+            // 1. Presensi
+            _buildCompactCard(
+              icon: Icons.fingerprint,
+              iconColor: AppColors.success,
+              value: _isLoadingTodayPresences
+                  ? '...'
+                  : '${_todayPresences.length}/$_totalEmployees',
+              label: 'Presensi',
+              badge: _lateCount > 0 ? '$_lateCount telat' : null,
+              badgeColor: colorScheme.error,
+              onTap: _showTodayPresencesSheet,
+            ),
+            // 2. Omzet Kemarin
+            _buildCompactCard(
+              icon: Icons.bar_chart,
+              iconColor: AppColors.primary,
+              value: _isLoadingYesterdayOmzet
+                  ? '...'
+                  : (_yesterdayOmzet == null
+                      ? '-'
+                      : FormatUtils.formatCurrencyCompact(_yesterdayOmzet!)),
+              label: 'Omzet Kemarin',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SalesDashboardPage(),
+                ),
               ),
             ),
-            AppSpacing.gapHorizontalSM,
-            Expanded(
-              child: _buildKpiCard(
-                icon: Icons.receipt_outlined,
-                iconColor: colorScheme.tertiary,
-                title: 'Invoice Belum Dibayar',
-                value: isLoadingProcurement ? '...' : '$unpaidTransferInvoicesCount',
-                subtitle: 'Metode Transfer',
+            // 3. Selisih Stok
+            _buildCompactCard(
+              icon: Icons.compare_arrows,
+              iconColor: colorScheme.error,
+              value: _isLoadingAnomaly
+                  ? '...'
+                  : (_anomalyMismatchCount == null
+                      ? '-'
+                      : '$_anomalyMismatchCount'),
+              label: 'Selisih Stok',
+              badge: _anomalyMatchCount > 0 ? '$_anomalyMatchCount cocok' : null,
+              badgeColor: AppColors.success,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const InventoryAnomalyPage(),
+                ),
               ),
+            ),
+            // 4. Invoice Unpaid
+            _buildCompactCard(
+              icon: Icons.receipt_outlined,
+              iconColor: colorScheme.tertiary,
+              value: isLoadingProcurement ? '...' : '$unpaidTransferInvoicesCount',
+              label: 'Invoice Unpaid',
+            ),
+            // 5. Laporan Stok
+            _buildCompactCard(
+              icon: Icons.inventory_2_outlined,
+              iconColor: AppColors.primary,
+              value: '$_reportedStores/$_totalStores',
+              label: 'Laporan Stok',
+            ),
+            // 6. Aset Jatuh Tempo
+            _buildCompactCard(
+              icon: Icons.notification_important_outlined,
+              iconColor: colorScheme.error,
+              value: _isLoadingAsset ? '...' : '$_assetDueTodayCount',
+              label: 'Aset Jatuh Tempo',
             ),
           ],
         ),
-        AppSpacing.gapVerticalSM,
-        Row(
-          children: [
-            Expanded(
-              child: _buildKpiCard(
-                icon: Icons.inventory_2_outlined,
-                iconColor: AppColors.primary,
-                title: 'Laporan Stok',
-                value: '$_reportedStores/$_totalStores',
-                subtitle: 'Toko Sudah Melapor',
-              ),
-            ),
-            AppSpacing.gapHorizontalSM,
-            Expanded(
-              child: _buildKpiCard(
-                icon: Icons.notification_important_outlined,
-                iconColor: colorScheme.error,
-                title: 'Jatuh Tempo Aset',
-                value: _isLoadingAsset ? '...' : '$_assetDueTodayCount',
-                subtitle: 'Aset Harus Diperiksa',
-              ),
-            ),
-          ],
-        ),
         AppSpacing.gapVerticalLG,
 
-        // Presensi Hari Ini
-        _buildTodayPresencesSection(),
-        AppSpacing.gapVerticalLG,
-
-        // Perbandingan Penjualan vs Stok (admin & super_admin)
-        _buildInventoryAnomalySection(),
-
-        AppSpacing.gapVerticalLG,
-
-        // Dashboard Penjualan (admin & super_admin)
-        _buildSalesDashboardSection(),
-
-        AppSpacing.gapVerticalLG,
-
-        // Laporan Storage Stock Feed
+        // Storage stock feed (tetap)
         _buildStorageStocksSection(),
       ],
     );
   }
 
-  Widget _buildSalesDashboardSection() {
-    if (!isAdmin) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const SalesDashboardPage(),
-            ),
-          );
-        },
-        borderRadius: AppSpacing.borderRadiusMD,
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Row(
-            children: [
-              Container(
-                padding: AppSpacing.paddingXS,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: AppSpacing.borderRadiusSM,
-                ),
-                child: const Icon(Icons.bar_chart,
-                    color: AppColors.primary, size: 24),
-              ),
-              AppSpacing.gapHorizontalMD,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dashboard Penjualan',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Omzet, order, qty harian/bulanan/tahunan',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInventoryAnomalySection() {
-    if (!isAdmin) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const InventoryAnomalyPage(),
-            ),
-          );
-        },
-        borderRadius: AppSpacing.borderRadiusMD,
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Row(
-            children: [
-              Container(
-                padding: AppSpacing.paddingXS,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: AppSpacing.borderRadiusSM,
-                ),
-                child: const Icon(Icons.compare_arrows,
-                    color: AppColors.primary, size: 24),
-              ),
-              AppSpacing.gapHorizontalMD,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Perbandingan Penjualan vs Stok',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Deteksi anomali & susut (SO vs stok gudang)',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKpiCard({
+  Widget _buildCompactCard({
     required IconData icon,
     required Color iconColor,
-    required String title,
     required String value,
-    required String subtitle,
+    required String label,
+    String? badge,
+    Color? badgeColor,
+    VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    return Card(
+    final card = Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: AppSpacing.paddingMD,
+        padding: AppSpacing.paddingSM,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: AppSpacing.paddingXS,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: AppSpacing.borderRadiusSM,
-              ),
-              child: Icon(icon, color: iconColor, size: 24),
+            // Row atas: icon kiri + badge kanan (opsional)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.15),
+                    borderRadius: AppSpacing.borderRadiusSM,
+                  ),
+                  child: Icon(icon, color: iconColor, size: 16),
+                ),
+                if (badge != null)
+                  Text(
+                    badge,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: badgeColor ?? colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+              ],
             ),
-            AppSpacing.gapVerticalMD,
-            Text(
-              value,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+            // Value tengah
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
               ),
             ),
-            AppSpacing.gapVerticalXS,
+            // Label bawah
             Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
-            ),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.borderRadiusMD,
+        child: card,
+      );
+    }
+    return card;
   }
 
-  Widget _buildTodayPresencesSection() {
+  bool _toBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is int) return value != 0;
+    if (value is String) {
+      return value == '1' || value.toLowerCase() == 'true';
+    }
+    return false;
+  }
+
+  /// Mengembalikan true bila [rawTime] (format HH:mm atau HH:mm:ss) lebih dari
+  /// [threshold] (format HH:mm). Bila waktu tidak valid, anggap tidak telat.
+  bool _isLateTime(String? rawTime, String threshold) {
+    if (rawTime == null || rawTime.isEmpty) return false;
+    final t = rawTime.split(':');
+    final lim = threshold.split(':');
+    if (t.length < 2 || lim.length < 2) return false;
+    final th = int.tryParse(t[0]) ?? 0;
+    final tm = int.tryParse(t[1]) ?? 0;
+    final lh = int.tryParse(lim[0]) ?? 0;
+    final lm = int.tryParse(lim[1]) ?? 0;
+    final cur = th * 60 + tm;
+    final limit = lh * 60 + lm;
+    return cur > limit;
+  }
+
+  void _showTodayPresencesSheet() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final presences = _todayPresences;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Presensi Hari Ini',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (_isLoadingTodayPresences)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colorScheme.primary,
-                ),
-              ),
-          ],
-        ),
-        AppSpacing.gapVerticalSM,
-        if (_todayPresences.isEmpty && !_isLoadingTodayPresences)
-          Card(
-            child: Padding(
-              padding: AppSpacing.paddingMD,
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: colorScheme.onSurfaceVariant),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Belum ada presensi hari ini.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Presensi Hari Ini',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          )
-        else
-          ...(_todayPresences.take(10).map((presence) {
-            final name = presence['user']?['name'] ?? '-';
-            final store = presence['store']?['name'] ?? '-';
-            final clockIn = presence['clock_in'] ?? '-';
-            final clockOut = presence['clock_out'];
-            return Card(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Padding(
-                padding: AppSpacing.paddingMD,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                      child: Icon(Icons.person, size: 20, color: colorScheme.onSurfaceVariant),
-                    ),
-                    AppSpacing.gapHorizontalMD,
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            store,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${presences.length} karyawan telah presensi',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'In: $clockIn',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (clockOut != null)
-                          Text(
-                            'Out: $clockOut',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                const Divider(height: 16),
+                Expanded(
+                  child: _isLoadingTodayPresences
+                      ? const Center(child: CircularProgressIndicator())
+                      : presences.isEmpty
+                          ? Center(
+                              child: Text(
+                                'Belum ada presensi hari ini.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: scrollController,
+                              padding: AppSpacing.paddingMD,
+                              itemCount: presences.length,
+                              itemBuilder: (context, idx) {
+                                final presence =
+                                    presences[idx] as Map<String, dynamic>;
+
+                                // ── Nama (robust terhadap berbagai struktur) ──
+                                final userName = presence['user'] is Map
+                                    ? (presence['user']['name'] ??
+                                        presence['user']['full_name'])
+                                    : (presence['employee'] is Map
+                                        ? (presence['employee']['name'] ??
+                                            presence['employee']
+                                                ['full_name'])
+                                        : (presence['created_by'] is Map
+                                            ? (presence['created_by']['name'] ??
+                                                presence['created_by']
+                                                    ['full_name'])
+                                            : presence['user_name'] ?? presence['name']));
+                                final name = (userName?.toString().isNotEmpty ==
+                                        true)
+                                    ? userName.toString()
+                                    : '-';
+
+                                // ── Store: prioritas nickname ──
+                                final storeMap = presence['store'] is Map
+                                    ? presence['store'] as Map
+                                    : null;
+                                final store = storeMap != null
+                                    ? (storeMap['nickname']?.toString().isNotEmpty ==
+                                                true
+                                            ? storeMap['nickname']
+                                            : storeMap['name'])
+                                        ?.toString()
+                                    : null;
+                                final storeText =
+                                    (store?.isNotEmpty == true) ? store! : '-';
+
+                                final clockInRaw =
+                                    presence['clock_in']?.toString();
+                                final clockOutRaw =
+                                    presence['clock_out']?.toString();
+
+                                // ── Status telat masuk ──
+                                bool inLate;
+                                if (presence['is_late'] != null) {
+                                  inLate = _toBool(presence['is_late']);
+                                } else if (presence['late'] != null) {
+                                  inLate = _toBool(presence['late']);
+                                } else {
+                                  inLate = _isLateTime(clockInRaw, '09:00');
+                                }
+
+                                // ── Status telat keluar (pulang) ──
+                                bool outLate;
+                                if (presence['is_late_out'] != null) {
+                                  outLate = _toBool(presence['is_late_out']);
+                                } else if (presence['out_late'] != null) {
+                                  outLate = _toBool(presence['out_late']);
+                                } else {
+                                  outLate = _isLateTime(clockOutRaw, '17:00');
+                                }
+
+                                final inColor = inLate
+                                    ? colorScheme.error
+                                    : AppColors.success;
+                                final outColor = outLate
+                                    ? AppColors.success
+                                    : colorScheme.error;
+
+                                return Card(
+                                  margin: const EdgeInsets.only(
+                                      bottom: AppSpacing.sm),
+                                  child: Padding(
+                                    padding: AppSpacing.paddingMD,
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: colorScheme.primary
+                                              .withValues(alpha: 0.1),
+                                          child: Icon(Icons.person,
+                                              size: 20,
+                                              color: colorScheme
+                                                  .onSurfaceVariant),
+                                        ),
+                                        AppSpacing.gapHorizontalMD,
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                name,
+                                                style: theme
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                storeText,
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            if (clockInRaw != null)
+                                              Text(
+                                                'In: $clockInRaw',
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: inColor,
+                                                ),
+                                              ),
+                                            if (clockOutRaw != null)
+                                              Text(
+                                                'Out: $clockOutRaw',
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: outColor,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
             );
-          })),
-      ],
+          },
+        );
+      },
     );
   }
 

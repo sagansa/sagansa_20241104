@@ -79,8 +79,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               Tab(text: 'Produk'),
               Tab(text: 'Channel'),
             ],
-            labelColor: cs.onSurface,
-            indicatorColor: AppColors.primary,
+            labelColor: cs.primary,
+            unselectedLabelColor: cs.onSurfaceVariant,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+            indicator: BoxDecoration(color: Colors.transparent),
+            dividerColor: Colors.transparent,
           ),
         ),
         body: Column(
@@ -102,9 +106,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   }
 
   Widget _buildPeriodeRow() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: AppSpacing.paddingSM,
-      color: AppColors.surfaceVariant,
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -116,9 +121,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             onSelected: (_) {
               setState(() => _periode = p);
             },
-            selectedColor: AppColors.primary,
             labelStyle: TextStyle(
-              color: selected ? AppColors.onPrimary : AppColors.onSurface,
+              color: selected ? cs.onSecondaryContainer : cs.onSurfaceVariant,
             ),
           );
         }).toList(),

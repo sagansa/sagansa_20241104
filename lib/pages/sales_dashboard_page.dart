@@ -90,7 +90,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 children: [
                   _SummaryTab(key: ValueKey('summary-${_periode.apiValue}'), periode: _periode),
                   _ProductsTab(key: ValueKey('products-${_periode.apiValue}'), periode: _periode),
-                  _PlaceholderTab(text: 'Channel — diisi di Task 14'),
+                  _ChannelsTab(key: ValueKey('channels-${_periode.apiValue}'), periode: _periode),
                 ],
               ),
             ),
@@ -121,21 +121,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final String text;
-  const _PlaceholderTab({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AppSpacing.paddingLG,
-        child: Text(text, textAlign: TextAlign.center),
       ),
     );
   }
@@ -553,6 +538,177 @@ class _ProductsTabState extends State<_ProductsTab> {
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2))
             : Text('Muat lebih banyak (${_meta!.currentPage + 1}/${_meta!.lastPage})'),
+      ),
+    );
+  }
+}
+
+class _ChannelsTab extends StatefulWidget {
+  final SalesPeriode periode;
+  const _ChannelsTab({super.key, required this.periode});
+
+  @override
+  State<_ChannelsTab> createState() => _ChannelsTabState();
+}
+
+class _ChannelsTabState extends State<_ChannelsTab> {
+  final SalesDashboardService _service = SalesDashboardService();
+  List<SalesChannelItem> _items = [];
+  int _totalOmzet = 0;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final result = await _service.getChannels(widget.periode);
+      if (!mounted) return;
+      setState(() {
+        _items = result.items;
+        _totalOmzet = result.totalOmzet;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Color _colorFor(String channel) {
+    switch (channel) {
+      case '3':
+        return AppColors.secondary;
+      case '1':
+        return AppColors.primary;
+      case '2':
+        return AppColors.onPrimary;
+      default:
+        return AppColors.onSurfaceVariant;
+    }
+  }
+
+  String _fmtRupiah(int value) {
+    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
+    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)}rb';
+    return 'Rp $value';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center),
+            AppSpacing.gapVerticalMD,
+            FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+          ],
+        ),
+      );
+    }
+    if (_items.isEmpty || _totalOmzet == 0) {
+      return const Center(
+        child: Padding(
+          padding: AppSpacing.paddingLG,
+          child: Text('Belum ada penjualan di periode ini.'),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: AppSpacing.paddingMD,
+      children: [
+        _buildPie(),
+        AppSpacing.gapVerticalMD,
+        ..._items.map(_buildChannelRow),
+      ],
+    );
+  }
+
+  Widget _buildPie() {
+    return SizedBox(
+      height: 220,
+      child: PieChart(
+        PieChartData(
+          sectionsSpace: 2,
+          centerSpaceRadius: 60,
+          sections: _items.map((item) {
+            return PieChartSectionData(
+              value: item.omzet.toDouble(),
+              color: _colorFor(item.channel),
+              title: '${item.percentage.toStringAsFixed(0)}%',
+              radius: 50,
+              titleStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelRow(SalesChannelItem item) {
+    return Container(
+      padding: AppSpacing.paddingMD,
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppSpacing.borderRadiusSM,
+        boxShadow: const [
+          BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: _colorFor(item.channel),
+              borderRadius: AppSpacing.borderRadiusXS,
+            ),
+          ),
+          AppSpacing.gapHorizontalMD,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.channelLabel,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('${item.orderCount} order · ${item.qty} qty',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(_fmtRupiah(item.omzet),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('${item.percentage.toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.onSurfaceVariant)),
+            ],
+          ),
+        ],
       ),
     );
   }

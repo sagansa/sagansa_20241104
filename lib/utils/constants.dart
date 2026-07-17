@@ -13,6 +13,10 @@ class ApiConstants {
   // General Endpoints
   static const String appVersion = '$baseUrl/app-version';
 
+  // Profile Endpoints (data pribadi + rekening, DB recruitment)
+  static const String profile = '$baseUrl/profile';
+  static const String adminProfiles = '$baseUrl/admin/profile';
+
   // Fallback URL (used for connectivity retries; defaults to same domain)
   static const String fallbackBaseUrl = String.fromEnvironment(
     'FALLBACK_API_URL',
@@ -63,6 +67,13 @@ class ApiConstants {
   static const String updateOrderItems =
       '$baseUrl/sales-orders/update-items';
 
+  // Inventory Anomaly Comparison (admin)
+  static const String compareInventoryAnomaly =
+      '$baseUrl/inventory-anomalies/compare';
+
+  // Sales Dashboard (admin)
+  static const String salesDashboard = '$baseUrl/sales-dashboard';
+
   // Daily Salary Endpoints
   static const String dailySalaries = '$baseUrl/daily-salaries';
 
@@ -83,6 +94,7 @@ class ApiConstants {
   static const String hygieneRooms = '$baseUrl/hygiene/rooms';
   static const String hygieneTodayStatus = '$baseUrl/hygiene/today-status';
   static const String hygiene = '$baseUrl/hygiene';
+  static const String hygieneOfRoom = '$baseUrl/hygiene/of-rooms';
 
   static Map<String, String> headers(String? token) {
     return {

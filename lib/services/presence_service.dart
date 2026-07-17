@@ -166,7 +166,10 @@ class PresenceService {
   }
 
   /// Get all employees' presence data for today (admin only).
-  static Future<List<dynamic>> getAllTodayPresences() async {
+  /// Returns record (presences, summary) where summary contains
+  /// late_count, on_time_count, total_count from backend.
+  static Future<({List<dynamic> presences, Map<String, dynamic>? summary})>
+      getAllTodayPresences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(AppConstants.tokenKey);
@@ -180,15 +183,21 @@ class PresenceService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] as List<dynamic>? ?? [];
+        final body = json.decode(response.body) as Map<String, dynamic>;
+        if (body['status'] == 'success' || body['success'] == true) {
+          return (
+            presences: body['data'] as List<dynamic>? ?? [],
+            summary: body['summary'] as Map<String, dynamic>?,
+          );
+        }
+        throw Exception(body['message'] ?? 'Gagal memuat presensi.');
       } else {
-        throw Exception('Failed to load today presences');
+        throw Exception('Gagal memuat presensi: ${response.statusCode}');
       }
     } catch (e) {
       developer.log('Error in getAllTodayPresences',
           error: e, name: 'PresenceService');
-      return [];
+      return (presences: [], summary: null);
     }
   }
 
@@ -454,36 +463,25 @@ class PresenceService {
     }
   }
 
-  /// Check if store has pending utility reports (status = 1 Belum Diperiksa)
+  /// Check if there are pending utility reports for a store.
   static Future<bool> checkPendingUtilityReports(int storeId) async {
+    final token = await getToken();
+    if (token == null) return false;
+
     try {
-      final headers = await _getHeaders();
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/utility-usages/store/$storeId/pending'),
-        headers: headers,
+        Uri.parse('${ApiConstants.baseUrl}/utility-reports/pending?store_id=$storeId'),
+        headers: await getHeaders(),
       );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['success'] == true) {
-          return data['data']['has_pending'] == true;
-        } else {
-          throw Exception('Gagal memeriksa laporan utility: ${data['message']}');
-        }
-      } else {
-        throw Exception('Gagal memeriksa laporan utility: ${response.statusCode}');
+        final body = json.decode(response.body);
+        return body['has_pending'] == true;
       }
+      return false;
     } catch (e) {
-      debugPrint('Error dalam checkPendingUtilityReports: $e');
       return false;
     }
   }
 
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await getToken();
-    return {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
 }

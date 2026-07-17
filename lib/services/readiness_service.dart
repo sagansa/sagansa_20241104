@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import '../models/readiness_model.dart';
 import 'image_upload_service.dart';
 
 class ReadinessService {
@@ -24,6 +25,27 @@ class ReadinessService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Gagal mengecek status kesiapan: ${response.statusCode}');
+    }
+  }
+
+  Future<List<ReadinessModel>> getHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey) ?? '';
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/history'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final data = body['data'] as List<dynamic>? ?? [];
+      return data.map((item) => ReadinessModel.fromJson(item)).toList();
+    } else {
+      throw Exception('Gagal memuat riwayat kesiapan: ${response.statusCode}');
     }
   }
 

@@ -21,6 +21,7 @@ import '../services/procurement_service.dart';
 import '../models/procurement_model.dart';
 import '../services/storage_stock_service.dart';
 import 'storage_stock_list_page.dart';
+import 'inventory_anomaly_page.dart';
 import '../services/leave_service.dart';
 import 'asset_dashboard_page.dart';
 import '../services/asset_service.dart';
@@ -1333,9 +1334,69 @@ class HomePageState extends State<HomePage> {
         _buildTodayPresencesSection(),
         AppSpacing.gapVerticalLG,
 
+        // Perbandingan Penjualan vs Stok (admin & super_admin)
+        _buildInventoryAnomalySection(),
+
+        AppSpacing.gapVerticalLG,
+
         // Laporan Storage Stock Feed
         _buildStorageStocksSection(),
       ],
+    );
+  }
+
+  Widget _buildInventoryAnomalySection() {
+    if (!isAdmin) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const InventoryAnomalyPage(),
+            ),
+          );
+        },
+        borderRadius: AppSpacing.borderRadiusMD,
+        child: Padding(
+          padding: AppSpacing.paddingMD,
+          child: Row(
+            children: [
+              Container(
+                padding: AppSpacing.paddingXS,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: AppSpacing.borderRadiusSM,
+                ),
+                child: const Icon(Icons.compare_arrows,
+                    color: AppColors.primary, size: 24),
+              ),
+              AppSpacing.gapHorizontalMD,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Perbandingan Penjualan vs Stok',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Deteksi anomali & susut (SO vs stok gudang)',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

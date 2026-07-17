@@ -241,6 +241,7 @@ class _SummaryTabState extends State<_SummaryTab> {
 
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
         return SafeArea(
           child: Column(
@@ -252,29 +253,35 @@ class _SummaryTabState extends State<_SummaryTab> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const Divider(height: 1),
-              ListTile(
-                title: const Text('Tidak ada'),
-                leading: Radio<int?>(
-                  value: null,
-                  groupValue: _compareYear,
-                  onChanged: (v) {
-                    Navigator.pop(ctx);
-                    _changeCompareYear(v);
-                  },
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    ListTile(
+                      title: const Text('Tidak ada'),
+                      leading: Radio<int?>(
+                        value: null,
+                        groupValue: _compareYear,
+                        onChanged: (v) {
+                          Navigator.pop(ctx);
+                          _changeCompareYear(v);
+                        },
+                      ),
+                    ),
+                    ...years.map((y) => ListTile(
+                          title: Text('$y'),
+                          leading: Radio<int?>(
+                            value: y,
+                            groupValue: _compareYear,
+                            onChanged: (v) {
+                              Navigator.pop(ctx);
+                              _changeCompareYear(v);
+                            },
+                          ),
+                        )),
+                  ],
                 ),
               ),
-              ...years.map((y) => ListTile(
-                    title: Text('$y'),
-                    leading: Radio<int?>(
-                      value: y,
-                      groupValue: _compareYear,
-                      onChanged: (v) {
-                        Navigator.pop(ctx);
-                        _changeCompareYear(v);
-                      },
-                    ),
-                  )),
-              AppSpacing.gapVerticalSM,
             ],
           ),
         );

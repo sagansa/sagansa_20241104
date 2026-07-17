@@ -16,13 +16,14 @@ class SalesDashboardService {
       };
 
   Uri _buildUri(SalesView view, SalesPeriode periode,
-      {int? page, int? perPage, ProductSort? sort}) {
+      {int? page, int? perPage, ProductSort? sort, int? compareYear}) {
     final qp = <String, String>{
       'periode': periode.apiValue,
       'view': view.name,
       if (page != null) 'page': '$page',
       if (perPage != null) 'per_page': '$perPage',
       if (sort != null) 'sort': sort.name,
+      if (compareYear != null) 'compare_year': '$compareYear',
     };
     return Uri.parse(ApiConstants.salesDashboard).replace(queryParameters: qp);
   }
@@ -37,12 +38,13 @@ class SalesDashboardService {
     return SalesSummary.fromJson((body['data'] as Map<String, dynamic>?) ?? {});
   }
 
-  Future<List<SalesTrendPoint>> getTrend(SalesPeriode periode) async {
+  Future<List<SalesTrendPoint>> getTrend(SalesPeriode periode, {int? compareYear}) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
-    final res =
-        await http.get(_buildUri(SalesView.trend, periode), headers: _headers(token));
+    final res = await http.get(
+        _buildUri(SalesView.trend, periode, compareYear: compareYear),
+        headers: _headers(token));
     final body = _parse(res);
     final data = (body['data'] as Map<String, dynamic>?) ?? {};
     final points = (data['points'] as List<dynamic>?)

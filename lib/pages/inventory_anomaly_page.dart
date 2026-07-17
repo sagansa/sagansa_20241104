@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inventory_anomaly_model.dart';
@@ -23,6 +25,9 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
   String? _error;
   InventoryAnomalyResponse? _response;
 
+  bool _accessChecked = false;
+  bool _canAccessResult = false;
+
   DateTime _dateFrom = DateTime.now().subtract(const Duration(days: 1));
   DateTime _dateTo = DateTime.now().subtract(const Duration(days: 1));
 
@@ -39,13 +44,24 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
   }
 
   Future<void> _bootstrap() async {
+    final access = await _canAccess();
+    if (!mounted) return;
+    setState(() {
+      _canAccessResult = access;
+      _accessChecked = true;
+    });
     await _loadStores();
+    if (!mounted) return;
     await _fetchComparison();
   }
 
   Future<void> _loadStores() async {
     try {
-      _allStores = await _storeService.getStores();
+      final stores = await _storeService.getStores();
+      if (!mounted) return;
+      setState(() {
+        _allStores = stores;
+      });
     } catch (_) {
       // silent; store filter optional
     }
@@ -71,6 +87,7 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
         perPage: _perPage,
       );
 
+      if (!mounted) return;
       setState(() {
         if (loadMore && _response != null) {
           _response = InventoryAnomalyResponse(
@@ -88,6 +105,7 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
         _isLoadingMore = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
@@ -98,8 +116,15 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
 
   Future<bool> _canAccess() async {
     final prefs = await SharedPreferences.getInstance();
-    final roles = prefs.getStringList('roles') ?? [];
-    return roles.contains('admin') || roles.contains('super_admin');
+    final userString = prefs.getString('user');
+    if (userString == null) return false;
+    try {
+      final userData = json.decode(userString) as Map<String, dynamic>;
+      final roles = List<String>.from(userData['roles'] ?? []);
+      return roles.contains('admin') || roles.contains('super_admin');
+    } catch (_) {
+      return false;
+    }
   }
 
   String _fmt(DateTime d) =>
@@ -130,25 +155,22 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
+    if (!_accessChecked) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (!_canAccessResult) {
+      body = const Center(
+        child: Padding(
+          padding: AppSpacing.paddingLG,
+          child: Text('Anda tidak punya akses ke fitur ini.'),
+        ),
+      );
+    } else {
+      body = _buildBody();
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Perbandingan Penjualan vs Stok')),
-      body: FutureBuilder<bool>(
-        future: _canAccess(),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!(snap.data ?? false)) {
-            return const Center(
-              child: Padding(
-                padding: AppSpacing.paddingLG,
-                child: Text('Anda tidak punya akses ke fitur ini.'),
-              ),
-            );
-          }
-          return _buildBody();
-        },
-      ),
+      body: body,
     );
   }
 

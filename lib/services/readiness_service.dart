@@ -49,6 +49,35 @@ class ReadinessService {
     }
   }
 
+  /// List kesiapan diri seluruh user (khusus admin/super_admin).
+  /// [date] opsional format YYYY-MM-DD (default hari ini di backend).
+  Future<List<ReadinessModel>> getAdminList({String? date}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey) ?? '';
+
+    final uri = Uri.parse('$_baseUrl/admin').replace(
+      queryParameters: date != null && date.isNotEmpty ? {'date': date} : null,
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final data = body['data'] as List<dynamic>? ?? [];
+      return data.map((item) => ReadinessModel.fromJson(item)).toList();
+    } else if (response.statusCode == 403) {
+      throw Exception('Akses ditolak. Hanya admin yang dapat melihat list ini.');
+    } else {
+      throw Exception('Gagal memuat list kesiapan: ${response.statusCode}');
+    }
+  }
+
   Future<Map<String, dynamic>> submitReadiness({
     required String selfiePath,
     required String leftHandPath,

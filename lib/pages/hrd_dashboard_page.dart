@@ -13,6 +13,7 @@ import 'home_page.dart';
 import 'salary_page.dart';
 import 'printer_settings_page.dart';
 import 'leave_page.dart';
+import 'readiness_admin_list_page.dart';
 import 'loan_page.dart';
 import 'calendar_page.dart';
 import 'daily_salary_list_page.dart';
@@ -425,6 +426,19 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const PresenceMonthlyPage(),
+                      ),
+                    );
+                  },
+                ),
+                _buildMenuListItem(
+                  icon: Icons.checkroom_outlined,
+                  color: AppColors.primary,
+                  title: 'Kesiapan Diri (Admin)',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReadinessAdminListPage(),
                       ),
                     );
                   },

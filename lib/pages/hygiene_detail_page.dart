@@ -231,7 +231,7 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: AppSpacing.itemGap,
                 crossAxisSpacing: AppSpacing.itemGap,
-                childAspectRatio: 0.82,
+                childAspectRatio: 0.8,
                 children: _hygiene.rooms.map((room) {
                   final imageUrl = room.imageUrl;
                   return Card(
@@ -240,12 +240,12 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Penanda status di pojok atas gambar.
-                        Stack(
-                          children: [
-                            SizedBox(
-                              height: 110,
-                              width: double.infinity,
-                              child: imageUrl != null
+                        AspectRatio(
+                          aspectRatio: 1.5,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              imageUrl != null
                                   ? GestureDetector(
                                       onTap: () =>
                                           _showImage(context, imageUrl),
@@ -287,28 +287,28 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: _conditionColor(room.condition)
-                                      .withValues(alpha: 0.9),
-                                  borderRadius: AppSpacing.borderRadiusMD,
-                                ),
-                                child: Text(
-                                  room.conditionLabel,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _conditionColor(room.condition)
+                                        .withValues(alpha: 0.9),
+                                    borderRadius: AppSpacing.borderRadiusMD,
+                                  ),
+                                  child: Text(
+                                    room.conditionLabel,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         Padding(
                           padding: AppSpacing.paddingSM,
@@ -386,6 +386,7 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                             ],
                           ),
                         ),
+                        AppSpacing.gapVerticalXS,
                       ],
                     ),
                   );

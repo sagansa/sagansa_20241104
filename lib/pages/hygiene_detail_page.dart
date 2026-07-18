@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/hygiene_model.dart';
+import '../services/hygiene_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
@@ -10,10 +11,51 @@ import '../utils/format_utils.dart';
 /// Menerima [HygieneModel] yang sudah dimuat dari list (backend `index()`
 /// sudah eager-load rooms + store + created/approved by), jadi tidak perlu
 /// fetch ulang.
-class HygieneDetailPage extends StatelessWidget {
+class HygieneDetailPage extends StatefulWidget {
   final HygieneModel hygiene;
 
   const HygieneDetailPage({super.key, required this.hygiene});
+
+  @override
+  State<HygieneDetailPage> createState() => _HygieneDetailPageState();
+}
+
+class _HygieneDetailPageState extends State<HygieneDetailPage> {
+  late HygieneModel _hygiene;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hygiene = widget.hygiene;
+  }
+
+  Future<void> _rate(int status) async {
+    setState(() => _isSaving = true);
+    try {
+      final updated = await HygieneService().updateStatus(_hygiene.id, status);
+      if (!mounted) return;
+      setState(() => _hygiene = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(status == 2
+              ? 'Laporan disetujui.'
+              : 'Laporan ditolak.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   String _formatDate(String raw) {
     if (raw.isEmpty) return '-';
@@ -56,7 +98,7 @@ class HygieneDetailPage extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final dirtyCount = hygiene.rooms
+    final dirtyCount = _hygiene.rooms
         .where((r) => r.condition == 3 || r.condition == 2)
         .length;
 
@@ -74,16 +116,16 @@ class HygieneDetailPage extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildInfoRow(
-                        'Toko', hygiene.storeName ?? '-', theme),
+                        'Toko', _hygiene.storeName ?? '-', theme),
                     const Divider(height: 20),
-                    _buildInfoRow('Tanggal', _formatDate(hygiene.createdAt), theme),
+                    _buildInfoRow('Tanggal', _formatDate(_hygiene.createdAt), theme),
                     const Divider(height: 20),
                     _buildInfoRow(
-                        'Dilaporkan oleh', hygiene.createdByName ?? '-', theme),
-                    if (hygiene.approvedByName != null) ...[
+                        'Dilaporkan oleh', _hygiene.createdByName ?? '-', theme),
+                    if (_hygiene.approvedByName != null) ...[
                       const Divider(height: 20),
                       _buildInfoRow(
-                          'Disetujui oleh', hygiene.approvedByName!, theme),
+                          'Disetujui oleh', _hygiene.approvedByName!, theme),
                     ],
                     const Divider(height: 20),
                     Row(
@@ -99,14 +141,14 @@ class HygieneDetailPage extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                           decoration: BoxDecoration(
-                            color: _statusColor(hygiene.status)
+                            color: _statusColor(_hygiene.status)
                                 .withValues(alpha: 0.1),
                             borderRadius: AppSpacing.borderRadiusXL,
                           ),
                           child: Text(
-                            hygiene.statusLabel,
+                            _hygiene.statusLabel,
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: _statusColor(hygiene.status),
+                              color: _statusColor(_hygiene.status),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -117,7 +159,7 @@ class HygieneDetailPage extends StatelessWidget {
                 ),
               ),
             ),
-            if (hygiene.notes != null && hygiene.notes!.isNotEmpty) ...[
+            if (_hygiene.notes != null && _hygiene.notes!.isNotEmpty) ...[
               AppSpacing.gapVerticalMD,
               Card(
                 child: Padding(
@@ -132,7 +174,7 @@ class HygieneDetailPage extends StatelessWidget {
                       ),
                       AppSpacing.gapVerticalSM,
                       Text(
-                        FormatUtils.stripHtml(hygiene.notes!),
+                        FormatUtils.stripHtml(_hygiene.notes!),
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
@@ -141,6 +183,55 @@ class HygieneDetailPage extends StatelessWidget {
                 ),
               ),
             ],
+            if (_hygiene.status == 1)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppSpacing.gapVerticalMD,
+                  const Divider(),
+                  AppSpacing.gapVerticalMD,
+                  Text(
+                    'Penilaian Laporan',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  AppSpacing.gapVerticalSM,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving
+                              ? null
+                              : () => _rate(2),
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: const Text('Setujui'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      AppSpacing.gapHorizontalSM,
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isSaving
+                              ? null
+                              : () => _rate(3),
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('Tolak'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isSaving) ...[
+                    AppSpacing.gapVerticalSM,
+                    const Center(child: CircularProgressIndicator()),
+                  ],
+                ],
+              ),
             AppSpacing.gapVerticalLG,
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -161,7 +252,7 @@ class HygieneDetailPage extends StatelessWidget {
               ],
             ),
             AppSpacing.gapVerticalSM,
-            if (hygiene.rooms.isEmpty)
+            if (_hygiene.rooms.isEmpty)
               Center(
                 child: Padding(
                   padding: AppSpacing.paddingLG,
@@ -181,8 +272,8 @@ class HygieneDetailPage extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: AppSpacing.itemGap,
                 crossAxisSpacing: AppSpacing.itemGap,
-                childAspectRatio: 0.72,
-                children: hygiene.rooms.map((room) {
+                childAspectRatio: 0.82,
+                children: _hygiene.rooms.map((room) {
                   final imageUrl = room.imageUrl;
                   return Card(
                     clipBehavior: Clip.antiAlias,
@@ -192,8 +283,9 @@ class HygieneDetailPage extends StatelessWidget {
                         // Penanda status di pojok atas gambar.
                         Stack(
                           children: [
-                            AspectRatio(
-                              aspectRatio: 1.4,
+                            SizedBox(
+                              height: 110,
+                              width: double.infinity,
                               child: imageUrl != null
                                   ? GestureDetector(
                                       onTap: () =>

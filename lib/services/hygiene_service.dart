@@ -131,4 +131,23 @@ class HygieneService {
     }
     throw Exception('Gagal memuat detail kebersihan.');
   }
+
+  /// Nilai laporan kebersihan utuh. [status] 2 = setuju, 3 = tolak.
+  Future<HygieneModel> updateStatus(int id, int status) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final response = await http.patch(
+      Uri.parse('${ApiConstants.hygiene}/$id'),
+      headers: _authHeaders(token),
+      body: jsonEncode({'status': status}),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return HygieneModel.fromJson(json['data']);
+    }
+    final errorData = jsonDecode(response.body);
+    throw Exception(errorData['message'] ?? 'Gagal menilai laporan kebersihan.');
+  }
 }

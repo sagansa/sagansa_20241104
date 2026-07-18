@@ -150,4 +150,27 @@ class HygieneService {
     final errorData = jsonDecode(response.body);
     throw Exception(errorData['message'] ?? 'Gagal menilai laporan kebersihan.');
   }
+
+  /// Nilai kondisi satu ruangan (satu gambar) pada laporan kebersihan.
+  /// [condition] 1 = bersih, 2 = perlu perhatian, 3 = kotor.
+  Future<HygieneRoomModel> updateRoomStatus(int roomId, int condition) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final response = await http.patch(
+      Uri.parse('${ApiConstants.hygieneRoomUpdate}/$roomId'),
+      headers: {
+        ..._authHeaders(token),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'condition': condition}),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return HygieneRoomModel.fromJson(json['data']);
+    }
+    final errorData = jsonDecode(response.body);
+    throw Exception(errorData['message'] ?? 'Gagal menilai ruangan.');
+  }
 }

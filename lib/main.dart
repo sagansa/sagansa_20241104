@@ -10,6 +10,7 @@ import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'providers/theme_provider.dart';
 import 'providers/printer_provider.dart';
 import 'providers/auth_provider.dart';
@@ -141,7 +142,13 @@ class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
 
 void main() {
   runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
+    // Tahan splash native sampai kita lepas secara eksplisit (1 detik).
+    FlutterNativeSplash.preserve(widgetsBinding: WidgetsFlutterBinding.ensureInitialized());
+
+    // Set up global error handling
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return CustomErrorWidget(errorDetails: details);
+    };
 
     // Set up global error handling
     ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -159,16 +166,24 @@ void main() {
     final String? token = prefs.getString('token');
     final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
 
-    // Inisialisasi pelacakan lokasi (Firebase + FCM + workmanager).
-    // Bila Firebase belum dikonfigurasi (mis. google-services.json belum ada),
-    // di-silent agar tidak mengganggu aplikasi utama.
-    await LocationTrackingService.instance.initialize();
-    // Auto-login: pastikan FCM token & periodic task aktif.
-    if (token != null && token.isNotEmpty) {
-      await LocationTrackingService.instance.onLogin();
-    }
-
+    // Inisialisasi pelacakan lokasi (Firebase + FCM + workmanager) dipindah
+    // ke pasca-runApp agar tidak menahan splash native saat cold start.
     runApp(ErrorBoundaryWidget(child: MyApp(initialRoute: initialRoute)));
+
+    // Lepas splash setelah tepat 1 detik (menutupi jeda cold start).
+    await Future.delayed(const Duration(milliseconds: 1000));
+    FlutterNativeSplash.remove();
+
+    // Jalankan init berat di frame berikutnya, setelah UI pertama tampil.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Bila Firebase belum dikonfigurasi (mis. google-services.json belum ada),
+      // di-silent agar tidak mengganggu aplikasi utama.
+      await LocationTrackingService.instance.initialize();
+      // Auto-login: pastikan FCM token & periodic task aktif.
+      if (token != null && token.isNotEmpty) {
+        await LocationTrackingService.instance.onLogin();
+      }
+    });
   }, (error, stackTrace) {
     developer.log(
       'Uncaught error',

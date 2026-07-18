@@ -95,6 +95,7 @@ class ApiConstants {
   static const String hygieneTodayStatus = '$baseUrl/hygiene/today-status';
   static const String hygiene = '$baseUrl/hygiene';
   static const String hygieneOfRoom = '$baseUrl/hygiene/of-rooms';
+  static const String hygieneRoomUpdate = '$baseUrl/hygiene/of-rooms';
 
   static Map<String, String> headers(String? token) {
     return {

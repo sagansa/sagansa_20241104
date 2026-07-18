@@ -30,17 +30,25 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
     _hygiene = widget.hygiene;
   }
 
-  Future<void> _rate(int status) async {
+  Future<void> _markRoom(HygieneRoomModel room, int condition) async {
     setState(() => _isSaving = true);
     try {
-      final updated = await HygieneService().updateStatus(_hygiene.id, status);
+      final updated = await HygieneService().updateRoomStatus(room.id, condition);
       if (!mounted) return;
-      setState(() => _hygiene = updated);
+      setState(() {
+        final idx = _hygiene.rooms.indexWhere((r) => r.id == room.id);
+        if (idx != -1) {
+          _hygiene.rooms[idx] = updated;
+        }
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(status == 2
-              ? 'Laporan disetujui.'
-              : 'Laporan ditolak.'),
+          content: Text(
+            condition == 1
+                ? 'Ruangan ditandai Bersih.'
+                : 'Ruangan ditandai Kotor.',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -183,55 +191,6 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                 ),
               ),
             ],
-            if (_hygiene.status == 1)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppSpacing.gapVerticalMD,
-                  const Divider(),
-                  AppSpacing.gapVerticalMD,
-                  Text(
-                    'Penilaian Laporan',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  AppSpacing.gapVerticalSM,
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isSaving
-                              ? null
-                              : () => _rate(2),
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Setujui'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                      AppSpacing.gapHorizontalSM,
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isSaving
-                              ? null
-                              : () => _rate(3),
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Tolak'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_isSaving) ...[
-                    AppSpacing.gapVerticalSM,
-                    const Center(child: CircularProgressIndicator()),
-                  ],
-                ],
-              ),
             AppSpacing.gapVerticalLG,
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -375,6 +334,58 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                        AppSpacing.gapVerticalSM,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _isSaving
+                                      ? null
+                                      : () => _markRoom(room, 1),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.success,
+                                    side: BorderSide(
+                                      color: room.condition == 1
+                                          ? AppColors.success
+                                          : AppColors.success
+                                              .withValues(alpha: 0.4),
+                                    ),
+                                    backgroundColor: room.condition == 1
+                                        ? AppColors.success
+                                            .withValues(alpha: 0.12)
+                                        : null,
+                                  ),
+                                  child: const Text('Bersih'),
+                                ),
+                              ),
+                              AppSpacing.gapHorizontalXS,
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _isSaving
+                                      ? null
+                                      : () => _markRoom(room, 3),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.error,
+                                    side: BorderSide(
+                                      color: room.condition == 3
+                                          ? AppColors.error
+                                          : AppColors.error
+                                              .withValues(alpha: 0.4),
+                                    ),
+                                    backgroundColor: room.condition == 3
+                                        ? AppColors.error
+                                            .withValues(alpha: 0.12)
+                                        : null,
+                                  ),
+                                  child: const Text('Kotor'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   );

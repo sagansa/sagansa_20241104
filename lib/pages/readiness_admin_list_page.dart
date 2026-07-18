@@ -4,6 +4,7 @@ import '../models/readiness_model.dart';
 import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'readiness_page.dart';
 
 class ReadinessAdminListPage extends StatefulWidget {
   const ReadinessAdminListPage({super.key});
@@ -271,6 +272,17 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
                           ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReadinessPage()),
+          );
+          _load();
+        },
+        tooltip: 'Kesiapan Diri Baru',
+        child: const Icon(Icons.add),
       ),
     );
   }

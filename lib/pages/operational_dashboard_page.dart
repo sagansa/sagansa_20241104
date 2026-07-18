@@ -9,11 +9,9 @@ import '../theme/app_colors.dart';
 import '../utils/constants.dart';
 import 'home_page.dart';
 import 'printer_settings_page.dart';
-import 'readiness_page.dart';
 import 'readiness_admin_list_page.dart';
 import 'hygiene_page.dart';
 import 'utility_usage_list_page.dart';
-import '../services/readiness_service.dart';
 import '../services/hygiene_service.dart';
 
 class OperationalDashboardPage extends StatefulWidget {
@@ -27,11 +25,8 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
   String userName = '';
   String companyName = 'SAGANSA';
 
-  final ReadinessService _readinessService = ReadinessService();
   final HygieneService _hygieneService = HygieneService();
-  bool _hasReadinessToday = false;
   bool _hasHygieneToday = false;
-  bool _isLoadingReadiness = false;
   bool _isLoadingHygiene = false;
 
   @override
@@ -56,23 +51,7 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
   }
 
   Future<void> _checkStatuses() async {
-    _checkReadiness();
     _checkHygiene();
-  }
-
-  Future<void> _checkReadiness() async {
-    setState(() => _isLoadingReadiness = true);
-    try {
-      final status = await _readinessService.checkStatus();
-      if (mounted) {
-        setState(() {
-          _hasReadinessToday = status['data']?['has_submitted_today'] ?? false;
-        });
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _isLoadingReadiness = false);
-    }
   }
 
   Future<void> _checkHygiene() async {
@@ -270,37 +249,17 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 _buildMenuRow(
-                  icon: Icons.checklist_rtl_outlined,
+                  icon: Icons.checkroom_outlined,
                   color: colorScheme.primary,
                   title: 'Kesiapan Diri',
-                  subtitle: 'Isi form kesiapan diri (wajib tiap Jumat).',
-                  trailing: _isLoadingReadiness
-                      ? const SizedBox(
-                          width: 14, height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(
-                            color: _hasReadinessToday
-                                ? AppColors.success.withValues(alpha: 0.1)
-                                : colorScheme.error.withValues(alpha: 0.1),
-                            borderRadius: AppSpacing.borderRadiusMD,
-                          ),
-                          child: Text(
-                            _hasReadinessToday ? 'Sudah' : 'Belum',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: _hasReadinessToday ? AppColors.success : colorScheme.error,
-                            ),
-                          ),
-                        ),
+                  subtitle: 'Lihat & kelola kesiapan diri karyawan.',
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ReadinessPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const ReadinessAdminListPage(),
+                      ),
                     );
-                    _checkReadiness();
                   },
                 ),
                 _buildMenuRow(
@@ -335,20 +294,6 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                       MaterialPageRoute(builder: (context) => const HygienePage()),
                     );
                     _checkHygiene();
-                  },
-                ),
-                _buildMenuRow(
-                  icon: Icons.checkroom_outlined,
-                  color: AppColors.primary,
-                  title: 'Kesiapan Diri (Admin)',
-                  subtitle: 'Lihat list kesiapan diri seluruh karyawan.',
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ReadinessAdminListPage(),
-                      ),
-                    );
                   },
                 ),
                 _buildMenuRow(

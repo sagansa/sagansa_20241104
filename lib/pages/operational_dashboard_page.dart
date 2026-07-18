@@ -10,7 +10,7 @@ import '../utils/constants.dart';
 import 'home_page.dart';
 import 'printer_settings_page.dart';
 import 'readiness_admin_list_page.dart';
-import 'hygiene_page.dart';
+import 'hygiene_list_page.dart';
 import 'utility_usage_list_page.dart';
 import '../services/hygiene_service.dart';
 
@@ -291,7 +291,7 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const HygienePage()),
+                      MaterialPageRoute(builder: (context) => const HygieneListPage()),
                     );
                     _checkHygiene();
                   },

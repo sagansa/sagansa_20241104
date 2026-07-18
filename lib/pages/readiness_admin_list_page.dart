@@ -4,6 +4,11 @@ import '../models/readiness_model.dart';
 import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_bottom_nav.dart';
+import 'home_page.dart';
+import 'hrd_dashboard_page.dart';
+import 'stock_dashboard_page.dart';
+import 'transaction_dashboard_page.dart';
 import 'readiness_page.dart';
 
 class ReadinessAdminListPage extends StatefulWidget {
@@ -24,6 +29,38 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  void _handleNavigation(BuildContext context, int index) {
+    if (index == 4) return;
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HRDDashboardPage()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const StockDashboardPage()),
+        );
+        break;
+      case 3:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const TransactionDashboardPage(),
+          ),
+        );
+        break;
+    }
   }
 
   Future<void> _load() async {
@@ -283,6 +320,10 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
         },
         tooltip: 'Kesiapan Diri Baru',
         child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 4,
+        onTap: (index) => _handleNavigation(context, index),
       ),
     );
   }

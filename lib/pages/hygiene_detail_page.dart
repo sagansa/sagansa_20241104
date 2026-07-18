@@ -175,85 +175,119 @@ class HygieneDetailPage extends StatelessWidget {
                 ),
               )
             else
-              ...hygiene.rooms.map((room) {
-                final imageUrl = room.imageUrl;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-                  child: Padding(
-                    padding: AppSpacing.cardPadding,
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: AppSpacing.itemGap,
+                crossAxisSpacing: AppSpacing.itemGap,
+                childAspectRatio: 0.72,
+                children: hygiene.rooms.map((room) {
+                  final imageUrl = room.imageUrl;
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Penanda status di pojok atas gambar.
+                        Stack(
                           children: [
-                            Expanded(
-                              child: Text(
-                                room.roomName ?? 'Ruangan',
-                                style: theme.textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
+                            AspectRatio(
+                              aspectRatio: 1.4,
+                              child: imageUrl != null
+                                  ? GestureDetector(
+                                      onTap: () =>
+                                          _showImage(context, imageUrl),
+                                      child: Image.network(
+                                        imageUrl,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            Container(
+                                          color: colorScheme
+                                              .surfaceContainerHighest
+                                              .withValues(alpha: 0.3),
+                                          child: Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        loadingBuilder: (_, child, progress) {
+                                          if (progress == null) return child;
+                                          return Container(
+                                            color: colorScheme
+                                                .surfaceContainerHighest
+                                                .withValues(alpha: 0.3),
+                                            child: const Center(
+                                              child: CircularProgressIndicator(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  : Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      color: colorScheme.surfaceContainerHighest
+                                          .withValues(alpha: 0.3),
+                                      child: Icon(
+                                        Icons.image_not_supported_outlined,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _conditionColor(room.condition)
-                                    .withValues(alpha: 0.1),
-                                borderRadius: AppSpacing.borderRadiusMD,
-                              ),
-                              child: Text(
-                                room.conditionLabel,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: _conditionColor(room.condition),
-                                  fontWeight: FontWeight.bold,
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _conditionColor(room.condition)
+                                      .withValues(alpha: 0.9),
+                                  borderRadius: AppSpacing.borderRadiusMD,
+                                ),
+                                child: Text(
+                                  room.conditionLabel,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        if (imageUrl != null) ...[
-                          AppSpacing.gapVerticalSM,
-                          ClipRRect(
-                            borderRadius: AppSpacing.borderRadiusMD,
-                            child: GestureDetector(
-                              onTap: () => _showImage(context, imageUrl),
-                              child: Image.network(
-                                imageUrl,
-                                height: 160,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const SizedBox.shrink(),
-                                loadingBuilder: (_, child, progress) {
-                                  if (progress == null) return child;
-                                  return Container(
-                                    height: 160,
-                                    color: colorScheme
-                                        .surfaceContainerHighest
-                                        .withValues(alpha: 0.3),
-                                    child: const Center(
-                                        child: CircularProgressIndicator()),
-                                  );
-                                },
+                        Padding(
+                          padding: AppSpacing.paddingSM,
+                          child: Text(
+                            room.roomName ?? 'Ruangan',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (room.notes != null && room.notes!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm),
+                            child: Text(
+                              room.notes!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ],
-                        if (room.notes != null && room.notes!.isNotEmpty) ...[
-                          AppSpacing.gapVerticalXS,
-                          Text(
-                            room.notes!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                  ),
-                );
-              }),
+                  );
+                }).toList(),
+              ),
             SizedBox(height: AppSpacing.xxl),
           ],
         ),

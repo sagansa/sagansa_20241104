@@ -174,76 +174,161 @@ class _HygieneListPageState extends State<HygieneListPage> {
                           final dirtyRooms = item.rooms
                               .where((r) => r.condition == 3 || r.condition == 2)
                               .length;
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => HygieneDetailPage(
-                                      hygiene: item),
-                                ),
-                              );
-                            },
-                            leading: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(alpha: 0.1),
-                                borderRadius: AppSpacing.borderRadiusSM,
-                              ),
-                              child: Icon(Icons.cleaning_services_outlined,
-                                  color: colorScheme.primary),
-                            ),
-                            title: Text(
-                              item.storeName ?? 'Toko',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.createdByName ?? '-'),
-                                Text(
-                                  _formatDate(item.createdAt),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
+                          final photos = item.rooms
+                              .where((r) => r.imageUrl != null)
+                              .map((r) => r.imageUrl!)
+                              .toList();
+                          return Card(
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => HygieneDetailPage(
+                                        hygiene: item),
                                   ),
-                                ),
-                              ],
-                            ),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                if (dirtyRooms > 0)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error
-                                          .withValues(alpha: 0.1),
-                                      borderRadius:
-                                          AppSpacing.borderRadiusXL,
+                                );
+                              },
+                              child: Padding(
+                                padding: AppSpacing.paddingMD,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                AppSpacing.borderRadiusSM,
+                                          ),
+                                          child: Icon(
+                                            Icons
+                                                .cleaning_services_outlined,
+                                            color: colorScheme.primary,
+                                          ),
+                                        ),
+                                        AppSpacing.gapHorizontalSM,
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.storeName ?? 'Toko',
+                                                style: theme
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                item.createdByName ?? '-',
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            if (dirtyRooms > 0)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.error
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      AppSpacing.borderRadiusXL,
+                                                ),
+                                                child: Text(
+                                                  '$dirtyRooms perlu perhatian',
+                                                  style: theme
+                                                      .textTheme.labelSmall
+                                                      ?.copyWith(
+                                                    color: AppColors.error,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            AppSpacing.gapVerticalXS,
+                                            Text(
+                                              item.statusLabel,
+                                              style: theme
+                                                  .textTheme.labelSmall
+                                                  ?.copyWith(
+                                                color: _statusColor(item.status),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    child: Text(
-                                      '$dirtyRooms perlu perhatian',
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: AppColors.error,
-                                        fontWeight: FontWeight.bold,
+                                    if (photos.isNotEmpty) ...[
+                                      AppSpacing.gapVerticalSM,
+                                      SizedBox(
+                                        height: 72,
+                                        child: ListView.separated(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: photos.length,
+                                          separatorBuilder: (_, __) =>
+                                              AppSpacing.gapHorizontalXS,
+                                          itemBuilder: (context, pidx) {
+                                            return ClipRRect(
+                                              borderRadius:
+                                                  AppSpacing.borderRadiusSM,
+                                              child: Image.network(
+                                                photos[pidx],
+                                                width: 72,
+                                                height: 72,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Container(
+                                                  width: 72,
+                                                  height: 72,
+                                                  color: colorScheme
+                                                      .surfaceContainerHighest
+                                                      .withValues(alpha: 0.3),
+                                                  child: Icon(
+                                                    Icons
+                                                        .image_not_supported_outlined,
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                AppSpacing.gapVerticalXS,
-                                Text(
-                                  item.statusLabel,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: _statusColor(item.status),
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                    ] else ...[
+                                      AppSpacing.gapVerticalXS,
+                                      Text(
+                                        _formatDate(item.createdAt),
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           );
                         },

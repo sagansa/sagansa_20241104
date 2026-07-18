@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/asset_controller.dart';
 import '../models/asset_issue_model.dart';
+import '../services/asset_issue_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'asset_detail_page.dart';
@@ -15,8 +16,13 @@ class AssetIssuePage extends StatefulWidget {
 
 class _AssetIssuePageState extends State<AssetIssuePage> {
   late AssetController _controller;
+  final AssetIssueService _issueService = AssetIssueService();
+  final ScrollController _scrollController = ScrollController();
   List<AssetIssueModel> _issues = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
   int _statusFilter = 1; // default open
 
@@ -24,20 +30,42 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
   void initState() {
     super.initState();
     _controller = AssetController(context);
-    _load();
+    _fetch();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _fetch() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _issues = [];
+      _hasMore = true;
     });
     try {
-      final data = await _controller.loadIssues(status: _statusFilter);
+      final result =
+          await _issueService.getIssuesPaged(status: _statusFilter, page: _page);
       if (!mounted) return;
       setState(() {
-        _issues = data;
+        _issues = result['data'] as List<AssetIssueModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -46,6 +74,25 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final result = await _issueService.getIssuesPaged(
+          status: _statusFilter, page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _issues.addAll(result['data'] as List<AssetIssueModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -80,7 +127,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                     colorScheme: colorScheme,
                     onTap: () {
                       setState(() => _statusFilter = 1);
-                      _load();
+                      _fetch();
                     }),
                 AppSpacing.gapHorizontalSM,
                 _FilterTab(
@@ -89,7 +136,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                     colorScheme: colorScheme,
                     onTap: () {
                       setState(() => _statusFilter = 2);
-                      _load();
+                      _fetch();
                     }),
               ],
             ),
@@ -106,7 +153,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                       Text(_errorMessage!, textAlign: TextAlign.center),
                       SizedBox(height: AppSpacing.sectionGap),
                       ElevatedButton(
-                          onPressed: _load, child: const Text('Coba Lagi')),
+                          onPressed: _fetch, child: const Text('Coba Lagi')),
                     ],
                   ),
                 )
@@ -130,11 +177,18 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                       ),
                     )
                   : RefreshIndicator(
-                      onRefresh: _load,
+                      onRefresh: _fetch,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: AppSpacing.screenPadding,
-                        itemCount: _issues.length,
+                        itemCount: _issues.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, i) {
+                          if (i == _issues.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
                           final issue = _issues[i];
                           return Card(
                             margin: EdgeInsets.only(bottom: AppSpacing.itemGap),
@@ -185,7 +239,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                                                 content:
                                                     Text('Issue ditutup.')),
                                           );
-                                          _load();
+                                          _fetch();
                                         } catch (e) {
                                           _showError(e
                                               .toString()

@@ -375,88 +375,84 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildQuickMenuCard(
-                    icon: Icons.wallet_outlined,
-                    color: AppColors.success,
-                    title: 'Gaji & Slip',
-                    isFirst: true,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SalaryPage()),
-                      );
-                    },
-                  ),
-                  _buildQuickMenuCard(
-                    icon: Icons.calendar_month_outlined,
-                    color: AppColors.primary,
-                    title: 'Kalender',
-                    onTap: () {
-                      final allPresences = [
-                        if (todayPresence != null) todayPresence!,
-                        ...previousPresences,
-                      ];
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CalendarPage(presences: allPresences),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildQuickMenuCard(
-                    icon: Icons.receipt_long_outlined,
-                    color: AppColors.warning,
-                    title: 'Cuti & Izin',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LeavePage()),
-                      );
-                    },
-                  ),
-                  _buildQuickMenuCard(
-                    icon: Icons.fact_check_outlined,
+            Column(
+              children: [
+                _buildMenuListItem(
+                  icon: Icons.wallet_outlined,
+                  color: AppColors.success,
+                  title: 'Gaji & Slip',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SalaryPage()),
+                    );
+                  },
+                ),
+                _buildMenuListItem(
+                  icon: Icons.calendar_month_outlined,
+                  color: AppColors.primary,
+                  title: 'Kalender',
+                  onTap: () {
+                    final allPresences = [
+                      if (todayPresence != null) todayPresence!,
+                      ...previousPresences,
+                    ];
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CalendarPage(presences: allPresences),
+                      ),
+                    );
+                  },
+                ),
+                _buildMenuListItem(
+                  icon: Icons.receipt_long_outlined,
+                  color: AppColors.warning,
+                  title: 'Cuti & Izin',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LeavePage()),
+                    );
+                  },
+                ),
+                _buildMenuListItem(
+                  icon: Icons.fact_check_outlined,
+                  color: AppColors.info,
+                  title: 'Rekap Presensi',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PresenceMonthlyPage(),
+                      ),
+                    );
+                  },
+                ),
+                if (hasLoanData)
+                  _buildMenuListItem(
+                    icon: Icons.payments_outlined,
                     color: AppColors.info,
-                    title: 'Rekap Presensi',
+                    title: 'Kasbon',
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const PresenceMonthlyPage(),
-                        ),
+                        MaterialPageRoute(builder: (context) => const LoanPage()),
                       );
                     },
                   ),
-                  if (hasLoanData)
-                    _buildQuickMenuCard(
-                      icon: Icons.payments_outlined,
-                      color: AppColors.info,
-                      title: 'Kasbon',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoanPage()),
-                        );
-                      },
-                    ),
-                  _buildQuickMenuCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: AppColors.success,
-                    title: 'Daily Salary',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const DailySalaryListPage()),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                _buildMenuListItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  color: AppColors.success,
+                  title: 'Daily Salary',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DailySalaryListPage()),
+                    );
+                  },
+                ),
+              ],
             ),
 
             AppSpacing.gapVerticalLG,
@@ -615,52 +611,31 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
     );
   }
 
-  Widget _buildQuickMenuCard({
+  Widget _buildMenuListItem({
     required IconData icon,
     required Color color,
     required String title,
     required VoidCallback onTap,
-    bool isFirst = false,
   }) {
     final theme = Theme.of(context);
-
-    return SizedBox(
-      width: 105,
-      child: Card(
-        margin: EdgeInsets.only(
-          left: isFirst ? AppSpacing.sm : 0,
-          right: AppSpacing.sm,
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppSpacing.borderRadiusMD,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap, horizontal: AppSpacing.xs),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: AppSpacing.paddingSM,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: AppSpacing.borderRadiusSM,
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ), 
-                AppSpacing.gapVerticalSM,
-                Text(
-                  title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: ListTile(
+        onTap: onTap,
+        leading: Container(
+          padding: AppSpacing.paddingSM,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: AppSpacing.borderRadiusSM,
           ),
+          child: Icon(icon, color: color, size: 22),
         ),
+        title: Text(
+          title,
+          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+        shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusMD),
       ),
     );
   }

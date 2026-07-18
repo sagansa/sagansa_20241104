@@ -37,7 +37,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
         _info = info;
         _isLoading = false;
         final defaults = info['defaults'] ?? {};
-        _paidAmountCtrl.text = (defaults['suggested_paid_amount'] ?? 0).toString();
+        _paidAmountCtrl.text = _parseInt(defaults['suggested_paid_amount']).toString();
         _dateCtrl.text = defaults['today'] ??
             DateTime.now().toIso8601String().substring(0, 10);
       });
@@ -158,8 +158,8 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
 
   String? _buildSelisihHelper() {
     final breakdown = _info?['breakdown'] ?? {};
-    final total = (breakdown['total_salary'] ?? 0) as num;
-    final daily = (breakdown['daily_salary_total'] ?? 0) as num;
+    final total = _parseInt(breakdown['total_salary']);
+    final daily = _parseInt(breakdown['daily_salary_total']);
     final expected = total - daily;
     final input = double.tryParse(_paidAmountCtrl.text);
     if (input == null) return null;
@@ -184,7 +184,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
             _row('Bank', bank['bank_name']?.toString() ?? '—'),
             _row('No. Rekening', bank['bank_account_number']?.toString() ?? '—'),
             _row('Atas Nama', bank['bank_account_name']?.toString() ?? '—'),
-            _row('Biaya Admin', currencyFormatter.format(bank['admin_fee'] ?? 0)),
+            _row('Biaya Admin', currencyFormatter.format(_parseInt(bank['admin_fee']))),
           ],
         ),
       ),
@@ -203,20 +203,20 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const Divider(),
-            _row('Gaji Utama (A)', currencyFormatter.format(b['base_salary'] ?? 0)),
+            _row('Gaji Utama (A)', currencyFormatter.format(_parseInt(b['base_salary']))),
             _row('Denda Keterlambatan',
-                '- ${currencyFormatter.format(b['late_penalties'] ?? 0)}'),
+                '- ${currencyFormatter.format(_parseInt(b['late_penalties']))}'),
             _row('Denda Manual',
-                '- ${currencyFormatter.format(b['manual_penalties'] ?? 0)}'),
+                '- ${currencyFormatter.format(_parseInt(b['manual_penalties']))}'),
             _row('Cicilan Kasbon',
-                '- ${currencyFormatter.format(b['loan_installments'] ?? 0)}'),
+                '- ${currencyFormatter.format(_parseInt(b['loan_installments']))}'),
             _row('Gaji Bulanan Bersih',
-                currencyFormatter.format(b['monthly_part'] ?? 0)),
+                currencyFormatter.format(_parseInt(b['monthly_part']))),
             _row('Gaji Harian (B)',
-                currencyFormatter.format(b['daily_salary_total'] ?? 0)),
+                currencyFormatter.format(_parseInt(b['daily_salary_total']))),
             const Divider(),
             _row('Total Gaji (A+Pengurangan+B)',
-                currencyFormatter.format(b['total_salary'] ?? 0)),
+                currencyFormatter.format(_parseInt(b['total_salary']))),
           ],
         ),
       ),
@@ -237,5 +237,13 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
         ],
       ),
     );
+  }
+
+  /// Parse nilai numerik dari API (bisa int, double, atau String) ke int.
+  /// Aman terhadap null dan tipe tak terduga.
+  int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
   }
 }

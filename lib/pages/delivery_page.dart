@@ -292,7 +292,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Future<void> _submitDelivery() async {
     if (_selectedOrder == null) return;
 
-    final receiptNo = _selectedOrder!['receipt_no'];
+    final receiptNo = _selectedOrder!['receipt_no']?.toString();
+    if (receiptNo == null || receiptNo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Nomor resi tidak tersedia pada order ini.',
+              style: TextStyle(color: Colors.white)),
+          backgroundColor: colorScheme.error,
+        ),
+      );
+      return;
+    }
     
     // Validasi foto (hanya wajib untuk status 3 / Sudah Dikirim)
     if (_selectedStatus == 3 && _imageFile == null) {
@@ -2686,7 +2696,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         child: Text(
                           widget.orderFor == '1'
                               ? 'Order #${order['id']}'
-                              : 'Resi: ${order['receipt_no']}',
+                              : 'Resi: ${order['receipt_no'] ?? '-'}',
                           style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: colorScheme.onSurface,

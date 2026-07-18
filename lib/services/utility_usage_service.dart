@@ -10,7 +10,7 @@ class UtilityUsageService {
     int? utilityId,
     int? status,
   }) async {
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{'per_page': '1000'};
     if (storeId != null) queryParams['store_id'] = storeId.toString();
     if (category != null) queryParams['category'] = category.toString();
     if (utilityId != null) queryParams['utility_id'] = utilityId.toString();
@@ -19,6 +19,32 @@ class UtilityUsageService {
     final data = await _apiClient.get('utility-usages',
         queryParams: queryParams.isEmpty ? null : queryParams);
     return (data as List).map((e) => UtilityUsageModel.fromJson(e)).toList();
+  }
+
+  Future<Map<String, dynamic>> getUtilityUsagesPaged({
+    int page = 1, int perPage = 20,
+    int? storeId, int? category, int? utilityId, int? status,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (storeId != null) queryParams['store_id'] = storeId.toString();
+    if (category != null) queryParams['category'] = category.toString();
+    if (utilityId != null) queryParams['utility_id'] = utilityId.toString();
+    if (status != null) queryParams['status'] = status.toString();
+    final json = await _apiClient.getRaw('utility-usages',
+        queryParams: queryParams.isEmpty ? null : queryParams);
+    if (json['success'] == true) {
+      final List data = json['data'] ?? [];
+      final meta = json['meta'] ?? {};
+      final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+      return {
+        'data': data.map((e) => UtilityUsageModel.fromJson(e as Map<String, dynamic>)).toList(),
+        'has_more': hasMore,
+      };
+    }
+    throw Exception(json['message'] ?? 'Gagal memuat penggunaan utilitas.');
   }
 
   Future<UtilityUsageModel> getUtilityUsage(int id) async {

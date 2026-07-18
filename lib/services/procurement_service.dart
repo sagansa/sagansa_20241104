@@ -31,10 +31,18 @@ class ProcurementService {
     }
   }
 
-  Future<List<RequestPurchase>> getRequests() async {
+  Future<List<RequestPurchase>> getRequests({
+    int page = 1,
+    int perPage = 1000,
+  }) async {
     final token = await _getToken();
+    final uri = Uri.parse('${ApiConstants.baseUrl}/procurement/requests')
+        .replace(queryParameters: {
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    });
     final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/procurement/requests'),
+      uri,
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -48,6 +56,27 @@ class ProcurementService {
     } else {
       throw Exception('Failed to load procurement requests');
     }
+  }
+
+  Future<Map<String, dynamic>> getRequestsPaged({int page = 1, int perPage = 20}) async {
+    final token = await _getToken();
+    final uri = Uri.parse('${ApiConstants.baseUrl}/procurement/requests')
+        .replace(queryParameters: {'page': page.toString(), 'per_page': perPage.toString()});
+    final response = await http.get(uri, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> body = json.decode(response.body);
+      if (body['success'] == true) {
+        final List<dynamic> data = body['data'] ?? [];
+        final meta = body['pagination'] ?? {};
+        final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+        return {
+          'data': data.map((e) => RequestPurchase.fromJson(e)).toList(),
+          'has_more': hasMore,
+        };
+      }
+      throw Exception(body['message'] ?? 'Failed to load procurement requests');
+    }
+    throw Exception('Failed to load procurement requests');
   }
 
   Future<Map<String, dynamic>> getProcurementSummary() async {

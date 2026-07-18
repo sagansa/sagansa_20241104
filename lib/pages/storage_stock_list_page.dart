@@ -16,14 +16,36 @@ class StorageStockListPage extends StatefulWidget {
 
 class _StorageStockListPageState extends State<StorageStockListPage> {
   final StorageStockService _service = StorageStockService();
+  final ScrollController _scrollController = ScrollController();
+
   List<StorageStockModel> _reports = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _fetchReports();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   Future<void> _fetchReports() async {
@@ -31,13 +53,17 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _reports = [];
+      _hasMore = true;
     });
 
     try {
-      final data = await _service.getStorageStocks();
+      final result = await _service.getStorageStocks(page: _page);
       if (!mounted) return;
       setState(() {
-        _reports = data;
+        _reports = result['reports'] as List<StorageStockModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -46,6 +72,25 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getStorageStocks(page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _reports.addAll(result['reports'] as List<StorageStockModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -99,9 +144,17 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
                   : RefreshIndicator(
                       onRefresh: _fetchReports,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: AppSpacing.paddingMD,
-                        itemCount: _reports.length,
+                        itemCount: _reports.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, idx) {
+                          if (idx == _reports.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
                           final report = _reports[idx];
 
                           return Card(

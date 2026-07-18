@@ -48,6 +48,48 @@ class AssetIssueService {
     throw Exception('Gagal memuat daftar issue: ${response.statusCode}');
   }
 
+  Future<Map<String, dynamic>> getIssuesPaged({
+    int page = 1,
+    int perPage = 20,
+    int? assetId,
+    int? status,
+    int? storeId,
+    int? severity,
+  }) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final query = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (assetId != null) query['asset_id'] = assetId.toString();
+    if (status != null) query['status'] = status.toString();
+    if (storeId != null) query['store_id'] = storeId.toString();
+    if (severity != null) query['severity'] = severity.toString();
+
+    final uri =
+        Uri.parse(ApiConstants.assetIssues).replace(queryParameters: query);
+    final response = await http.get(uri, headers: _authHeaders(token));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['success'] == true) {
+        final List data = json['data'] ?? [];
+        final meta = json['pagination'] ?? {};
+        final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+        return {
+          'data': data
+              .map((e) => AssetIssueModel.fromJson(e as Map<String, dynamic>))
+              .toList(),
+          'has_more': hasMore,
+        };
+      }
+      throw Exception(json['message'] ?? 'Gagal memuat daftar issue.');
+    }
+    throw Exception('Gagal memuat daftar issue: ${response.statusCode}');
+  }
+
   Future<void> closeIssue(int id, {String? notes}) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');

@@ -36,6 +36,35 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  /// Sama seperti [get], tapi mengembalikan SELURUH body JSON (termasuk
+  /// key `pagination`/`meta`) agar pemanggil bisa membaca metadata paginasi.
+  Future<Map<String, dynamic>> getRaw(String path,
+      {Map<String, String>? queryParams}) async {
+    var uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+    if (queryParams != null && queryParams.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParams);
+    }
+
+    debugPrint('ApiClient GET (raw): $uri');
+    final response = await http.get(uri, headers: await _headers());
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final json = jsonDecode(response.body);
+      if (json is Map<String, dynamic>) return json;
+      throw Exception('Format respons tidak dikenali.');
+    }
+
+    final json = jsonDecode(response.body);
+    final errors = json['errors'];
+    if (errors != null && errors is Map) {
+      final message = errors.values.expand((e) => e as List).join(', ');
+      throw Exception(message);
+    }
+
+    throw Exception(json['message'] ??
+        'Terjadi kesalahan pada server (Status ${response.statusCode}).');
+  }
+
   /// Sends a POST request to the specified endpoint path.
   Future<dynamic> post(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');

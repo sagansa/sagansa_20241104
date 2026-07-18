@@ -17,14 +17,36 @@ class TransferStockListPage extends StatefulWidget {
 
 class _TransferStockListPageState extends State<TransferStockListPage> {
   final TransferStockService _service = TransferStockService();
+  final ScrollController _scrollController = ScrollController();
+
   List<TransferStockModel> _transfers = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _fetchTransfers();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   Future<void> _fetchTransfers() async {
@@ -32,13 +54,17 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _transfers = [];
+      _hasMore = true;
     });
 
     try {
-      final data = await _service.getTransferStocks();
+      final result = await _service.getTransferStocks(page: _page);
       if (!mounted) return;
       setState(() {
-        _transfers = data;
+        _transfers = result['transfers'] as List<TransferStockModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -47,6 +73,25 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getTransferStocks(page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _transfers.addAll(result['transfers'] as List<TransferStockModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -123,9 +168,17 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                   : RefreshIndicator(
                       onRefresh: _fetchTransfers,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: AppSpacing.paddingMD,
-                        itemCount: _transfers.length,
+                        itemCount: _transfers.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, idx) {
+                          if (idx == _transfers.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
                           final transfer = _transfers[idx];
 
                           return Card(
@@ -194,8 +247,8 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                    AppSpacing.gapVerticalXS,
-                    Text(
+                                    AppSpacing.gapVerticalXS,
+                                    Text(
                                       'Dikirim oleh: ${transfer.sentByName}',
                                       style:
                                           theme.textTheme.bodySmall?.copyWith(
@@ -203,16 +256,17 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                                             .withValues(alpha: 0.8),
                                       ),
                                     ),
-                    if (transfer.receivedByName != null) ...[
-                      AppSpacing.gapVerticalXS,
-                      Text(
-                        'Diterima oleh: ${transfer.receivedByName}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
+                                    if (transfer.receivedByName != null) ...[
+                                      AppSpacing.gapVerticalXS,
+                                      Text(
+                                        'Diterima oleh: ${transfer.receivedByName}',
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color: colorScheme.onSurfaceVariant
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                    ],
                                     const Divider(height: 24),
                                     Text(
                                       '${transfer.details.length} jenis item',

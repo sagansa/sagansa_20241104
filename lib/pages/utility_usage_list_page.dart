@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/utility_usage_model.dart';
 import '../services/utility_usage_service.dart';
-import '../services/presence_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/status_badge.dart';
@@ -21,12 +20,15 @@ class UtilityUsageListPage extends StatefulWidget {
 
 class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
   final UtilityUsageService _service = UtilityUsageService();
+  final ScrollController _scrollController = ScrollController();
 
   List<UtilityUsageModel> _items = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   bool _hasLoaded = false;
   bool _canManage = false;
-  bool _isClockedIn = false;
   String? _errorMessage;
 
   // Filters - hierarchical: Store -> Category -> Utility
@@ -61,15 +63,49 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
   void initState() {
     super.initState();
     _canManage = context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor', 'staff']);
-    _checkClockIn();
     _loadFilterData();
     _fetch();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _checkClockIn() async {
-    final clockedIn = await PresenceService.isClockedIn();
-    if (!mounted) return;
-    setState(() => _isClockedIn = clockedIn);
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getUtilityUsagesPaged(
+        page: _page + 1,
+        storeId: _selectedStoreId,
+        category: _selectedCategory,
+        utilityId: _selectedUtilityId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _items.addAll(result['data'] as List<UtilityUsageModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+    }
   }
 
   Future<void> _loadFilterData() async {
@@ -91,16 +127,21 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _items = [];
+      _hasMore = true;
     });
     try {
-      final data = await _service.getUtilityUsages(
+      final result = await _service.getUtilityUsagesPaged(
+        page: _page,
         storeId: _selectedStoreId,
         category: _selectedCategory,
         utilityId: _selectedUtilityId,
       );
       if (!mounted) return;
       setState(() {
-        _items = data;
+        _items = result['data'] as List<UtilityUsageModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
         _hasLoaded = true;
       });
@@ -170,7 +211,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
             ),
         ],
       ),
-      floatingActionButton: (_canManage && _isClockedIn)
+      floatingActionButton: _canManage
           ? AddFab(onPressed: () => _openForm())
           : null,
       bottomNavigationBar: ModernBottomNav(
@@ -367,9 +408,16 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
     return RefreshIndicator(
       onRefresh: _fetch,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-        itemCount: _items.length,
+        itemCount: _items.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
+          if (idx == _items.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
           return _buildCard(_items[idx], colorScheme, textTheme);
         },
       ),

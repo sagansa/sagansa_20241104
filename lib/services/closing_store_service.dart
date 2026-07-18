@@ -16,7 +16,8 @@ class ClosingStoreService {
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
     final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/closing-stores'),
+      Uri.parse('${ApiConstants.baseUrl}/closing-stores')
+          .replace(queryParameters: {'per_page': '1000'}),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -29,6 +30,23 @@ class ClosingStoreService {
     } else {
       throw Exception(jsonResponse['message'] ?? 'Gagal memuat daftar closing store.');
     }
+  }
+
+  Future<Map<String, dynamic>> getClosingStoresPaged({int page = 1, int perPage = 20}) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final uri = Uri.parse('${ApiConstants.baseUrl}/closing-stores')
+        .replace(queryParameters: {'page': page.toString(), 'per_page': perPage.toString()});
+    final response = await http.get(uri, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      final List data = jsonResponse['data'] as List<dynamic>? ?? [];
+      final meta = jsonResponse['pagination'] ?? {};
+      final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+      return {'data': data.cast<Map<String, dynamic>>(), 'has_more': hasMore};
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal memuat daftar closing store.');
   }
 
   Future<Map<String, dynamic>> getClosingStore(int id) async {
@@ -428,8 +446,10 @@ class ClosingStoreService {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
+    final query = <String, String>{'per_page': '1000'};
+    if (allStores) query['all_stores'] = '1';
     final uri = Uri.parse('${ApiConstants.baseUrl}/closing-stores/fuel-services')
-        .replace(queryParameters: allStores ? {'all_stores': '1'} : null);
+        .replace(queryParameters: query);
 
     final response = await http.get(
       uri,
@@ -445,5 +465,22 @@ class ClosingStoreService {
     } else {
       throw Exception(jsonResponse['message'] ?? 'Gagal memuat daftar bensin/servis.');
     }
+  }
+
+  Future<Map<String, dynamic>> getFuelServicesPaged({bool allStores = false, int page = 1, int perPage = 20}) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+    final query = <String, String>{'page': page.toString(), 'per_page': perPage.toString()};
+    if (allStores) query['all_stores'] = '1';
+    final uri = Uri.parse('${ApiConstants.baseUrl}/closing-stores/fuel-services').replace(queryParameters: query);
+    final response = await http.get(uri, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    final jsonResponse = json.decode(response.body);
+    if (response.statusCode == 200 && jsonResponse['success'] == true) {
+      final List data = jsonResponse['data'] as List<dynamic>? ?? [];
+      final meta = jsonResponse['pagination'] ?? {};
+      final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+      return {'data': data.cast<Map<String, dynamic>>(), 'has_more': hasMore};
+    }
+    throw Exception(jsonResponse['message'] ?? 'Gagal memuat daftar bensin/servis.');
   }
 }

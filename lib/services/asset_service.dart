@@ -83,7 +83,7 @@ class AssetService {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
-    final query = <String, String>{};
+    final query = <String, String>{'per_page': '1000'};
     if (storeId != null) query['store_id'] = storeId.toString();
     if (categoryId != null) query['asset_category_id'] = categoryId.toString();
     if (status != null) query['status'] = status.toString();
@@ -102,6 +102,54 @@ class AssetService {
         return data
             .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
             .toList();
+      }
+      throw Exception(json['message'] ?? 'Gagal memuat daftar aset.');
+    }
+    throw Exception('Gagal memuat daftar aset: ${response.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> getAssetsPaged({
+    int page = 1,
+    int perPage = 20,
+    int? storeId,
+    int? categoryId,
+    int? status,
+    int? condition,
+    int? productId,
+    String? due,
+    String? search,
+  }) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final query = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (storeId != null) query['store_id'] = storeId.toString();
+    if (categoryId != null) query['asset_category_id'] = categoryId.toString();
+    if (status != null) query['status'] = status.toString();
+    if (condition != null) query['condition'] = condition.toString();
+    if (productId != null) query['product_id'] = productId.toString();
+    if (due != null) query['due'] = due;
+    if (search != null && search.isNotEmpty) query['search'] = search;
+
+    final uri = Uri.parse(ApiConstants.assets).replace(queryParameters: query);
+    final response = await http.get(uri, headers: _authHeaders(token));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['success'] == true) {
+        final List data = json['data'] ?? [];
+        final meta = json['pagination'] ?? {};
+        final hasMore =
+            (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+        return {
+          'data': data
+              .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
+              .toList(),
+          'has_more': hasMore,
+        };
       }
       throw Exception(json['message'] ?? 'Gagal memuat daftar aset.');
     }

@@ -54,7 +54,8 @@ class CalendarPageState extends State<CalendarPage> {
       final salaryResult = results[1] as Map<String, dynamic>;
       _dailySalaries = salaryResult['data'] ?? [];
       _closingStores = results[2] as List<dynamic>;
-      _storageStocks = results[3] as List<dynamic>;
+      final stockResult = results[3] as Map<String, dynamic>;
+      _storageStocks = stockResult['data'] ?? [];
 
       setState(() {
         _allAppointments = _getAppointments();

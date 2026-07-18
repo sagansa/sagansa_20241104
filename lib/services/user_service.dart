@@ -10,18 +10,14 @@ class UserService {
     final token = prefs.getString(AppConstants.tokenKey);
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
-    var url = '${ApiConstants.baseUrl}/users';
-    if (role != null) {
-      url += '?role=$role';
-    }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+    final uri = Uri.parse('${ApiConstants.baseUrl}/users').replace(
+      queryParameters: role != null ? {'role': role} : null,
     );
+
+    final response = await http.get(uri, headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
 
     final jsonResponse = json.decode(response.body);
     if (response.statusCode == 200 && jsonResponse['success'] == true) {

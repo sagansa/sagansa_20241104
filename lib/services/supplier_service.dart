@@ -6,19 +6,46 @@ import 'image_upload_service.dart';
 class SupplierService {
   final ApiClient _apiClient = ApiClient();
 
-  /// Fetch all suppliers with optional filters
+  /// Fetch all suppliers with optional filters (used by dropdowns).
+  /// Uses a large per_page so dropdowns still receive all suppliers.
   Future<List<SupplierModel>> getSuppliers({
     String? search,
     int? bankId,
     int? status,
   }) async {
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{'per_page': '1000'};
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
     if (bankId != null) queryParams['bank_id'] = bankId.toString();
     if (status != null) queryParams['status'] = status.toString();
 
     final data = await _apiClient.get('suppliers', queryParams: queryParams);
     return (data as List).map((e) => SupplierModel.fromJson(e)).toList();
+  }
+
+  /// Fetch a single page of suppliers with optional filters.
+  /// Returns a map with `data` (a list of SupplierModel) and `has_more` (bool).
+  Future<Map<String, dynamic>> getSuppliersPaged({
+    int page = 1, int perPage = 20,
+    String? search, int? bankId, int? status,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (bankId != null) queryParams['bank_id'] = bankId.toString();
+    if (status != null) queryParams['status'] = status.toString();
+    final json = await _apiClient.getRaw('suppliers', queryParams: queryParams);
+    if (json['success'] == true) {
+      final List data = json['data'] ?? [];
+      final meta = json['pagination'] ?? {};
+      final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+      return {
+        'data': data.map((e) => SupplierModel.fromJson(e as Map<String, dynamic>)).toList(),
+        'has_more': hasMore,
+      };
+    }
+    throw Exception(json['message'] ?? 'Gagal memuat supplier.');
   }
 
   /// Fetch a single supplier by id

@@ -9,8 +9,11 @@ class LeaveService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
+    final uri = Uri.parse(ApiConstants.leaves)
+        .replace(queryParameters: {'per_page': '1000'});
+
     final response = await http.get(
-      Uri.parse(ApiConstants.leaves),
+      uri,
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -19,11 +22,34 @@ class LeaveService {
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
-      final List<dynamic> leavesJson = data['data'];
+      final List<dynamic> leavesJson =
+          data['data'] is List ? data['data'] : [];
       return leavesJson.map((json) => LeaveModel.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load leaves');
     }
+  }
+
+  Future<Map<String, dynamic>> getLeavesPaged({int page = 1, int perPage = 20}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final uri = Uri.parse(ApiConstants.leaves)
+        .replace(queryParameters: {'page': page.toString(), 'per_page': perPage.toString()});
+    final response = await http.get(uri, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> body = json.decode(response.body);
+      if (body['success'] == true || body['status'] == 'success') {
+        final List<dynamic> data = body['data'] ?? [];
+        final meta = body['pagination'] ?? {};
+        final hasMore = (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+        return {
+          'data': data.map((e) => LeaveModel.fromJson(e)).toList(),
+          'has_more': hasMore,
+        };
+      }
+      throw Exception(body['message'] ?? 'Gagal memuat data cuti');
+    }
+    throw Exception('Gagal memuat data cuti');
   }
 
   Future<bool> submitLeave({

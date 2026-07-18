@@ -18,8 +18,12 @@ class AssetListPage extends StatefulWidget {
 
 class _AssetListPageState extends State<AssetListPage> {
   late AssetController _controller;
+  final ScrollController _scrollController = ScrollController();
   List<AssetModel> _assets = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
 
   final TextEditingController _searchCtrl = TextEditingController();
@@ -32,30 +36,48 @@ class _AssetListPageState extends State<AssetListPage> {
     super.initState();
     _controller = AssetController(context);
     _dueFilter = widget.initialDue;
-    _load();
+    _fetch();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _fetch() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _assets = [];
+      _hasMore = true;
     });
+
     try {
-      final data = await _controller.loadAssets(
+      final result = await _controller.loadAssetsPaged(
         due: _dueFilter,
         status: _statusFilter,
         search: _searchQuery.isEmpty ? null : _searchQuery,
+        page: _page,
       );
       if (!mounted) return;
       setState(() {
-        _assets = data;
+        _assets = result['data'] as List<AssetModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -67,11 +89,35 @@ class _AssetListPageState extends State<AssetListPage> {
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _controller.loadAssetsPaged(
+        due: _dueFilter,
+        status: _statusFilter,
+        search: _searchQuery.isEmpty ? null : _searchQuery,
+        page: _page + 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _assets.addAll(result['data'] as List<AssetModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
   // Debounce sederhana untuk pencarian.
   void _onSearchChanged(String v) {
     _searchQuery = v;
     Future.delayed(const Duration(milliseconds: 400), () {
-      if (_searchQuery == v) _load();
+      if (_searchQuery == v) _fetch();
     });
   }
 
@@ -123,7 +169,7 @@ class _AssetListPageState extends State<AssetListPage> {
                         colorScheme: colorScheme,
                         onTap: () {
                           setState(() => _dueFilter = null);
-                          _load();
+                          _fetch();
                         },
                       ),
                       _FilterChip(
@@ -132,7 +178,7 @@ class _AssetListPageState extends State<AssetListPage> {
                         colorScheme: colorScheme,
                         onTap: () {
                           setState(() => _dueFilter = 'today');
-                          _load();
+                          _fetch();
                         },
                       ),
                       _FilterChip(
@@ -141,7 +187,7 @@ class _AssetListPageState extends State<AssetListPage> {
                         colorScheme: colorScheme,
                         onTap: () {
                           setState(() => _dueFilter = 'overdue');
-                          _load();
+                          _fetch();
                         },
                       ),
                       _FilterChip(
@@ -150,7 +196,7 @@ class _AssetListPageState extends State<AssetListPage> {
                         colorScheme: colorScheme,
                         onTap: () {
                           setState(() => _dueFilter = 'week');
-                          _load();
+                          _fetch();
                         },
                       ),
                       _FilterChip(
@@ -160,7 +206,7 @@ class _AssetListPageState extends State<AssetListPage> {
                         onTap: () {
                           setState(() => _statusFilter =
                               _statusFilter == 1 ? null : 1);
-                          _load();
+                          _fetch();
                         },
                       ),
                     ],
@@ -181,7 +227,7 @@ class _AssetListPageState extends State<AssetListPage> {
                                 textAlign: TextAlign.center),
                             SizedBox(height: AppSpacing.sectionGap),
                             ElevatedButton(
-                                onPressed: _load, child: const Text('Coba Lagi')),
+                                onPressed: _fetch, child: const Text('Coba Lagi')),
                           ],
                         ),
                       )
@@ -201,12 +247,20 @@ class _AssetListPageState extends State<AssetListPage> {
                             ),
                           )
                         : RefreshIndicator(
-                            onRefresh: _load,
+                            onRefresh: _fetch,
                             child: ListView.builder(
+                              controller: _scrollController,
                               padding: AppSpacing.screenPadding,
-                              itemCount: _assets.length,
-                              itemBuilder: (context, i) {
-                                final a = _assets[i];
+                              itemCount: _assets.length + (_hasMore ? 1 : 0),
+                              itemBuilder: (context, idx) {
+                                if (idx == _assets.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(AppSpacing.md),
+                                    child: Center(
+                                        child: CircularProgressIndicator()),
+                                  );
+                                }
+                                final a = _assets[idx];
                                 return _AssetRow(
                                   asset: a,
                                   theme: theme,
@@ -219,7 +273,7 @@ class _AssetListPageState extends State<AssetListPage> {
                                             AssetDetailPage(assetId: a.id),
                                       ),
                                     );
-                                    _load();
+                                    _fetch();
                                   },
                                 );
                               },

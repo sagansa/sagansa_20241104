@@ -24,6 +24,7 @@ class FuelServiceListPage extends StatefulWidget {
 
 class _FuelServiceListPageState extends State<FuelServiceListPage> {
   final ClosingStoreService _service = ClosingStoreService();
+  final ScrollController _scrollController = ScrollController();
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
@@ -31,15 +32,35 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
   );
 
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
-  List<dynamic> _fuelServices = [];
+  List<Map<String, dynamic>> _services = [];
   bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _loadAdminRole();
-    _loadData();
+    _fetch();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadAdminRole() async {
@@ -58,23 +79,49 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     }
   }
 
-  Future<void> _loadData() async {
+  Future<void> _fetch() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _services = [];
+      _hasMore = true;
     });
 
     try {
-      final list = await _service.getFuelServices(allStores: _isAdmin);
+      final result = await _service.getFuelServicesPaged(allStores: _isAdmin, page: _page);
+      if (!mounted) return;
       setState(() {
-        _fuelServices = list;
+        _services = result['data'] as List<Map<String, dynamic>>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getFuelServicesPaged(allStores: _isAdmin, page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _services.addAll(result['data'] as List<Map<String, dynamic>>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -84,7 +131,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       MaterialPageRoute(builder: (context) => const FuelServiceFormPage()),
     );
     if (result == true) {
-      _loadData();
+      _fetch();
     }
   }
 
@@ -100,7 +147,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
+            onPressed: _fetch,
           )
         ],
       ),
@@ -122,14 +169,14 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                         ),
                         AppSpacing.gapVerticalLG,
                         ElevatedButton(
-                          onPressed: _loadData,
+                          onPressed: _fetch,
                           child: const Text('Coba Lagi'),
                         ),
                       ],
                     ),
                   ),
                 )
-              : _fuelServices.isEmpty
+              : _services.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -140,11 +187,21 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: _fuelServices.length,
-                      padding: AppSpacing.paddingMD,
-                      itemBuilder: (context, index) {
-                        final fs = _fuelServices[index];
+                  : RefreshIndicator(
+                      onRefresh: _fetch,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _services.length + (_hasMore ? 1 : 0),
+                        padding: AppSpacing.paddingMD,
+                        itemBuilder: (context, index) {
+                          if (index == _services.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          final fs = _services[index];
                         final type = fs['fuel_service'] == 1 ? 'Fuel' : 'Service';
                         final isFuel = fs['fuel_service'] == 1;
                         final amount = double.tryParse(fs['amount'].toString()) ?? 0;
@@ -260,7 +317,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                           ),
                         );
                       },
-                    ),
+                    )),
       floatingActionButton: AddFab(
         onPressed: _openFuelServiceForm,
       ),

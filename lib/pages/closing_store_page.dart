@@ -33,9 +33,13 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
   String? _errorMessage;
 
   bool _isCreatingOrEditing = false;
-  List<dynamic> _closingStores = [];
+  List<Map<String, dynamic>> _stores = [];
   bool _isListLoading = true;
   String? _listErrorMessage;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
+  final ScrollController _scrollController = ScrollController();
 
   // Active Draft Data
   Map<String, dynamic>? _closingData;
@@ -63,10 +67,13 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
   void initState() {
     super.initState();
     _loadClosingStores();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _cashForTomorrowController.dispose();
     _totalCashTransferController.dispose();
     _notesController.dispose();
@@ -76,23 +83,58 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
     super.dispose();
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
   Future<void> _loadClosingStores() async {
+    if (!mounted) return;
     setState(() {
       _isListLoading = true;
       _listErrorMessage = null;
+      _page = 1;
+      _stores = [];
+      _hasMore = true;
     });
 
     try {
-      final list = await _service.getClosingStores();
+      final result = await _service.getClosingStoresPaged(page: _page);
+      if (!mounted) return;
       setState(() {
-        _closingStores = list;
+        _stores = result['data'] as List<Map<String, dynamic>>;
+        _hasMore = result['has_more'] as bool;
         _isListLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _listErrorMessage = e.toString().replaceAll('Exception: ', '');
         _isListLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getClosingStoresPaged(page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _stores.addAll(result['data'] as List<Map<String, dynamic>>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -1017,7 +1059,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                       ),
                     ),
                   )
-                : _closingStores.isEmpty
+                : _stores.isEmpty
                     ? const EmptyState(
                         icon: Icons.assignment_turned_in_outlined,
                         title: 'Belum ada laporan tutup shift.',
@@ -1025,10 +1067,17 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                     : RefreshIndicator(
                         onRefresh: _loadClosingStores,
                         child: ListView.builder(
+                          controller: _scrollController,
                           padding: AppSpacing.paddingMD,
-                          itemCount: _closingStores.length,
+                          itemCount: _stores.length + (_hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
-                            return _buildClosingStoreItem(_closingStores[index]);
+                            if (index == _stores.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(AppSpacing.md),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            return _buildClosingStoreItem(_stores[index]);
                           },
                         ),
                       ),

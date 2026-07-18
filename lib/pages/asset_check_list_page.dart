@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../controllers/asset_controller.dart';
 import '../models/asset_check_model.dart';
+import '../services/asset_check_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
@@ -16,30 +16,57 @@ class AssetCheckListPage extends StatefulWidget {
 }
 
 class _AssetCheckListPageState extends State<AssetCheckListPage> {
-  late AssetController _controller;
+  final AssetCheckService _checkService = AssetCheckService();
+  final ScrollController _scrollController = ScrollController();
   List<AssetCheckModel> _checks = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
-    _load();
+    _fetch();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _fetch() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _checks = [];
+      _hasMore = true;
     });
+
     try {
-      final data =
-          await _controller.loadChecks(assetId: widget.assetId);
+      final result = await _checkService.getChecksPaged(
+        assetId: widget.assetId,
+        page: _page,
+      );
       if (!mounted) return;
       setState(() {
-        _checks = data;
+        _checks = result['data'] as List<AssetCheckModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -48,6 +75,28 @@ class _AssetCheckListPageState extends State<AssetCheckListPage> {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _checkService.getChecksPaged(
+        assetId: widget.assetId,
+        page: _page + 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _checks.addAll(result['data'] as List<AssetCheckModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -153,7 +202,7 @@ class _AssetCheckListPageState extends State<AssetCheckListPage> {
                       Text(_errorMessage!, textAlign: TextAlign.center),
                       SizedBox(height: AppSpacing.sectionGap),
                       ElevatedButton(
-                          onPressed: _load, child: const Text('Coba Lagi')),
+                          onPressed: _fetch, child: const Text('Coba Lagi')),
                     ],
                   ),
                 )
@@ -173,12 +222,19 @@ class _AssetCheckListPageState extends State<AssetCheckListPage> {
                       ),
                     )
                   : RefreshIndicator(
-                      onRefresh: _load,
+                      onRefresh: _fetch,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: AppSpacing.screenPadding,
-                        itemCount: _checks.length,
-                        itemBuilder: (context, i) {
-                          final c = _checks[i];
+                        itemCount: _checks.length + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, idx) {
+                          if (idx == _checks.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          final c = _checks[idx];
                           return Card(
                             margin: EdgeInsets.only(bottom: AppSpacing.itemGap),
                             child: ListTile(

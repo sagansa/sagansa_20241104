@@ -340,7 +340,7 @@ class _SalaryPageState extends State<SalaryPage> {
   Widget _buildSalaryCard(Map<String, dynamic> salary) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final DateTime periodDate = DateTime.parse(salary['period']);
+    final DateTime periodDate = _resolvePeriodDate(salary['period']);
     final DateTime? paymentDate = salary['paymentDate'] != null
         ? DateTime.parse(salary['paymentDate'])
         : null;
@@ -693,5 +693,15 @@ class _SalaryPageState extends State<SalaryPage> {
         return _buildSalaryCard(salaryHistory[index]);
       },
     );
+  }
+
+  /// Resolve salary period date: jika tanggal >= 26 (cutoff),
+  /// bulan gaji adalah bulan berikutnya (e.g. 26 Mei → Juni).
+  DateTime _resolvePeriodDate(dynamic period) {
+    final dt = DateTime.parse(period.toString());
+    if (dt.day >= 26) {
+      return DateTime(dt.year, dt.month + 1, 1);
+    }
+    return DateTime(dt.year, dt.month, 1);
   }
 }

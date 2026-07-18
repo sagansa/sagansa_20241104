@@ -21,13 +21,17 @@ class SupplierListPage extends StatefulWidget {
 class _SupplierListPageState extends State<SupplierListPage> {
   final SupplierService _service = SupplierService();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   List<SupplierModel> _suppliers = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   bool _hasSearched = false;
   bool _canManage = false;
   String? _errorMessage;
   int? _selectedStatus;
+  int _page = 1;
 
   static const int _minSearchLength = 3;
 
@@ -36,12 +40,24 @@ class _SupplierListPageState extends State<SupplierListPage> {
     super.initState();
     _loadUser();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   void _loadUser() {
@@ -64,21 +80,33 @@ class _SupplierListPageState extends State<SupplierListPage> {
 
   Future<void> _fetchSuppliers() async {
     final query = _searchController.text.trim();
-    if (query.length < _minSearchLength && _selectedStatus == null) return;
+    if (query.length < _minSearchLength && _selectedStatus == null) {
+      setState(() {
+        _suppliers = [];
+        _hasSearched = false;
+        _errorMessage = null;
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _suppliers = [];
+      _hasMore = true;
     });
     try {
-      final data = await _service.getSuppliers(
+      final result = await _service.getSuppliersPaged(
+        page: _page,
         search: query.isEmpty ? null : query,
         status: _selectedStatus,
       );
       if (!mounted) return;
       setState(() {
-        _suppliers = data;
+        _suppliers = result['data'] as List<SupplierModel>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
         _hasSearched = true;
       });
@@ -89,6 +117,30 @@ class _SupplierListPageState extends State<SupplierListPage> {
         _isLoading = false;
         _hasSearched = true;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final query = _searchController.text.trim();
+      final result = await _service.getSuppliersPaged(
+        page: _page + 1,
+        search: query.isEmpty ? null : query,
+        status: _selectedStatus,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _suppliers.addAll(result['data'] as List<SupplierModel>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -257,9 +309,16 @@ class _SupplierListPageState extends State<SupplierListPage> {
     return RefreshIndicator(
       onRefresh: _fetchSuppliers,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-        itemCount: _suppliers.length,
+        itemCount: _suppliers.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
+          if (idx == _suppliers.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
           return _buildSupplierCard(_suppliers[idx], colorScheme, textTheme);
         },
       ),

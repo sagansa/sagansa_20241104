@@ -127,18 +127,116 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     );
   }
 
-  Widget _buildBreakdownCard(BuildContext context) {
+  /// Kartu informasi nilai yang ditransfer ke karyawan.
+  /// Hanya tampil bila slip sudah dibayar (paid_amount != null).
+  Widget _buildTransferCard(BuildContext context) {
     if (salaryDetail == null) return const SizedBox.shrink();
+
+    final dynamic paidAmountRaw = salaryDetail!['paid_amount'];
+    final dynamic paymentDateRaw = salaryDetail!['paymentDate'];
+
+    // Hanya render bila ada nilai yang dibayarkan.
+    if (paidAmountRaw == null) return const SizedBox.shrink();
+
+    final int paidAmount = _parseInt(paidAmountRaw);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    String tanggalText = '-';
+    if (paymentDateRaw != null) {
+      final DateTime? dt = DateTime.tryParse(paymentDateRaw.toString());
+      if (dt != null) {
+        tanggalText = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+      }
+    }
+
+    // Selisih antara nominal transfer dengan bagian gaji BULANAN saja.
+    // Gaji harian dibayar terpisah (tunai via closing store), jadi tidak
+    // dibandingkan dengan paid_amount. Mencegah false "kurang bayar" sebesar
+    // gaji harian padahal sebenarnya sudah pas.
+    //   gaji_bulanan = total_salary (THP) - daily_salary_total
+    final int totalSalary = _parseInt(salaryDetail!['amount']);
+    final int dailySalaryTotal = _parseInt(salaryDetail!['daily_salary_total']);
+    final int gajiBulanan = totalSalary - dailySalaryTotal;
+    final int selisih = gajiBulanan - paidAmount;
+    String selisihText = '';
+    Color selisihColor = colorScheme.onSurfaceVariant;
+    if (selisih > 0) {
+      selisihText = 'Kurang bayar ${currencyFormatter.format(selisih)}';
+      selisihColor = colorScheme.error;
+    } else if (selisih < 0) {
+      selisihText = 'Lebih bayar ${currencyFormatter.format(selisih.abs())}';
+      selisihColor = AppColors.warning;
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      child: Container(
+        width: double.infinity,
+        padding: AppSpacing.paddingMD,
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_balance, color: AppColors.success, size: 20),
+                AppSpacing.gapHorizontalSM,
+                Text(
+                  'Nilai Ditransfer',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ]),
+            AppSpacing.gapVerticalSM,
+            Text(
+              currencyFormatter.format(paidAmount),
+              style: textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.success,
+              ),
+            ),
+            AppSpacing.gapVerticalSM,
+            Row(
+              children: [
+                Icon(Icons.event, size: 16, color: colorScheme.onSurfaceVariant),
+                AppSpacing.gapHorizontalXS,
+                Text(
+                  'Ditransfer $tanggalText',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+            if (selisihText.isNotEmpty) ...[
+              AppSpacing.gapVerticalXS,
+              Text(
+                selisihText,
+                style: textTheme.bodySmall?.copyWith(color: selisihColor, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreakdownCard(BuildContext context) {    if (salaryDetail == null) return const SizedBox.shrink();
 
     final textTheme = Theme.of(context).textTheme;
 
-    final int baseSalary = salaryDetail!['base_salary'] ?? 0;
-    final int dailySalaryTotal = salaryDetail!['daily_salary_total'] ?? 0;
+    final int baseSalary = _parseInt(salaryDetail!['base_salary']);
+    final int dailySalaryTotal = _parseInt(salaryDetail!['daily_salary_total']);
     final Map<String, dynamic> deductions = salaryDetail!['deductions'] ?? {};
 
-    final int latePenalties = deductions['late_penalties'] ?? 0;
-    final int manualPenalties = deductions['manual_penalties'] ?? 0;
-    final int loanInstallments = deductions['loan_installments'] ?? 0;
+    final int latePenalties = _parseInt(deductions['late_penalties']);
+    final int manualPenalties = _parseInt(deductions['manual_penalties']);
+    final int loanInstallments = _parseInt(deductions['loan_installments']);
+    final int totalSalary = _parseInt(salaryDetail!['amount']);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -161,7 +259,7 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
             if (loanInstallments > 0)
               _buildRowItem('Cicilan Kasbon', '- ${currencyFormatter.format(loanInstallments)}', isDeduction: true),
             const Divider(height: 24),
-            _buildRowItem('Total Gaji Akhir (A - Potongan + B)', currencyFormatter.format(salaryDetail!['amount']), isBold: true),
+            _buildRowItem('Total Gaji Akhir (A - Potongan + B)', currencyFormatter.format(totalSalary), isBold: true),
           ],
         ),
       ),
@@ -193,179 +291,6 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
               color: valColor,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWorkHoursSummary(BuildContext context) {
-    if (salaryDetail == null) return const SizedBox.shrink();
-
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    final List<dynamic> dailyWork = salaryDetail!['daily_work'] ?? [];
-    final double totalWorkHours = dailyWork.fold<double>(
-        0.0, (sum, day) => sum + (day['workHours'] ?? 0.0) + (day['overtime'] ?? 0.0));
-    final double regularHours = dailyWork.fold<double>(
-        0.0, (sum, day) => sum + (day['workHours'] ?? 0.0));
-    final double totalOvertime = dailyWork.fold<double>(
-        0.0, (sum, day) => sum + (day['overtime'] ?? 0.0));
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Ringkasan Jam Kerja',
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            AppSpacing.gapVerticalMD,
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        regularHours.toStringAsFixed(1),
-                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      AppSpacing.gapVerticalXS,
-                      Text(
-                        'Jam Normal',
-                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        totalOvertime.toStringAsFixed(1),
-                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: AppColors.warning),
-                      ),
-                      AppSpacing.gapVerticalXS,
-                      Text(
-                        'Jam Lembur',
-                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        totalWorkHours.toStringAsFixed(1),
-                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: AppColors.info),
-                      ),
-                      AppSpacing.gapVerticalXS,
-                      Text(
-                        'Total Jam',
-                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDailyWorkList() {
-    if (salaryDetail == null) return const SizedBox.shrink();
-
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final List<dynamic> dailyWork = salaryDetail!['daily_work'] ?? [];
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: AppSpacing.paddingMD,
-            child: Text(
-              'Detail Harian',
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const Divider(height: 1),
-          if (dailyWork.isEmpty)
-            Padding(
-              padding: AppSpacing.paddingMD,
-              child: const Center(child: Text('Tidak ada rincian kerja harian.')),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: dailyWork.length,
-              itemBuilder: (context, index) {
-                final day = dailyWork[index];
-                final double totalHours = (day['workHours'] ?? 0.0) + (day['overtime'] ?? 0.0);
-                final DateTime parsedDate = DateTime.parse(day['date']);
-
-                final bool isNoCheckout = day['status'] == 'no_checkout';
-
-                return ListTile(
-                  title: Text(
-                    DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(parsedDate),
-                    style: textTheme.titleSmall,
-                  ),
-                  subtitle: Row(
-                    children: [
-                      Text(
-                        '${day['workHours']} jam kerja',
-                        style: textTheme.bodySmall,
-                      ),
-                      if (isNoCheckout) ...[
-                        AppSpacing.gapHorizontalSM,
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(
-                            color: colorScheme.error.withValues(alpha: 0.1),
-                            borderRadius: AppSpacing.borderRadiusXS,
-                          ),
-                          child: Text(
-                            'Tanpa Checkout',
-                            style: textTheme.labelSmall?.copyWith(color: colorScheme.error, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                      AppSpacing.gapHorizontalSM,
-                      _buildPaymentStatusBadge(day['payment_status'] ?? 'belum_dibayar'),
-                    ],
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        currencyFormatter.format(day['dailyWage']),
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isNoCheckout ? colorScheme.onSurfaceVariant : AppColors.success,
-                        ),
-                      ),
-                      Text(
-                        '${totalHours.toStringAsFixed(1)} jam',
-                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
         ],
       ),
     );
@@ -410,7 +335,7 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
       );
     }
 
-    final DateTime periodDate = DateTime.parse(salaryDetail!['period']);
+    final DateTime periodDate = _resolvePeriodDate(salaryDetail!['period']);
 
     return Scaffold(
       appBar: AppBar(
@@ -456,12 +381,11 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
             _buildSummaryCard(
               context,
               'Total Gaji Bersih (THP)',
-              currencyFormatter.format(salaryDetail!['amount']),
+              currencyFormatter.format(_parseInt(salaryDetail!['amount'])),
               valueColor: AppColors.success,
             ),
+            _buildTransferCard(context),
             _buildBreakdownCard(context),
-            _buildWorkHoursSummary(context),
-            _buildDailyWorkList(),
             if (_isAdmin) ...[
               AppSpacing.gapVerticalMD,
               Padding(
@@ -561,45 +485,21 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     }
   }
 
-  Widget _buildPaymentStatusBadge(String status) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    Color color;
-    String text;
-
-    switch (status) {
-      case 'sudah_dibayar':
-        color = AppColors.success;
-        text = 'Lunas';
-        break;
-      case 'siap_dibayar':
-        color = AppColors.info;
-        text = 'Siap Dibayar';
-        break;
-      case 'perbaiki':
-        color = colorScheme.error;
-        text = 'Perbaiki';
-        break;
-      case 'belum_dibayar':
-      default:
-        color = AppColors.warning;
-        text = 'Belum Dibayar';
-        break;
+  /// Resolve salary period date: jika tanggal >= 26 (cutoff),
+  /// bulan gaji adalah bulan berikutnya (e.g. 26 Mei → Juni).
+  DateTime _resolvePeriodDate(dynamic period) {
+    final dt = DateTime.parse(period.toString());
+    if (dt.day >= 26) {
+      return DateTime(dt.year, dt.month + 1, 1);
     }
+    return DateTime(dt.year, dt.month, 1);
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: AppSpacing.borderRadiusXS,
-      ),
-      child: Text(
-        text,
-        style: textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
+  /// Parse nilai numerik dari API (bisa int, double, atau String) ke int.
+  /// Aman terhadap null dan tipe tak terduga.
+  int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
   }
 }

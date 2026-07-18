@@ -19,11 +19,13 @@ class LeavePage extends StatefulWidget {
 
 class LeavePageState extends State<LeavePage> {
   final LeaveService _leaveService = LeaveService();
-  List<dynamic> _leaves = [];
+  final ScrollController _scrollController = ScrollController();
+  List<LeaveModel> _leaves = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   bool _isAdmin = false;
   String? _errorMessage;
-  int _currentPage = 1;
+  int _page = 1;
   bool _hasMore = true;
   String? _selectedStatus;
 
@@ -36,7 +38,25 @@ class LeavePageState extends State<LeavePage> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadUserRole();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        !_isLoading &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadUserRole() async {
@@ -56,7 +76,7 @@ class LeavePageState extends State<LeavePage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _currentPage = 1;
+      _page = 1;
       _hasMore = true;
     });
 
@@ -67,22 +87,17 @@ class LeavePageState extends State<LeavePage> {
           status: _selectedStatus,
         );
         setState(() {
-          _leaves = result['data'];
-          _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+          _leaves = (result['data'] as List)
+              .map((e) => LeaveModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _hasMore = _page < (result['meta']['last_page'] ?? 1);
           _isLoading = false;
         });
       } else {
-        final leaves = await _leaveService.getLeaves();
+        final result = await _leaveService.getLeavesPaged(page: _page);
         setState(() {
-          _leaves = leaves.map((l) => {
-            'id': l.id,
-            'reason': l.reason,
-            'status': l.status,
-            'from_date': l.fromDate.toIso8601String().substring(0, 10),
-            'until_date': l.untilDate.toIso8601String().substring(0, 10),
-            'notes': l.notes,
-            'created_by': {'name': l.createdBy.name},
-          }).toList();
+          _leaves = result['data'] as List<LeaveModel>;
+          _hasMore = result['has_more'] as bool;
           _isLoading = false;
         });
       }
@@ -95,21 +110,35 @@ class LeavePageState extends State<LeavePage> {
   }
 
   Future<void> _loadMore() async {
-    if (!_hasMore || _isLoading) return;
+    if (!_hasMore || _isLoadingMore || _isLoading) return;
+    setState(() => _isLoadingMore = true);
 
     try {
       if (_isAdmin) {
         final result = await _leaveService.getAdminLeaves(
-          page: _currentPage + 1,
+          page: _page + 1,
           status: _selectedStatus,
         );
         setState(() {
-          _leaves.addAll(result['data']);
-          _currentPage++;
-          _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+          _leaves.addAll((result['data'] as List)
+              .map((e) => LeaveModel.fromJson(e as Map<String, dynamic>))
+              .toList());
+          _page++;
+          _hasMore = _page < (result['meta']['last_page'] ?? 1);
+        });
+      } else {
+        final result = await _leaveService.getLeavesPaged(page: _page + 1);
+        setState(() {
+          _leaves.addAll(result['data'] as List<LeaveModel>);
+          _page++;
+          _hasMore = result['has_more'] as bool;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      // ignore pagination errors, allow retry on next scroll
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   Color _getStatusColor(dynamic status) {
@@ -156,12 +185,12 @@ class LeavePageState extends State<LeavePage> {
     }
   }
 
-  Future<void> _approveLeave(dynamic leave) async {
+  Future<void> _approveLeave(LeaveModel leave) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Setujui Cuti'),
-        content: Text('Setujui cuti dari ${leave['created_by']?['name'] ?? 'Staff'}?'),
+        content: Text('Setujui cuti dari ${leave.createdBy.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -179,7 +208,7 @@ class LeavePageState extends State<LeavePage> {
 
     try {
       setState(() => _isLoading = true);
-      await _leaveService.approveLeave(leave['id']);
+      await _leaveService.approveLeave(leave.id);
       await _loadLeaves();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,7 +232,7 @@ class LeavePageState extends State<LeavePage> {
     }
   }
 
-  Future<void> _rejectLeave(dynamic leave) async {
+  Future<void> _rejectLeave(LeaveModel leave) async {
     final notesController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -213,7 +242,7 @@ class LeavePageState extends State<LeavePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tolak cuti dari ${leave['created_by']?['name'] ?? 'Staff'}?'),
+            Text('Tolak cuti dari ${leave.createdBy.name}?'),
             const SizedBox(height: 16),
             TextField(
               controller: notesController,
@@ -244,7 +273,7 @@ class LeavePageState extends State<LeavePage> {
     try {
       setState(() => _isLoading = true);
       await _leaveService.rejectLeave(
-        leave['id'],
+        leave.id,
         rejectNote: notesController.text.isNotEmpty ? notesController.text : null,
       );
       await _loadLeaves();
@@ -435,15 +464,17 @@ class LeavePageState extends State<LeavePage> {
     return RefreshIndicator(
       onRefresh: _loadLeaves,
       child: ListView.builder(
+        controller: _scrollController,
         padding: AppSpacing.paddingMD,
         itemCount: _leaves.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == _leaves.length) {
-            _loadMore();
-            return const Padding(
-              padding: EdgeInsets.all(AppSpacing.md),
-              child: Center(child: CircularProgressIndicator()),
-            );
+            return _isLoadingMore
+                ? const Padding(
+                    padding: EdgeInsets.all(AppSpacing.md),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : const SizedBox.shrink();
           }
           final leave = _leaves[index];
           return _buildLeaveCard(leave);
@@ -452,26 +483,33 @@ class LeavePageState extends State<LeavePage> {
     );
   }
 
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '-';
-    try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
-    } catch (_) {
-      return dateStr;
+  String _formatDate(dynamic dateOrStr) {
+    if (dateOrStr == null) return '-';
+    DateTime date;
+    if (dateOrStr is DateTime) {
+      date = dateOrStr;
+    } else {
+      final str = dateOrStr.toString();
+      if (str.isEmpty) return '-';
+      try {
+        date = DateTime.parse(str);
+      } catch (_) {
+        return str;
+      }
     }
+    return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
   }
 
-  Widget _buildLeaveCard(dynamic leave) {
+  Widget _buildLeaveCard(LeaveModel leave) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final employeeName = leave['created_by']?['name'] ?? 'Staff';
-    final status = leave['status'];
-    final fromDate = _formatDate(leave['from_date']);
-    final untilDate = _formatDate(leave['until_date']);
-    final reason = leave['reason'];
-    final notes = leave['notes'];
-    final isPending = (status is int ? status : int.tryParse(status.toString())) == 1;
+    final employeeName = leave.createdBy.name;
+    final status = leave.status;
+    final fromDate = _formatDate(leave.fromDate);
+    final untilDate = _formatDate(leave.untilDate);
+    final reason = leave.reason;
+    final notes = leave.notes;
+    final isPending = status == 1;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),

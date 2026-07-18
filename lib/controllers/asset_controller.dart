@@ -78,6 +78,34 @@ class AssetController {
     }
   }
 
+  Future<Map<String, dynamic>> loadAssetsPaged({
+    int page = 1,
+    int perPage = 20,
+    int? storeId,
+    int? categoryId,
+    int? status,
+    int? condition,
+    int? productId,
+    String? due,
+    String? search,
+  }) async {
+    try {
+      return await _assetService.getAssetsPaged(
+        page: page,
+        perPage: perPage,
+        storeId: storeId,
+        categoryId: categoryId,
+        status: status,
+        condition: condition,
+        productId: productId,
+        due: due,
+        search: search,
+      );
+    } catch (e) {
+      _rethrow(e, fallback: 'Gagal memuat daftar aset.');
+    }
+  }
+
   Future<AssetModel> loadAssetDetail(int id) async {
     try {
       return await _assetService.getAsset(id);

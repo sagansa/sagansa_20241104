@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'home_page.dart';
 import '../widgets/modern_text_field.dart';
 import '../widgets/modern_button.dart';
+import '../widgets/app_version_text.dart';
 import '../theme/app_spacing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -207,6 +208,7 @@ class LoginPageState extends State<LoginPage> {
                           isLoading: isLoading,
                         ),
                         AppSpacing.gapVerticalMD,
+                        const AppVersionText(),
                       ],
                     ),
                   ),

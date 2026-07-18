@@ -35,23 +35,28 @@ class TransferStockService {
     }
   }
 
-  Future<List<TransferStockModel>> getTransferStocks() async {
+  Future<Map<String, dynamic>> getTransferStocks({int page = 1, int perPage = 20}) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
 
-    final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/transfer-stocks'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
+    final uri = Uri.parse('${ApiConstants.baseUrl}/transfer-stocks')
+        .replace(queryParameters: {'page': page.toString(), 'per_page': perPage.toString()});
+
+    final response = await http.get(uri, headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
 
     if (response.statusCode == 200) {
       final jsonResponse = json.decode(response.body);
       if (jsonResponse['success'] == true) {
         final List data = jsonResponse['data'];
-        return data.map((item) => TransferStockModel.fromJson(item)).toList();
+        final transfers = data.map((item) => TransferStockModel.fromJson(item)).toList();
+        final pagination = jsonResponse['pagination'] as Map<String, dynamic>?;
+        return {
+          'transfers': transfers,
+          'has_more': (pagination?['current_page'] ?? 1) < (pagination?['last_page'] ?? 1),
+        };
       } else {
         throw Exception(jsonResponse['message'] ?? 'Gagal memuat riwayat transfer.');
       }

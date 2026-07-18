@@ -19,8 +19,12 @@ class ProcurementDashboardPage extends StatefulWidget {
 
 class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> with SingleTickerProviderStateMixin {
   final ProcurementService _procurementService = ProcurementService();
+  final ScrollController _scrollController = ScrollController();
   List<RequestPurchase> _requests = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
   String? _errorMessage;
   late TabController _tabController;
   bool _isAdmin = false;
@@ -30,12 +34,24 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _loadUserRoleAndRequests();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadUserRoleAndRequests() async {
@@ -58,13 +74,17 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _page = 1;
+      _requests = [];
+      _hasMore = true;
     });
 
     try {
-      final data = await _procurementService.getRequests();
+      final result = await _procurementService.getRequestsPaged(page: _page);
       if (!mounted) return;
       setState(() {
-        _requests = data;
+        _requests = result['data'] as List<RequestPurchase>;
+        _hasMore = result['has_more'] as bool;
         _isLoading = false;
       });
     } catch (e) {
@@ -73,6 +93,25 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
         _errorMessage = 'Gagal memuat request belanja: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _procurementService.getRequestsPaged(page: _page + 1);
+      if (!mounted) return;
+      setState(() {
+        _page++;
+        _requests.addAll(result['data'] as List<RequestPurchase>);
+        _hasMore = result['has_more'] as bool;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -179,9 +218,17 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
                     return RefreshIndicator(
                       onRefresh: _fetchRequests,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: AppSpacing.paddingMD,
-                        itemCount: requests.length,
+                        itemCount: requests.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, idx) {
+                          if (idx == requests.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
                           final request = requests[idx];
                           final overallStatus = request.overallStatusText;
 

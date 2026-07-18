@@ -10,6 +10,7 @@ import '../utils/constants.dart';
 import 'home_page.dart';
 import 'printer_settings_page.dart';
 import 'readiness_page.dart';
+import 'readiness_admin_list_page.dart';
 import 'hygiene_page.dart';
 import 'utility_usage_list_page.dart';
 import '../services/readiness_service.dart';
@@ -334,6 +335,20 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
                       MaterialPageRoute(builder: (context) => const HygienePage()),
                     );
                     _checkHygiene();
+                  },
+                ),
+                _buildMenuRow(
+                  icon: Icons.checkroom_outlined,
+                  color: AppColors.primary,
+                  title: 'Kesiapan Diri (Admin)',
+                  subtitle: 'Lihat list kesiapan diri seluruh karyawan.',
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReadinessAdminListPage(),
+                      ),
+                    );
                   },
                 ),
                 _buildMenuRow(

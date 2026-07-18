@@ -239,12 +239,16 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Penanda status di pojok atas gambar.
-                        AspectRatio(
-                          aspectRatio: 1.5,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
+                        // Penanda status di pojok atas gambar. Dibungkus
+                        // Expanded agar gambar fleksibel menyerap sisa ruang
+                        // sel — mencegah overflow 3px saat notes/buttons ikut
+                        // menentukan tinggi cell (lihat GridView childAspectRatio).
+                        Expanded(
+                          child: AspectRatio(
+                            aspectRatio: 1.5,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
                               imageUrl != null
                                   ? GestureDetector(
                                       onTap: () =>
@@ -309,9 +313,10 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                               ),
                             ],
                           ),
+                          ),
                         ),
                         Padding(
-                          padding: AppSpacing.paddingSM,
+                          padding: AppSpacing.paddingXS,
                           child: Text(
                             room.roomName ?? 'Ruangan',
                             style: theme.textTheme.titleSmall?.copyWith(
@@ -324,7 +329,7 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                         if (room.notes != null && room.notes!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm),
+                                horizontal: AppSpacing.xs),
                             child: Text(
                               room.notes!,
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -334,10 +339,10 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        AppSpacing.gapVerticalSM,
+                        AppSpacing.gapVerticalXS,
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm),
+                              horizontal: AppSpacing.xs),
                           child: Row(
                             children: [
                               Expanded(
@@ -357,8 +362,16 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                                         ? AppColors.success
                                             .withValues(alpha: 0.12)
                                         : null,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4, horizontal: 4),
+                                    visualDensity: VisualDensity.compact,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                  child: const Text('Bersih'),
+                                  child: Text(
+                                    'Bersih',
+                                    style: theme.textTheme.labelSmall,
+                                  ),
                                 ),
                               ),
                               AppSpacing.gapHorizontalXS,
@@ -379,8 +392,16 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                                         ? AppColors.error
                                             .withValues(alpha: 0.12)
                                         : null,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4, horizontal: 4),
+                                    visualDensity: VisualDensity.compact,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                  child: const Text('Kotor'),
+                                  child: Text(
+                                    'Kotor',
+                                    style: theme.textTheme.labelSmall,
+                                  ),
                                 ),
                               ),
                             ],

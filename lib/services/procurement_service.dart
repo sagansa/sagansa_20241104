@@ -293,7 +293,6 @@ class ProcurementService {
     required int supplierId,
     required List<Map<String, dynamic>> items,
     List<int>? requestIds,
-    int? paymentTypeId,
   }) async {
     final token = await _getToken();
     final body = <String, dynamic>{
@@ -302,9 +301,6 @@ class ProcurementService {
     };
     if (requestIds != null && requestIds.isNotEmpty) {
       body['request_ids'] = requestIds;
-    }
-    if (paymentTypeId != null) {
-      body['payment_type_id'] = paymentTypeId;
     }
     final response = await http.post(
       Uri.parse('${ApiConstants.baseUrl}/procurement/requests/$requestId/create-invoice'),

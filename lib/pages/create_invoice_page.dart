@@ -4,7 +4,6 @@ import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
-import '../../utils/procurement_approval.dart';
 import '../widgets/supplier_picker_modal.dart';
 import '../widgets/supplier_payment_info_card.dart';
 
@@ -37,9 +36,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
   Map<String, dynamic>? _selectedSupplier;
-
-  // Payment type: 1 = Transfer, 2 = Tunai (default Transfer)
-  int _selectedPaymentTypeId = 1;
 
   /// Setiap item state terikat ke request asalnya (untuk invoice lintas-request).
   List<_ItemState> _itemStates = [];
@@ -185,18 +181,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       final qty = double.tryParse(s.qtyCtrl.text) ?? 0;
       final unitPrice = qty > 0 ? (totalPrice / qty).round() : 0;
 
-      // Compute cash-deviation flag (spec section 6.1)
-      final needsApproval = needsCashDeviationApproval(
-        invoicePaymentTypeId: _selectedPaymentTypeId,
-        productPaymentTypeId: s.detailRequest.paymentTypeId,
-      );
-
       return {
         'detail_request_id': s.detailRequest.id,
         'price': unitPrice,
         'quantity': qty.toInt(),
-        if (needsApproval) 'needs_approval': true,
-        if (needsApproval) 'status': kPendingApprovalStatus,
       };
     }).toList();
 
@@ -210,7 +198,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         supplierId: _selectedSupplierId!,
         items: items,
         requestIds: allRequestIds,
-        paymentTypeId: _selectedPaymentTypeId,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -269,51 +256,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                             const SizedBox(height: 4),
                             SupplierPaymentInfoCard(selectedSupplier: _selectedSupplier),
                           ],
-                          AppSpacing.gapVerticalLG,
-                          // Payment Type Selector
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Tipe Pembayaran Invoice',
-                              prefixIcon: Icon(Icons.payment),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
-                                value: _selectedPaymentTypeId,
-                                isExpanded: true,
-                                items: const [
-                                  DropdownMenuItem(value: 1, child: Text('💳 Transfer (bank)')),
-                                  DropdownMenuItem(value: 2, child: Text('💵 Tunai (cash)')),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() => _selectedPaymentTypeId = val);
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          if (_selectedPaymentTypeId == 2)
-                            Container(
-                              margin: const EdgeInsets.only(top: 6),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                border: Border.all(color: Colors.orange.shade200),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade700),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Item dengan tipe Transfer akan butuh approval admin (cash deviation).',
-                                      style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           AppSpacing.gapVerticalLG,
                           Text(
                             'Pilih Item & Masukkan Harga',

@@ -7,7 +7,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
-import '../../utils/procurement_approval.dart';
 import 'edit_invoice_page.dart';
 import 'invoice_selection_page.dart';
 
@@ -30,25 +29,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   List<PaymentReceipt> _paymentReceipts = [];
   bool _canReceive = false;
   bool _isReceiving = false;
-
-  /// Compute apakah invoice punya item pending approval (cash-deviation).
-  /// Asumsi: backend kirim `detail_invoice.status = 'pending_approval'` untuk
-  /// item yang butuh approval. Fallback: jika field tidak ada, return false.
-  bool get _hasPendingItems {
-    final inv = _invoice;
-    if (inv == null) return false;
-    final statuses = inv.detailInvoices.map((d) => d.status).toList();
-    return hasPendingApprovalItems(
-      invoicePaymentTypeId: inv.paymentTypeId,
-      itemStatuses: statuses,
-    );
-  }
-
-  int get _pendingItemCount {
-    final inv = _invoice;
-    if (inv == null) return 0;
-    return pendingItemCount(inv.detailInvoices.map((d) => d.status).toList());
-  }
 
   @override
   void initState() {
@@ -219,19 +199,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          if (_isAdmin && _hasPendingItems)
-            IconButton(
-              icon: Badge(
-                label: Text('$_pendingItemCount'),
-                child: const Icon(Icons.gavel),
-              ),
-              tooltip: 'Approve pending items',
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Scroll ke item dengan status pending untuk approve.')),
-                );
-              },
-            ),
           if (_invoice != null &&
               _invoice!.paymentStatus == '1' &&
               (_isAdmin || _invoice!.createdById == _currentUserId))
@@ -696,31 +663,14 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     ),
                   ),
                 ),
-      bottomSheet: _hasPendingItems
-          ? Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.orange.shade50,
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '$_pendingItemCount item butuh approval. Invoice tidak bisa dibayar sampai disetujui.',
-                      style: TextStyle(color: Colors.orange.shade900, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ((_invoice != null &&
+      bottomSheet: (_invoice != null &&
                   _invoice!.paymentStatus == '1' &&
                   _invoice!.paymentTypeId == 1 &&
                   _isAdmin) ||
               (_invoice != null &&
                   _invoice!.orderStatus == '1' &&
                   _canReceive)
-              ? Container(
+          ? Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               decoration: BoxDecoration(
                 color: colorScheme.surface,
@@ -844,7 +794,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                 ],
               ),
             )
-              : null),
+              : null,
     );
   }
 

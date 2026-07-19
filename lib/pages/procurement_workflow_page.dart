@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/procurement_model.dart';
 import '../services/procurement_service.dart';
 import '../theme/app_spacing.dart';
@@ -34,8 +32,7 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
   // Stage & sub-filter
   int _activeStage = 0; // 0=Request, 1=Invoice, 2=Payment
   int _subFilterRequest = 0; // 0=Semua, 1=SiapInvoice, 2=SudahJadiInvoice
-  int _subFilterInvoice = 0; // 0=Semua, 1=ButuhApproval, 2=SiapDibayar, 3=Lunas
-  int _subFilterPayment = 0; // 0=Semua, 1=Tunai, 2=Transfer
+  int _subFilterInvoice = 0; // 0=Semua, 1=SiapDibayar, 2=Lunas
 
   // Search
   bool _searchExpanded = false;
@@ -60,12 +57,9 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
   int _page = 1;
   String? _errorMessage;
 
-  bool _isAdmin = false;
-
   @override
   void initState() {
     super.initState();
-    _loadUserRole();
     _fetchData();
     _scrollController.addListener(_onScroll);
   }
@@ -76,20 +70,6 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadUserRole() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userString = prefs.getString('user');
-      if (userString != null) {
-        final userData = json.decode(userString);
-        final roles = List<String>.from(userData['roles'] ?? []);
-        if (mounted) {
-          setState(() => _isAdmin = roles.contains('admin') || roles.contains('super_admin'));
-        }
-      }
-    } catch (_) {}
   }
 
   void _onScroll() {
@@ -208,25 +188,30 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
 
   // ============ Helpers (computed) ============
 
-  bool _hasPendingItems(InvoicePurchase inv) {
+  /// Jumlah request yang masih punya item pending admin approval.
+  /// Approval ada di level detail_request (item), bukan invoice.
+  /// Backend set detail_request.status='1' (Process) untuk item yang
+  /// butuh approval (detail tunai + product default transfer).
+  bool _hasPendingItems(RequestPurchase req) {
     return hasPendingApprovalItems(
-      invoicePaymentTypeId: inv.paymentTypeId,
-      itemStatuses: inv.detailInvoices.map((d) => d.status).toList(),
+      req.detailRequests.map((d) => d.status).toList(),
     );
   }
 
-  int _pendingItemCount(InvoicePurchase inv) {
-    return pendingItemCount(inv.detailInvoices.map((d) => d.status).toList());
-  }
-
+  /// Count request yang punya item pending approval — dipakai di stats strip.
   int get _countPendingApproval =>
-      _allInvoices.where((inv) => _hasPendingItems(inv)).length;
+      _requests.where((r) => _hasPendingItems(r)).length;
 
+  /// Count request siap invoice (ada item & belum jadi invoice & tidak ada pending).
   int get _countSiapInvoice =>
-      _requests.where((r) => r.detailRequests.isNotEmpty && !_requestToInvoices.containsKey(r.id)).length;
+      _requests.where((r) =>
+          r.detailRequests.isNotEmpty &&
+          !_requestToInvoices.containsKey(r.id) &&
+          !_hasPendingItems(r)).length;
 
+  /// Count invoice siap dibayar (belum lunas).
   int get _countSiapBayar =>
-      _allInvoices.where((inv) => inv.paymentStatus != '2' && !_hasPendingItems(inv)).length;
+      _allInvoices.where((inv) => inv.paymentStatus != '2').length;
 
   // ============ Filtering ============
 
@@ -258,19 +243,11 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
           i.storeName.toLowerCase().contains(q) ||
           (i.supplierName ?? '').toLowerCase().contains(q)).toList();
     }
-    // Sort: pending approval di atas
-    list = List.from(list)
-      ..sort((a, b) {
-        final aP = _hasPendingItems(a) ? 0 : 1;
-        final bP = _hasPendingItems(b) ? 0 : 1;
-        return aP.compareTo(bP);
-      });
+    // Sub-filter invoice: 0=Semua, 1=Siap Dibayar, 2=Lunas
     switch (_subFilterInvoice) {
       case 1:
-        return list.where((i) => _hasPendingItems(i)).toList();
+        return list.where((i) => i.paymentStatus != '2').toList();
       case 2:
-        return list.where((i) => i.paymentStatus != '2' && !_hasPendingItems(i)).toList();
-      case 3:
         return list.where((i) => i.paymentStatus == '2').toList();
       default:
         return list;
@@ -285,14 +262,9 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
           r.id.toString().contains(q) ||
           (r.supplierName ?? '').toLowerCase().contains(q)).toList();
     }
-    switch (_subFilterPayment) {
-      case 1:
-        return list.where((r) => r.paymentFor == '2').toList(); // tunai
-      case 2:
-        return list.where((r) => r.paymentFor == '1').toList(); // transfer (asumsi)
-      default:
-        return list;
-    }
+    // Semua payment receipt adalah transfer (tunai langsung ke closing store).
+    // Tidak ada sub-filter untuk tab Payment.
+    return list;
   }
 
   int get _batchPaymentTotal {
@@ -396,20 +368,22 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
                 siapInvoiceCount: _countSiapInvoice,
                 siapBayarCount: _countSiapBayar,
                 onChipTap: (i) {
+                  // Approval ada di level item request → tap chip "approval"
+                  // membawa user ke tab Request untuk melihat request dgn item pending.
                   if (i == 0) {
                     setState(() {
-                      _activeStage = 1;
-                      _subFilterInvoice = 1;
+                      _activeStage = 0;
+                      _subFilterRequest = 0; // Semua
                     });
                   } else if (i == 1) {
                     setState(() {
                       _activeStage = 0;
-                      _subFilterRequest = 1;
+                      _subFilterRequest = 1; // Siap Invoice
                     });
                   } else {
                     setState(() {
                       _activeStage = 1;
-                      _subFilterInvoice = 2;
+                      _subFilterInvoice = 1; // Siap Dibayar
                     });
                   }
                 },
@@ -479,27 +453,18 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         onChipTap: (i) => setState(() => _subFilterRequest = i),
       );
     } else if (_activeStage == 1) {
-      final options = _isAdmin
-          ? const ['Semua', '⚠️ Butuh Approval', 'Siap Dibayar', 'Lunas']
-          : const ['Semua', 'Siap Dibayar', 'Lunas'];
-      final activeIdx = _isAdmin
-          ? _subFilterInvoice
-          : (_subFilterInvoice > 0 ? _subFilterInvoice - 1 : 0);
+      // 3 filter: Semua, Siap Dibayar, Lunas.
+      // Approval ada di level request item (tab Request), bukan invoice.
       return ProcurementSubfilterChips(
-        options: options,
-        activeIndex: activeIdx.clamp(0, options.length - 1),
+        options: const ['Semua', 'Siap Dibayar', 'Lunas'],
+        activeIndex: _subFilterInvoice,
         activeColor: const Color(0xFF2196F3),
-        onChipTap: (i) => setState(() {
-          _subFilterInvoice = _isAdmin ? i : (i == 0 ? 0 : i + 1);
-        }),
+        onChipTap: (i) => setState(() => _subFilterInvoice = i),
       );
     } else {
-      return ProcurementSubfilterChips(
-        options: const ['Semua', 'Tunai', 'Transfer'],
-        activeIndex: _subFilterPayment,
-        activeColor: const Color(0xFF9C27B0),
-        onChipTap: (i) => setState(() => _subFilterPayment = i),
-      );
+      // Tab Payment: semua receipt transfer (tunai langsung ke closing store).
+      // Tidak ada sub-filter.
+      return const SizedBox.shrink();
     }
   }
 
@@ -582,14 +547,11 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
       itemBuilder: (_, i) {
         final inv = list[i];
         final reqIds = _invoiceToRequestIds[inv.id] ?? [];
-        final pendingCount = _pendingItemCount(inv);
         final isSel = _selectedInvoiceIds.contains(inv.id);
-        final canBayar = inv.paymentStatus != '2' && pendingCount == 0;
+        final canBayar = inv.paymentStatus != '2';
         return ProcurementEntityCard.invoiceMode(
           invoice: inv,
           linkedRequestIds: reqIds,
-          pendingApprovalItemCount: pendingCount,
-          isAdmin: _isAdmin,
           showCheckbox: _batchMode && canBayar,
           checkboxValue: isSel,
           onCheckboxChanged: (v) => setState(() {
@@ -619,17 +581,6 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
                   if (created == true) _fetchData();
                 }
               : null,
-          onTapReviewApprove: pendingCount > 0
-              ? () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InvoiceDetailPage(invoiceId: inv.id),
-                    ),
-                  );
-                  _fetchData();
-                }
-              : null,
         );
       },
     );
@@ -644,11 +595,10 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
       itemCount: list.length,
       itemBuilder: (_, i) {
         final rec = list[i];
-        // Asumsi: paymentFor == '2' = tunai, '1' = transfer, '3' = other
-        final isTunai = rec.paymentFor == '2';
+        // Semua payment receipt adalah transfer (tunai langsung ke closing store).
         return ProcurementEntityCard.paymentMode(
           receipt: rec,
-          isTunai: isTunai,
+          isTunai: false,
           onTapCard: () async {
             await Navigator.push(
               context,

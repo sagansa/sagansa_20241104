@@ -111,26 +111,17 @@ class ProcurementEntityCard extends StatelessWidget {
     Key? key,
     required InvoicePurchase invoice,
     required List<int> linkedRequestIds,
-    int pendingApprovalItemCount = 0,
     bool showCheckbox = false,
     bool? checkboxValue,
     ValueChanged<bool>? onCheckboxChanged,
-    bool isAdmin = true,
     VoidCallback? onTapCard,
     VoidCallback? onTapBayar,
-    VoidCallback? onTapReviewApprove,
   }) {
     final isPaid = invoice.paymentStatus == '2';
-    final hasPending = pendingApprovalItemCount > 0;
-    final canBayar = !isPaid && !hasPending;
+    final canBayar = !isPaid;
 
     Widget? badge;
-    if (hasPending) {
-      badge = _Badge(
-        text: '⚠️ $pendingApprovalItemCount item butuh approval',
-        color: AppColors.warning,
-      );
-    } else if (isPaid) {
+    if (isPaid) {
       badge = const _Badge(text: 'Lunas', color: AppColors.success);
     } else {
       badge = const _Badge(text: 'Siap Dibayar', color: AppColors.info);
@@ -141,20 +132,7 @@ class ProcurementEntityCard extends StatelessWidget {
         : [_LinkPill(label: '↳ REQ ${linkedRequestIds.join(",")}')];
 
     final actions = <Widget>[];
-    if (hasPending && isAdmin && onTapReviewApprove != null) {
-      actions.add(ElevatedButton.icon(
-        onPressed: onTapReviewApprove,
-        icon: const Icon(Icons.gavel, size: 14),
-        label: const Text('Review & Approve',
-            style: TextStyle(fontSize: 10)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.warning,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          minimumSize: const Size(0, 30),
-        ),
-      ));
-    } else if (canBayar && onTapBayar != null) {
+    if (canBayar && onTapBayar != null) {
       actions.add(ElevatedButton.icon(
         onPressed: onTapBayar,
         icon: const Icon(Icons.payment, size: 14),

@@ -129,7 +129,6 @@ void main() {
             body: ProcurementEntityCard.invoiceMode(
               invoice: inv,
               linkedRequestIds: const [],
-              pendingApprovalItemCount: 0,
             ),
           ),
         ),
@@ -138,48 +137,6 @@ void main() {
       expect(find.textContaining('INV #12'), findsOneWidget);
       expect(find.textContaining('Supplier X'), findsOneWidget);
       expect(find.textContaining('Siap Dibayar'), findsOneWidget);
-    });
-
-    testWidgets('badge pending muncul jika ada item pending',
-        (WidgetTester tester) async {
-      final inv = _makeInvoice();
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeProvider.lightTheme,
-          home: Scaffold(
-            body: ProcurementEntityCard.invoiceMode(
-              invoice: inv,
-              linkedRequestIds: const [],
-              pendingApprovalItemCount: 2,
-              onTapReviewApprove: () {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.textContaining('2 item butuh approval'), findsOneWidget);
-      expect(find.text('Review & Approve'), findsOneWidget);
-    });
-
-    testWidgets('button Bayar disabled jika ada item pending',
-        (WidgetTester tester) async {
-      final inv = _makeInvoice();
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeProvider.lightTheme,
-          home: Scaffold(
-            body: ProcurementEntityCard.invoiceMode(
-              invoice: inv,
-              linkedRequestIds: const [],
-              pendingApprovalItemCount: 1,
-              onTapBayar: () {},
-            ),
-          ),
-        ),
-      );
-
-      // Tidak ada tombol Bayar (disabled = tidak dirender)
-      expect(find.text('Bayar'), findsNothing);
     });
   });
 
@@ -239,7 +196,7 @@ void main() {
   // boleh overflow. Sebelumnya IntrinsicHeight + sibling accent Container
   // menyebabkan "A RenderFlex overflowed by N pixels on the bottom".
   group('ProcurementEntityCard - Layout regression', () {
-    testWidgets('invoice mode dengan pending + tunai tidak overflow',
+    testWidgets('invoice mode dengan links + action tidak overflow',
         (WidgetTester tester) async {
       final inv = _makeInvoice();
       await tester.pumpWidget(
@@ -251,9 +208,7 @@ void main() {
               child: ProcurementEntityCard.invoiceMode(
                 invoice: inv,
                 linkedRequestIds: const [42, 43],
-                pendingApprovalItemCount: 2,
-                isAdmin: true,
-                onTapReviewApprove: () {},
+                onTapBayar: () {},
               ),
             ),
           ),
@@ -262,8 +217,8 @@ void main() {
 
       // Verifikasi semua elemen dirender tanpa overflow exception.
       expect(find.textContaining('INV #12'), findsOneWidget);
-      expect(find.textContaining('2 item butuh approval'), findsOneWidget);
-      expect(find.text('Review & Approve'), findsOneWidget);
+      expect(find.textContaining('Siap Dibayar'), findsOneWidget);
+      expect(find.text('Bayar'), findsOneWidget);
       // Tidak ada exception Flutter yang dilempar ke tester.takeException()
       expect(tester.takeException(), isNull);
     });

@@ -138,6 +138,53 @@ void main() {
       expect(find.textContaining('Supplier X'), findsOneWidget);
       expect(find.textContaining('Siap Dibayar'), findsOneWidget);
     });
+
+    testWidgets('thumbnail dirender jika invoice punya image',
+        (WidgetTester tester) async {
+      final inv = InvoicePurchase(
+        id: 12,
+        storeId: 1,
+        date: '2026-07-19',
+        totalPrice: 1200000,
+        createdById: 5,
+        paymentStatus: '1',
+        storeName: 'Toko A',
+        image: 'invoices/inv-12.jpg',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: inv,
+              linkedRequestIds: const [],
+            ),
+          ),
+        ),
+      );
+
+      // ListThumbnail dirender (Image.network akan muncul setelah load).
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('tidak ada thumbnail jika invoice tanpa image',
+        (WidgetTester tester) async {
+      final inv = _makeInvoice(); // image = null
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: inv,
+              linkedRequestIds: const [],
+            ),
+          ),
+        ),
+      );
+
+      // Tidak ada widget Image karena thumbnail skip saat imageUrl null.
+      expect(find.byType(Image), findsNothing);
+    });
   });
 
   group('ProcurementEntityCard - Payment mode', () {

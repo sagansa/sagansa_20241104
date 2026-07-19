@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/procurement_model.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import 'list_thumbnail.dart';
 
 /// Generic entity card untuk halaman procurement workflow.
 /// Memiliki 3 factory mode: requestMode, invoiceMode, paymentMode.
@@ -22,6 +23,9 @@ class ProcurementEntityCard extends StatelessWidget {
   final VoidCallback? onTapCard;
   final bool isSelected;
   final Widget? leadingCheckbox;
+  final String? thumbnailUrl;
+  final IconData thumbnailPlaceholder;
+  final VoidCallback? onTapThumbnail;
 
   const ProcurementEntityCard._({
     super.key,
@@ -36,6 +40,9 @@ class ProcurementEntityCard extends StatelessWidget {
     this.onTapCard,
     this.isSelected = false,
     this.leadingCheckbox,
+    this.thumbnailUrl,
+    this.thumbnailPlaceholder = Icons.receipt_long,
+    this.onTapThumbnail,
   });
 
   /// Mode Request.
@@ -116,6 +123,7 @@ class ProcurementEntityCard extends StatelessWidget {
     ValueChanged<bool>? onCheckboxChanged,
     VoidCallback? onTapCard,
     VoidCallback? onTapBayar,
+    VoidCallback? onTapThumbnail,
   }) {
     final isPaid = invoice.paymentStatus == '2';
     final canBayar = !isPaid;
@@ -160,6 +168,9 @@ class ProcurementEntityCard extends StatelessWidget {
       title: 'INV #${invoice.id} • ${invoice.storeName}',
       metaLine:
           'Supplier: ${invoice.supplierName ?? "-"} • Tgl: ${fmtDate(invoice.date)} • ${invoice.paymentTypeText}',
+      thumbnailUrl: invoice.imageUrl,
+      thumbnailPlaceholder: Icons.receipt_long,
+      onTapThumbnail: onTapThumbnail,
       amountText: FormatUtils.formatCurrency(invoice.totalPrice),
       amountColor: const Color(0xFF1976D2),
       badge: badge,
@@ -184,6 +195,7 @@ class ProcurementEntityCard extends StatelessWidget {
     required PaymentReceipt receipt,
     required bool isTunai,
     VoidCallback? onTapCard,
+    VoidCallback? onTapThumbnail,
   }) {
     final isMulti = receipt.invoicePurchases.length > 1;
     final linkPills = receipt.invoicePurchases
@@ -206,6 +218,9 @@ class ProcurementEntityCard extends StatelessWidget {
       borderColor: const Color(0xFF9C27B0), // purple
       title: 'Kwit #${receipt.id} • ${receipt.supplierName ?? "Supplier"}',
       metaLine: 'Tgl Bayar: $formattedDate',
+      thumbnailUrl: receipt.imageUrl,
+      thumbnailPlaceholder: Icons.payment,
+      onTapThumbnail: onTapThumbnail,
       amountText: FormatUtils.formatCurrency(receipt.totalAmount),
       amountColor: AppColors.success,
       // Selalu tampilkan badge "Lunas" (payment receipt = sudah dibayar),
@@ -274,6 +289,15 @@ class ProcurementEntityCard extends StatelessWidget {
                   if (leadingCheckbox != null) ...[
                     leadingCheckbox!,
                     const SizedBox(width: 6)
+                  ],
+                  if (thumbnailUrl != null) ...[
+                    ListThumbnail(
+                      imageUrl: thumbnailUrl,
+                      placeholderIcon: thumbnailPlaceholder,
+                      size: 44,
+                      onTap: onTapThumbnail,
+                    ),
+                    const SizedBox(width: 10),
                   ],
                   Expanded(
                     child: Column(

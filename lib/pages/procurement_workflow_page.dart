@@ -4,6 +4,7 @@ import '../services/procurement_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/procurement_approval.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/image_preview_dialog.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/procurement_batch_bottom_bar.dart';
 import '../widgets/procurement_entity_card.dart';
@@ -570,6 +571,13 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
               _selectedInvoiceIds.remove(inv.id);
             }
           }),
+          onTapThumbnail: inv.imageUrl != null
+              ? () => ImagePreviewDialog.show(
+                    context,
+                    inv.imageUrl!,
+                    title: 'Invoice #${inv.id}',
+                  )
+              : null,
           onTapCard: () async {
             await Navigator.push(
               context,
@@ -608,6 +616,13 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         return ProcurementEntityCard.paymentMode(
           receipt: rec,
           isTunai: false,
+          onTapThumbnail: rec.imageUrl != null
+              ? () => ImagePreviewDialog.show(
+                    context,
+                    rec.imageUrl!,
+                    title: 'Kwitansi #${rec.id}',
+                  )
+              : null,
           onTapCard: () async {
             await Navigator.push(
               context,

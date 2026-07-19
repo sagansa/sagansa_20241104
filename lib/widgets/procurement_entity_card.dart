@@ -128,31 +128,20 @@ class ProcurementEntityCard extends StatelessWidget {
     final isPaid = invoice.paymentStatus == '2';
     final canBayar = !isPaid;
 
-    Widget? badge;
-    if (isPaid) {
-      badge = const _Badge(text: 'Lunas', color: AppColors.success);
-    } else {
-      badge = const _Badge(text: 'Siap Dibayar', color: AppColors.info);
-    }
+    // Badge tap-able: kalau siap dibayar, tap = bayar langsung.
+    final badge = _Badge(
+      text: isPaid ? 'Lunas' : 'Siap Dibayar',
+      color: isPaid ? AppColors.success : AppColors.info,
+      onTap: (canBayar && onTapBayar != null) ? onTapBayar : null,
+    );
 
     final linkPills = linkedRequestIds.isEmpty
         ? <Widget>[]
         : [_LinkPill(label: '↳ REQ ${linkedRequestIds.join(",")}')];
 
+    // Action button "Bayar" tidak lagi ditampilkan sebagai button terpisah
+    // — sudah diwakili oleh badge tap-able (mengurangi duplikasi UI).
     final actions = <Widget>[];
-    if (canBayar && onTapBayar != null) {
-      actions.add(ElevatedButton.icon(
-        onPressed: onTapBayar,
-        icon: const Icon(Icons.payment, size: 14),
-        label: const Text('Bayar', style: TextStyle(fontSize: 10)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.info,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          minimumSize: const Size(0, 30),
-        ),
-      ));
-    }
 
     // Format date dari ISO yyyy-MM-dd ke dd-MM-yyyy.
     String fmtDate(String raw) {
@@ -290,21 +279,13 @@ class ProcurementEntityCard extends StatelessWidget {
                     leadingCheckbox!,
                     const SizedBox(width: 6)
                   ],
-                  if (thumbnailUrl != null) ...[
-                    ListThumbnail(
-                      imageUrl: thumbnailUrl,
-                      placeholderIcon: thumbnailPlaceholder,
-                      size: 44,
-                      onTap: onTapThumbnail,
-                    ),
-                    const SizedBox(width: 10),
-                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Header row: title/meta/amount di kiri, lalu thumbnail
+                        // + badge ditaruh di kanan agar tidak terpotong.
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
@@ -336,7 +317,28 @@ class ProcurementEntityCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            if (badge != null) badge!,
+                            // Thumbnail + badge ditaruh di kanan-atas.
+                            // Thumbnail di atas, badge di bawahnya.
+                            if (thumbnailUrl != null || badge != null) ...[
+                              const SizedBox(width: 8),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (thumbnailUrl != null) ...[
+                                    ListThumbnail(
+                                      imageUrl: thumbnailUrl,
+                                      placeholderIcon: thumbnailPlaceholder,
+                                      size: 44,
+                                      onTap: onTapThumbnail,
+                                    ),
+                                    if (badge != null)
+                                      const SizedBox(height: 6),
+                                  ],
+                                  if (badge != null) badge!,
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                         if (stepperOrLinks != null) ...[
@@ -370,27 +372,36 @@ class ProcurementEntityCard extends StatelessWidget {
 class _Badge extends StatelessWidget {
   final String text;
   final Color color;
-  const _Badge({required this.text, required this.color});
+  final VoidCallback? onTap;
+  const _Badge({required this.text, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(4),
+    final container = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: onTap != null ? 0.9 : 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: onTap == null ? Border.all(color: color.withValues(alpha: 0.4)) : null,
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: onTap != null ? Colors.white : color,
         ),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
+      ),
+    );
+    if (onTap == null) return container;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: container,
       ),
     );
   }

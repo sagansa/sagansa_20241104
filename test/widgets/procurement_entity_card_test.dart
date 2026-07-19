@@ -185,6 +185,52 @@ void main() {
       // Tidak ada widget Image karena thumbnail skip saat imageUrl null.
       expect(find.byType(Image), findsNothing);
     });
+
+    testWidgets('badge "Siap Dibayar" tap-able → trigger onTapBayar',
+        (WidgetTester tester) async {
+      final inv = _makeInvoice(); // unpaid
+      int tapped = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: inv,
+              linkedRequestIds: const [],
+              onTapBayar: () => tapped++,
+            ),
+          ),
+        ),
+      );
+
+      // Tap badge "Siap Dibayar" → harus trigger onTapBayar.
+      await tester.tap(find.text('Siap Dibayar'));
+      await tester.pump();
+      expect(tapped, 1);
+    });
+
+    testWidgets('badge "Lunas" tidak tap-able (invoice sudah dibayar)',
+        (WidgetTester tester) async {
+      final inv = _makeInvoice(paymentStatus: '2'); // paid
+      int tapped = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: inv,
+              linkedRequestIds: const [],
+              onTapBayar: () => tapped++,
+            ),
+          ),
+        ),
+      );
+
+      // Tap badge "Lunas" → tidak boleh trigger apa-apa.
+      await tester.tap(find.text('Lunas'), warnIfMissed: false);
+      await tester.pump();
+      expect(tapped, 0);
+    });
   });
 
   group('ProcurementEntityCard - Payment mode', () {
@@ -266,7 +312,6 @@ void main() {
       // Verifikasi semua elemen dirender tanpa overflow exception.
       expect(find.textContaining('INV #12'), findsOneWidget);
       expect(find.textContaining('Siap Dibayar'), findsOneWidget);
-      expect(find.text('Bayar'), findsOneWidget);
       // Tidak ada exception Flutter yang dilempar ke tester.takeException()
       expect(tester.takeException(), isNull);
     });

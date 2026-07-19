@@ -146,12 +146,20 @@ class ProcurementEntityCard extends StatelessWidget {
       ));
     }
 
+    // Format date dari ISO yyyy-MM-dd ke dd-MM-yyyy.
+    String fmtDate(String raw) {
+      if (raw.length < 10) return raw;
+      final parts = raw.substring(0, 10).split('-');
+      if (parts.length != 3) return raw;
+      return '${parts[2]}-${parts[1]}-${parts[0]}';
+    }
+
     return ProcurementEntityCard._(
       key: key,
       borderColor: const Color(0xFF2196F3), // blue
       title: 'INV #${invoice.id} • ${invoice.storeName}',
       metaLine:
-          'Supplier: ${invoice.supplierName ?? "-"} • Tgl: ${invoice.date} • ${invoice.paymentTypeText}',
+          'Supplier: ${invoice.supplierName ?? "-"} • Tgl: ${fmtDate(invoice.date)} • ${invoice.paymentTypeText}',
       amountText: FormatUtils.formatCurrency(invoice.totalPrice),
       amountColor: const Color(0xFF1976D2),
       badge: badge,
@@ -182,29 +190,22 @@ class ProcurementEntityCard extends StatelessWidget {
         .map((inv) => _LinkPill(label: '↳ INV #${inv.id}'))
         .toList();
 
-    final actions = <Widget>[];
-    if (isTunai) {
-      actions.add(Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Text(
-          '💵 Tunai — perlu reconcile closing store',
-          style: TextStyle(
-              fontSize: 9,
-              color: AppColors.warning,
-              fontWeight: FontWeight.w600),
-        ),
-      ));
+    // Format createdAt dari ISO (2026-07-19T...) ke dd-MM-yyyy.
+    final rawDate = receipt.createdAt;
+    String formattedDate = rawDate;
+    if (rawDate.length >= 10) {
+      final iso = rawDate.substring(0, 10); // yyyy-MM-dd
+      final parts = iso.split('-');
+      if (parts.length == 3) {
+        formattedDate = '${parts[2]}-${parts[1]}-${parts[0]}';
+      }
     }
 
     return ProcurementEntityCard._(
       key: key,
       borderColor: const Color(0xFF9C27B0), // purple
       title: 'Kwit #${receipt.id} • ${receipt.supplierName ?? "Supplier"}',
-      metaLine: 'Tgl Bayar: ${receipt.createdAt}',
+      metaLine: 'Tgl Bayar: $formattedDate',
       amountText: FormatUtils.formatCurrency(receipt.totalAmount),
       amountColor: AppColors.success,
       // Selalu tampilkan badge "Lunas" (payment receipt = sudah dibayar),
@@ -224,7 +225,8 @@ class ProcurementEntityCard extends StatelessWidget {
             )
           : const _Badge(text: 'Lunas', color: AppColors.success),
       stepperOrLinks: Wrap(spacing: 4, runSpacing: 4, children: linkPills),
-      actions: actions.isEmpty ? null : actions,
+      // Tidak ada inline actions di payment mode (display-only).
+      actions: null,
       onTapCard: onTapCard,
     );
   }
@@ -348,18 +350,22 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-          color: color,
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ),
     );

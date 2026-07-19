@@ -168,13 +168,13 @@ void main() {
       expect(find.textContaining('2 Invoice Gabungan'), findsOneWidget);
     });
 
-    testWidgets('badge Tunai muncul jika isTunai true',
+    testWidgets('format Tgl Bayar dari ISO ke dd-MM-yyyy',
         (WidgetTester tester) async {
       final receipt = PaymentReceipt(
-        id: 9,
-        createdAt: '2026-07-19',
-        supplierName: 'Supplier Y',
-        totalAmount: 500000,
+        id: 10,
+        createdAt: '2026-07-19T14:30:00.000000Z',
+        supplierName: 'Supplier Z',
+        totalAmount: 750000,
       );
       await tester.pumpWidget(
         MaterialApp(
@@ -182,13 +182,14 @@ void main() {
           home: Scaffold(
             body: ProcurementEntityCard.paymentMode(
               receipt: receipt,
-              isTunai: true,
+              isTunai: false,
             ),
           ),
         ),
       );
 
-      expect(find.textContaining('perlu reconcile'), findsOneWidget);
+      // ISO 2026-07-19 diformat jadi 19-07-2026.
+      expect(find.textContaining('Tgl Bayar: 19-07-2026'), findsOneWidget);
     });
   });
 

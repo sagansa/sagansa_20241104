@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 /// Stats horizontal strip di bawah AppBar halaman procurement workflow.
 ///
 /// Menampilkan 3 metrik action (lihat spec section 4.2):
-///   0 = pending approval (invoice dengan item cash-deviation pending)
+///   0 = pending approval (request dengan item pending admin approval)
 ///   1 = siap invoice (request yang belum jadi invoice)
 ///   2 = siap bayar (invoice siap dibuat payment receipt)
 class ProcurementStatsStrip extends StatelessWidget {
@@ -23,8 +23,12 @@ class ProcurementStatsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      color: AppColors.primary.withValues(alpha: 0.95),
+      // Pakai surfaceContainerHighest agar konsisten light/dark mode,
+      // tidak ada lagi "garis charcoal" yang kontras berlebihan di light.
+      color: cs.surfaceContainerHighest,
       height: 32,
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -36,7 +40,7 @@ class ProcurementStatsStrip extends StatelessWidget {
             emoji: '🟡',
             count: pendingApprovalCount,
             label: 'approval',
-            color: Colors.yellow,
+            color: AppColors.warning,
           ),
           const SizedBox(width: 10),
           _buildChip(
@@ -45,7 +49,7 @@ class ProcurementStatsStrip extends StatelessWidget {
             emoji: '🔵',
             count: siapInvoiceCount,
             label: 'siap invoice',
-            color: Colors.lightBlue,
+            color: AppColors.info,
           ),
           const SizedBox(width: 10),
           _buildChip(
@@ -54,7 +58,7 @@ class ProcurementStatsStrip extends StatelessWidget {
             emoji: '🔴',
             count: siapBayarCount,
             label: 'siap bayar',
-            color: Colors.red,
+            color: AppColors.error,
           ),
         ],
       ),
@@ -70,13 +74,15 @@ class ProcurementStatsStrip extends StatelessWidget {
     required Color color,
   }) {
     final hasCount = count > 0;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return InkWell(
       onTap: hasCount ? () => onChipTap?.call(index) : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: hasCount ? 0.25 : 0.1),
+          color: color.withValues(alpha: hasCount ? 0.18 : 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -87,7 +93,7 @@ class ProcurementStatsStrip extends StatelessWidget {
             Text(
               '$count',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: hasCount ? 1.0 : 0.5),
+                color: hasCount ? color : cs.onSurfaceVariant.withValues(alpha: 0.5),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -96,7 +102,7 @@ class ProcurementStatsStrip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: hasCount ? 1.0 : 0.5),
+                color: hasCount ? cs.onSurface : cs.onSurfaceVariant.withValues(alpha: 0.5),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),

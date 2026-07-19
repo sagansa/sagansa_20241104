@@ -4,6 +4,7 @@ import '../services/procurement_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/procurement_approval.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/modern_bottom_nav.dart';
 import '../widgets/procurement_batch_bottom_bar.dart';
 import '../widgets/procurement_entity_card.dart';
 import '../widgets/procurement_graph_view.dart';
@@ -428,10 +429,18 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
                       ),
                       _buildSubFilter(),
                       Expanded(child: _buildActiveList()),
+                      if (_buildBottomBar() != null) _buildBottomBar()!,
                     ],
                   ),
                 ),
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 3, // Transaction dashboard tab
+        onTap: (index) {
+          if (index != 3) {
+            Navigator.pop(context);
+          }
+        },
+      ),
       floatingActionButton: AddFab(
         onPressed: () async {
           final created = await Navigator.push<bool>(

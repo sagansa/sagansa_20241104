@@ -292,8 +292,20 @@ class ProcurementService {
   Future<int> createInvoice(int requestId, {
     required int supplierId,
     required List<Map<String, dynamic>> items,
+    List<int>? requestIds,
+    int? paymentTypeId,
   }) async {
     final token = await _getToken();
+    final body = <String, dynamic>{
+      'supplier_id': supplierId,
+      'items': items,
+    };
+    if (requestIds != null && requestIds.isNotEmpty) {
+      body['request_ids'] = requestIds;
+    }
+    if (paymentTypeId != null) {
+      body['payment_type_id'] = paymentTypeId;
+    }
     final response = await http.post(
       Uri.parse('${ApiConstants.baseUrl}/procurement/requests/$requestId/create-invoice'),
       headers: {
@@ -301,10 +313,7 @@ class ProcurementService {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: json.encode({
-        'supplier_id': supplierId,
-        'items': items,
-      }),
+      body: json.encode(body),
     );
 
     if (response.statusCode == 200) {

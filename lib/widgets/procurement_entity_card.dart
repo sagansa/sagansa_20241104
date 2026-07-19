@@ -259,8 +259,6 @@ class ProcurementEntityCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
-        // Note: Flutter tidak mengizinkan borderRadius dengan border non-uniform
-        // color. Gunakan border uniform tipis + left accent strip di dalam.
         border: Border.all(
           color: borderColor.withValues(alpha: 0.2),
           width: 1,
@@ -283,81 +281,84 @@ class ProcurementEntityCard extends StatelessWidget {
       child: InkWell(
         onTap: onTapCard,
         borderRadius: BorderRadius.circular(10),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left accent strip 4px (menggantikan border kiri non-uniform).
-              Container(width: 4, color: borderColor),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (leadingCheckbox != null) ...[
-                        leadingCheckbox!,
-                        const SizedBox(width: 6)
-                      ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Stack: konten menentukan tinggi natural; accent strip menempel
+        // full-height via Positioned. Menghindari IntrinsicHeight yang
+        // bisa menyebabkan 1px overflow saat konten padat.
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (leadingCheckbox != null) ...[
+                    leadingCheckbox!,
+                    const SizedBox(width: 6)
+                  ],
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: theme.textTheme.titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                metaLine,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant),
-                              ),
-                              if (amountText != null) ...[
-                                const SizedBox(height: 3),
-                                Text(
-                                  amountText!,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: amountColor,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.bold),
                                   ),
-                                ),
-                              ],
-                            ],
-                          ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    metaLine,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant),
+                                  ),
+                                  if (amountText != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      amountText!,
+                                      style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: amountColor,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (badge != null) badge!,
+                          ],
                         ),
-                        if (badge != null) badge!,
+                        if (stepperOrLinks != null) ...[
+                          const SizedBox(height: 6),
+                          stepperOrLinks!,
+                        ],
+                        if (actions != null && actions!.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(spacing: 6, runSpacing: 6, children: actions!),
+                        ],
                       ],
                     ),
-                    if (stepperOrLinks != null) ...[
-                      const SizedBox(height: 6),
-                      stepperOrLinks!,
-                    ],
-                    if (actions != null && actions!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(spacing: 6, runSpacing: 6, children: actions!),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-                    ], // inner Row children
-                  ), // inner Row
-                ), // Padding
-              ), // outer Expanded
-            ], // outer Row children
-          ), // outer Row
-        ), // IntrinsicHeight
-      ), // InkWell
+            ),
+            // Left accent strip 4px, full-height via Positioned.
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(width: 4, color: borderColor),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

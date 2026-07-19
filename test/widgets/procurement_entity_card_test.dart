@@ -234,4 +234,38 @@ void main() {
       expect(find.textContaining('perlu reconcile'), findsOneWidget);
     });
   });
+
+  // Regression: card dengan konten padat (badge + links + actions) tidak
+  // boleh overflow. Sebelumnya IntrinsicHeight + sibling accent Container
+  // menyebabkan "A RenderFlex overflowed by N pixels on the bottom".
+  group('ProcurementEntityCard - Layout regression', () {
+    testWidgets('invoice mode dengan pending + tunai tidak overflow',
+        (WidgetTester tester) async {
+      final inv = _makeInvoice();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              child: ProcurementEntityCard.invoiceMode(
+                invoice: inv,
+                linkedRequestIds: const [42, 43],
+                pendingApprovalItemCount: 2,
+                isAdmin: true,
+                onTapReviewApprove: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verifikasi semua elemen dirender tanpa overflow exception.
+      expect(find.textContaining('INV #12'), findsOneWidget);
+      expect(find.textContaining('2 item butuh approval'), findsOneWidget);
+      expect(find.text('Review & Approve'), findsOneWidget);
+      // Tidak ada exception Flutter yang dilempar ke tester.takeException()
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

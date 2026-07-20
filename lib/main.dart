@@ -14,6 +14,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'providers/theme_provider.dart';
 import 'providers/printer_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/fuel_service_payment_provider.dart';
 import 'services/location_tracking_service.dart';
 import 'theme/app_colors.dart';
 
@@ -206,6 +207,8 @@ class _MyAppState extends State<MyApp> {
   final ThemeProvider _themeProvider = ThemeProvider();
   final PrinterProvider _printerProvider = PrinterProvider();
   final AuthProvider _authProvider = AuthProvider();
+  final FuelServicePaymentProvider _fuelServicePaymentProvider =
+      FuelServicePaymentProvider();
 
   @override
   void initState() {
@@ -221,45 +224,58 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider<ThemeProvider>.value(value: _themeProvider),
         ChangeNotifierProvider<PrinterProvider>.value(value: _printerProvider),
         ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
+        ChangeNotifierProvider<FuelServicePaymentProvider>.value(
+            value: _fuelServicePaymentProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           // Ambil tema berdasarkan mode. Gunakan tema sistem (biasanya
           // light) sebagai default selama inisialisasi agar tidak ada
           // transisi warna yang mencolok (flash) dari tema gelap lama.
-          final ThemeData themeData = themeProvider.isDarkMode
-              ? ThemeProvider.darkTheme
-              : ThemeProvider.lightTheme;
+          final isDark = themeProvider.isDarkMode;
+          final ThemeData themeData =
+              isDark ? ThemeProvider.darkTheme : ThemeProvider.lightTheme;
+          final overlayStyle = SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness:
+                isDark ? Brightness.light : Brightness.dark,
+          );
 
-          return MaterialApp(
-            restorationScopeId: 'sagansa',
-            title: 'Sagansa',
-            theme: themeData,
-            darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.themeMode,
-            initialRoute: widget.initialRoute,
-            routes: {
-              '/login': (context) => const LoginPage(),
-              '/home': (context) => const HomePage(),
-            },
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-              SfGlobalLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('id'),
-              Locale('en'),
-            ],
-            locale: const Locale('id'),
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(textScaler: const TextScaler.linear(1.0)),
-                child: child!,
-              );
-            },
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: overlayStyle,
+            child: MaterialApp(
+              restorationScopeId: 'sagansa',
+              title: 'Sagansa',
+              theme: themeData,
+              darkTheme: ThemeProvider.darkTheme,
+              themeMode: themeProvider.themeMode,
+              initialRoute: widget.initialRoute,
+              routes: {
+                '/login': (context) => const LoginPage(),
+                '/home': (context) => const HomePage(),
+              },
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+                SfGlobalLocalizations.delegate,
+              ],
+              supportedLocales: const [
+                Locale('id'),
+                Locale('en'),
+              ],
+              locale: const Locale('id'),
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context)
+                      .copyWith(textScaler: const TextScaler.linear(1.0)),
+                  child: child!,
+                );
+              },
+            ),
           );
         },
       ),

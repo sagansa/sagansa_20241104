@@ -559,9 +559,19 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         final reqIds = _invoiceToRequestIds[inv.id] ?? [];
         final isSel = _selectedInvoiceIds.contains(inv.id);
         final canBayar = inv.paymentStatus != '2';
+        // Receipt yang melunasi invoice ini (kalau sudah paid).
+        final receipt = _invoiceToReceipt[inv.id];
+        // Invoice lain yang dibayar di receipt yg sama.
+        final linkedInSameReceipt = receipt?.invoicePurchases ?? const [];
+        // Thumbnail priority: gambar payment receipt (paid) > invoice image.
+        final thumbUrl = (inv.paymentStatus == '2' && receipt?.imageUrl != null)
+            ? receipt!.imageUrl
+            : inv.imageUrl;
         return ProcurementEntityCard.invoiceMode(
           invoice: inv,
           linkedRequestIds: reqIds,
+          paymentReceipt: receipt,
+          linkedInvoicesInSameReceipt: linkedInSameReceipt,
           showCheckbox: _batchMode && canBayar,
           checkboxValue: isSel,
           onCheckboxChanged: (v) => setState(() {
@@ -571,13 +581,24 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
               _selectedInvoiceIds.remove(inv.id);
             }
           }),
-          onTapThumbnail: inv.imageUrl != null
+          onTapThumbnail: thumbUrl != null
               ? () => ImagePreviewDialog.show(
                     context,
-                    inv.imageUrl!,
-                    title: 'Invoice #${inv.id}',
+                    thumbUrl,
+                    title: inv.paymentStatus == '2' && receipt?.imageUrl != null
+                        ? 'Kwitansi #${receipt!.id}'
+                        : 'Invoice #${inv.id}',
                   )
               : null,
+          onTapLinkedInvoice: (otherInv) async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InvoiceDetailPage(invoiceId: otherInv.id),
+              ),
+            );
+            _fetchData();
+          },
           onTapCard: () async {
             await Navigator.push(
               context,

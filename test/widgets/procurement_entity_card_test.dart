@@ -231,6 +231,69 @@ void main() {
       await tester.pump();
       expect(tapped, 0);
     });
+
+    testWidgets('paid + multi-invoice receipt → tampilkan link pill invoice lain',
+        (WidgetTester tester) async {
+      final currentInv = _makeInvoice(id: 100, paymentStatus: '2');
+      final otherInv = _makeInvoice(id: 101, paymentStatus: '2');
+      final receipt = PaymentReceipt(
+        id: 300,
+        createdAt: '2026-07-19T10:00:00Z',
+        supplierName: 'Supplier X',
+        totalAmount: 2000000,
+        invoicePurchases: [currentInv, otherInv],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: currentInv,
+              linkedRequestIds: const [],
+              paymentReceipt: receipt,
+              linkedInvoicesInSameReceipt: [currentInv, otherInv],
+            ),
+          ),
+        ),
+      );
+
+      // Link pill invoice lain tampil.
+      expect(find.textContaining('INV #101'), findsOneWidget);
+    });
+
+    testWidgets('tap link pill invoice lain → trigger onTapLinkedInvoice',
+        (WidgetTester tester) async {
+      final currentInv = _makeInvoice(id: 100, paymentStatus: '2');
+      final otherInv = _makeInvoice(id: 101, paymentStatus: '2');
+      final receipt = PaymentReceipt(
+        id: 300,
+        createdAt: '2026-07-19',
+        supplierName: 'Supplier X',
+        totalAmount: 2000000,
+        invoicePurchases: [currentInv, otherInv],
+      );
+
+      InvoicePurchase? tappedInv;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeProvider.lightTheme,
+          home: Scaffold(
+            body: ProcurementEntityCard.invoiceMode(
+              invoice: currentInv,
+              linkedRequestIds: const [],
+              paymentReceipt: receipt,
+              linkedInvoicesInSameReceipt: [currentInv, otherInv],
+              onTapLinkedInvoice: (inv) => tappedInv = inv,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.textContaining('INV #101'));
+      await tester.pump();
+      expect(tappedInv?.id, 101);
+    });
   });
 
   group('ProcurementEntityCard - Payment mode', () {

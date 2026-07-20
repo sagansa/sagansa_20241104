@@ -118,12 +118,15 @@ class ProcurementEntityCard extends StatelessWidget {
     Key? key,
     required InvoicePurchase invoice,
     required List<int> linkedRequestIds,
+    PaymentReceipt? paymentReceipt,
+    List<InvoicePurchase> linkedInvoicesInSameReceipt = const [],
     bool showCheckbox = false,
     bool? checkboxValue,
     ValueChanged<bool>? onCheckboxChanged,
     VoidCallback? onTapCard,
     VoidCallback? onTapBayar,
     VoidCallback? onTapThumbnail,
+    void Function(InvoicePurchase)? onTapLinkedInvoice,
   }) {
     final isPaid = invoice.paymentStatus == '2';
     final canBayar = !isPaid;
@@ -135,9 +138,26 @@ class ProcurementEntityCard extends StatelessWidget {
       onTap: (canBayar && onTapBayar != null) ? onTapBayar : null,
     );
 
-    final linkPills = linkedRequestIds.isEmpty
-        ? <Widget>[]
-        : [_LinkPill(label: '↳ REQ ${linkedRequestIds.join(",")}')];
+    // Link pills: REQ parent + (kalau paid & multi-invoice) invoice lain
+    // yang dibayar bersamaan dalam 1 payment receipt.
+    final linkPills = <Widget>[];
+    if (linkedRequestIds.isNotEmpty) {
+      linkPills.add(_LinkPill(label: '↳ REQ ${linkedRequestIds.join(",")}'));
+    }
+    if (isPaid && paymentReceipt != null && linkedInvoicesInSameReceipt.length > 1) {
+      // Tampilkan invoice lain (exclude current) yang dibayar di receipt yg sama.
+      for (final otherInv in linkedInvoicesInSameReceipt
+          .where((inv) => inv.id != invoice.id)) {
+        linkPills.add(
+          _LinkPill(
+            label: '↳ INV #${otherInv.id}',
+            onTap: onTapLinkedInvoice != null
+                ? () => onTapLinkedInvoice(otherInv)
+                : null,
+          ),
+        );
+      }
+    }
 
     // Action button "Bayar" tidak lagi ditampilkan sebagai button terpisah
     // — sudah diwakili oleh badge tap-able (mengurangi duplikasi UI).
@@ -151,14 +171,25 @@ class ProcurementEntityCard extends StatelessWidget {
       return '${parts[2]}-${parts[1]}-${parts[0]}';
     }
 
+    // Thumbnail prioritas: gambar payment receipt (kalau paid & ada receipt),
+    // baru fallback ke gambar invoice.
+    final String? effectiveThumb =
+        (isPaid && paymentReceipt?.imageUrl != null)
+            ? paymentReceipt!.imageUrl
+            : invoice.imageUrl;
+    final IconData effectiveThumbIcon =
+        (isPaid && paymentReceipt?.imageUrl != null)
+            ? Icons.payment
+            : Icons.receipt_long;
+
     return ProcurementEntityCard._(
       key: key,
       borderColor: const Color(0xFF2196F3), // blue
       title: 'INV #${invoice.id} • ${invoice.storeName}',
       metaLine:
           'Supplier: ${invoice.supplierName ?? "-"} • Tgl: ${fmtDate(invoice.date)} • ${invoice.paymentTypeText}',
-      thumbnailUrl: invoice.imageUrl,
-      thumbnailPlaceholder: Icons.receipt_long,
+      thumbnailUrl: effectiveThumb,
+      thumbnailPlaceholder: effectiveThumbIcon,
       onTapThumbnail: onTapThumbnail,
       amountText: FormatUtils.formatCurrency(invoice.totalPrice),
       amountColor: const Color(0xFF1976D2),

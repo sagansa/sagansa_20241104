@@ -499,6 +499,56 @@ class ProcurementService {
     }
   }
 
+  /// Create a payment receipt for fuel services (transfer payment).
+  ///
+  /// Mirror dengan [createPaymentReceipt] (invoice) tapi untuk fuel_services.
+  /// Backend route: POST /procurement/fuel-service-payment-receipts
+  Future<Map<String, dynamic>> createFuelServicePaymentReceipt({
+    required List<int> fuelServiceIds,
+    required int transferAmount,
+    int? totalAmount,
+    String? notes,
+    File? image,
+  }) async {
+    final token = await _getToken();
+    if (token == null) throw Exception('Tidak ada token autentikasi.');
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConstants.baseUrl}/procurement/fuel-service-payment-receipts'),
+    );
+    request.headers.addAll({
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
+
+    for (var id in fuelServiceIds) {
+      request.fields['fuel_service_ids[]'] = id.toString();
+    }
+    request.fields['transfer_amount'] = transferAmount.toString();
+    if (totalAmount != null) {
+      request.fields['total_amount'] = totalAmount.toString();
+    }
+    if (notes != null) {
+      request.fields['notes'] = notes;
+    }
+    if (image != null) {
+      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      request.fields['image'] = path;
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final jsonResponse = json.decode(response.body);
+
+    if (response.statusCode == 201 && jsonResponse['success'] == true) {
+      return jsonResponse['data'] ?? {};
+    } else {
+      throw Exception(jsonResponse['message'] ?? 'Gagal membuat payment receipt.');
+    }
+  }
+
   Future<InvoicePurchase> getInvoiceDetail(int id) async {
     final token = await _getToken();
     final response = await http.get(

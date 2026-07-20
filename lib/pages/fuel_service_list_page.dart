@@ -44,6 +44,14 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
   bool _isAdmin = false;
   bool _paymentMode = false;
 
+  // Filter state (dipakai admin saja untuk scope; status/fuelService untuk semua).
+  // scope: 0 = Semua, 1 = Saya (admin only, hidden untuk staff)
+  // status: 0 = Semua, 1 = Pending, 2 = Lunas
+  // fuelService: 0 = Semua, 1 = Fuel, 2 = Service
+  int _scopeFilter = 0;
+  int _statusFilter = 0;
+  int _fuelServiceFilter = 0;
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +103,13 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     });
 
     try {
-      final result = await _service.getFuelServicesPaged(allStores: _isAdmin, page: _page);
+      final result = await _service.getFuelServicesPaged(
+        allStores: _isAdmin,
+        page: _page,
+        scope: _scopeFilter == 1 ? 'me' : 'all',
+        status: _statusFilter == 0 ? null : _statusFilter.toString(),
+        fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+      );
       if (!mounted) return;
       setState(() {
         _services = result['data'] as List<Map<String, dynamic>>;
@@ -116,7 +130,13 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final result = await _service.getFuelServicesPaged(allStores: _isAdmin, page: _page + 1);
+      final result = await _service.getFuelServicesPaged(
+        allStores: _isAdmin,
+        page: _page + 1,
+        scope: _scopeFilter == 1 ? 'me' : 'all',
+        status: _statusFilter == 0 ? null : _statusFilter.toString(),
+        fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+      );
       if (!mounted) return;
       setState(() {
         _page++;
@@ -128,6 +148,99 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       if (!mounted) return;
       setState(() => _isLoadingMore = false);
     }
+  }
+
+  /// Chip row untuk filter scope/status/fuel_service.
+  /// Disembunyikan saat _paymentMode aktif (fokus pilih item).
+  Widget _buildFilterRow(ThemeData theme, ColorScheme cs) {
+    return Container(
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          // Scope filter (admin only — staff tetap lihat milik sendiri).
+          if (_isAdmin) ...[
+            _filterChip(
+              cs: cs,
+              activeIndex: _scopeFilter,
+              onTap: (i) {
+                setState(() => _scopeFilter = i);
+                _fetch();
+              },
+              options: const ['Semua User', 'Saya'],
+            ),
+            const SizedBox(width: 16),
+            // Separator visual.
+            Container(width: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+            const SizedBox(width: 16),
+          ],
+          // Fuel/Service filter.
+          _filterChip(
+            cs: cs,
+            activeIndex: _fuelServiceFilter,
+            onTap: (i) {
+              setState(() => _fuelServiceFilter = i);
+              _fetch();
+            },
+            options: const ['Semua', 'Fuel', 'Service'],
+          ),
+          const SizedBox(width: 16),
+          Container(width: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+          const SizedBox(width: 16),
+          // Status filter.
+          _filterChip(
+            cs: cs,
+            activeIndex: _statusFilter,
+            onTap: (i) {
+              setState(() => _statusFilter = i);
+              _fetch();
+            },
+            options: const ['Semua', 'Pending', 'Lunas'],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Generic chip group untuk filter dengan options list.
+  Widget _filterChip({
+    required ColorScheme cs,
+    required int activeIndex,
+    required void Function(int) onTap,
+    required List<String> options,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(options.length, (i) {
+        final selected = activeIndex == i;
+        return Padding(
+          padding: EdgeInsets.only(left: i == 0 ? 0 : 4),
+          child: GestureDetector(
+            onTap: () => onTap(i),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: selected ? cs.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Text(
+                options[i],
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  color: selected ? cs.onPrimary : cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
   }
 
   void _openFuelServiceForm() async {
@@ -165,6 +278,12 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
             onPressed: _fetch,
           )
         ],
+        bottom: _paymentMode
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(44),
+                child: _buildFilterRow(theme, colorScheme),
+              ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

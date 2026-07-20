@@ -467,11 +467,30 @@ class ClosingStoreService {
     }
   }
 
-  Future<Map<String, dynamic>> getFuelServicesPaged({bool allStores = false, int page = 1, int perPage = 20}) async {
+  /// Filter params untuk getFuelServicesPaged.
+  ///
+  /// Konvensi:
+  /// - scope: 'all' (default) atau 'me' (admin lihat milik sendiri saja)
+  /// - status: null (semua), '1' (Pending), '2' (Lunas)
+  /// - fuelService: null (semua), '1' (Fuel), '2' (Service)
+  Future<Map<String, dynamic>> getFuelServicesPaged({
+    bool allStores = false,
+    int page = 1,
+    int perPage = 20,
+    String scope = 'all',
+    String? status,
+    String? fuelService,
+  }) async {
     final token = await _getToken();
     if (token == null) throw Exception('Tidak ada token autentikasi.');
-    final query = <String, String>{'page': page.toString(), 'per_page': perPage.toString()};
+    final query = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
     if (allStores) query['all_stores'] = '1';
+    if (scope == 'me') query['scope'] = 'me';
+    if (status != null) query['status'] = status;
+    if (fuelService != null) query['fuel_service'] = fuelService;
     final uri = Uri.parse('${ApiConstants.baseUrl}/closing-stores/fuel-services').replace(queryParameters: query);
     final response = await http.get(uri, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
     final jsonResponse = json.decode(response.body);

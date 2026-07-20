@@ -470,14 +470,14 @@ class ClosingStoreService {
   /// Filter params untuk getFuelServicesPaged.
   ///
   /// Konvensi:
-  /// - scope: 'all' (default) atau 'me' (admin lihat milik sendiri saja)
+  /// - createdById: null (semua user, admin only) atau id user spesifik
   /// - status: null (semua), '1' (Pending), '2' (Lunas)
   /// - fuelService: null (semua), '1' (Fuel), '2' (Service)
   Future<Map<String, dynamic>> getFuelServicesPaged({
     bool allStores = false,
     int page = 1,
     int perPage = 20,
-    String scope = 'all',
+    int? createdById,
     String? status,
     String? fuelService,
   }) async {
@@ -488,7 +488,7 @@ class ClosingStoreService {
       'per_page': perPage.toString(),
     };
     if (allStores) query['all_stores'] = '1';
-    if (scope == 'me') query['scope'] = 'me';
+    if (createdById != null) query['created_by_id'] = createdById.toString();
     if (status != null) query['status'] = status;
     if (fuelService != null) query['fuel_service'] = fuelService;
     final uri = Uri.parse('${ApiConstants.baseUrl}/closing-stores/fuel-services').replace(queryParameters: query);

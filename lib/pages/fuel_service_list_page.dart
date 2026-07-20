@@ -44,13 +44,15 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
   bool _isAdmin = false;
   bool _paymentMode = false;
 
-  // Filter state (dipakai admin saja untuk scope; status/fuelService untuk semua).
-  // scope: 0 = Semua, 1 = Saya (admin only, hidden untuk staff)
+  // Filter state (status & fuelService untuk semua role; userFilter admin only).
   // status: 0 = Semua, 1 = Pending, 2 = Lunas
   // fuelService: 0 = Semua, 1 = Fuel, 2 = Service
-  int _scopeFilter = 0;
+  // selectedUserId: null = Semua User, atau id user spesifik (admin only)
   int _statusFilter = 0;
   int _fuelServiceFilter = 0;
+  int? _selectedUserId;
+  List<Map<String, dynamic>> _userList = [];
+  bool _isLoadingUsers = false;
 
   @override
   void initState() {
@@ -88,6 +90,10 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
               roles.contains('super_admin') ||
               roles.contains('supervisor');
         });
+        // Load user list hanya setelah role diketahui (admin only).
+        if (_isAdmin) {
+          _loadUserList();
+        }
       }
     }
   }
@@ -106,7 +112,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       final result = await _service.getFuelServicesPaged(
         allStores: _isAdmin,
         page: _page,
-        scope: _scopeFilter == 1 ? 'me' : 'all',
+        createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
         fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
       );
@@ -133,7 +139,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       final result = await _service.getFuelServicesPaged(
         allStores: _isAdmin,
         page: _page + 1,
-        scope: _scopeFilter == 1 ? 'me' : 'all',
+        createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
         fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
       );
@@ -150,7 +156,23 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     }
   }
 
-  /// Chip row untuk filter scope/status/fuel_service.
+  /// Load list user yang punya fuel service (admin only filter).
+  Future<void> _loadUserList() async {
+    if (!_isAdmin) return;
+    setState(() => _isLoadingUsers = true);
+    try {
+      final users = await _service.getUsersForFuelServicePayment();
+      if (!mounted) return;
+      setState(() {
+        _userList = users.cast<Map<String, dynamic>>().toList();
+        _isLoadingUsers = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingUsers = false);
+    }
+  }
+
+  /// Chip row + dropdown untuk filter user/status/fuel_service.
   /// Disembunyikan saat _paymentMode aktif (fokus pilih item).
   Widget _buildFilterRow(ThemeData theme, ColorScheme cs) {
     return Container(
@@ -160,17 +182,9 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          // Scope filter (admin only — staff tetap lihat milik sendiri).
+          // User filter (admin only — staff tetap lihat milik sendiri).
           if (_isAdmin) ...[
-            _filterChip(
-              cs: cs,
-              activeIndex: _scopeFilter,
-              onTap: (i) {
-                setState(() => _scopeFilter = i);
-                _fetch();
-              },
-              options: const ['Semua User', 'Saya'],
-            ),
+            _buildUserDropdown(cs),
             const SizedBox(width: 16),
             // Separator visual.
             Container(width: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
@@ -200,6 +214,58 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
             options: const ['Semua', 'Pending', 'Lunas'],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Dropdown untuk filter berdasarkan user (admin only).
+  Widget _buildUserDropdown(ColorScheme cs) {
+    if (_isLoadingUsers) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 6),
+          Text('Memuat user...',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+        ],
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int?>(
+          value: _selectedUserId,
+          isDense: true,
+          style: TextStyle(fontSize: 11, color: cs.onSurface),
+          hint: const Text('Semua User'),
+          items: [
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text('Semua User'),
+            ),
+            ..._userList.map((u) {
+              final id = u['id'] as int?;
+              final name = u['name']?.toString() ?? 'User #$id';
+              return DropdownMenuItem<int?>(
+                value: id,
+                child: Text(name),
+              );
+            }),
+          ],
+          onChanged: (val) {
+            setState(() => _selectedUserId = val);
+            _fetch();
+          },
+        ),
       ),
     );
   }

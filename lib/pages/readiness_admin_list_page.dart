@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../models/readiness_model.dart';
 import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
@@ -7,9 +8,9 @@ import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'home_page.dart';
 import 'hrd_dashboard_page.dart';
+import 'readiness_page.dart';
 import 'stock_dashboard_page.dart';
 import 'transaction_dashboard_page.dart';
-import 'readiness_page.dart';
 
 class ReadinessAdminListPage extends StatefulWidget {
   const ReadinessAdminListPage({super.key});
@@ -23,7 +24,8 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
   List<ReadinessModel> _items = [];
   bool _isLoading = true;
   String? _errorMessage;
-  DateTime _selectedDate = DateTime.now();
+  // Null = tampilkan semua tanggal (tidak difilter hari ini).
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -69,7 +71,9 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
       _errorMessage = null;
     });
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final dateStr = _selectedDate != null
+          ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+          : null;
       final data = await _service.getAdminList(date: dateStr);
       if (!mounted) return;
       setState(() {
@@ -88,12 +92,19 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
+      _load();
+    }
+  }
+
+  void _clearDate() {
+    if (_selectedDate != null) {
+      setState(() => _selectedDate = null);
       _load();
     }
   }
@@ -130,6 +141,25 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
     }
   }
 
+  Widget _buildStatusBadge(ThemeData theme, int? status) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: AppSpacing.borderRadiusSM,
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _thumb(String? url, IconData icon) {
     if (url == null) {
       return Container(
@@ -139,7 +169,7 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
           color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
           borderRadius: AppSpacing.borderRadiusSM,
         ),
-        child: Icon(icon, color: AppColors.onSurfaceVariant),
+        child: Icon(icon, color: AppColors.info),
       );
     }
     return ClipRRect(
@@ -153,7 +183,7 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
           width: 44,
           height: 44,
           color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
-          child: Icon(icon, color: AppColors.onSurfaceVariant),
+          child: Icon(icon, color: AppColors.info),
         ),
       ),
     );
@@ -185,9 +215,19 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
                   child: OutlinedButton.icon(
                     onPressed: _pickDate,
                     icon: const Icon(Icons.calendar_month),
-                    label: Text(DateFormat('dd MMM yyyy').format(_selectedDate)),
+                    label: Text(_selectedDate != null
+                        ? DateFormat('dd MMM yyyy').format(_selectedDate!)
+                        : 'Semua tanggal'),
                   ),
                 ),
+                if (_selectedDate != null) ...[
+                  AppSpacing.gapHorizontalMD,
+                  IconButton(
+                    onPressed: _clearDate,
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Tampilkan semua tanggal',
+                  ),
+                ],
                 AppSpacing.gapHorizontalMD,
                 Text(
                   '${_items.length} entri',
@@ -229,7 +269,7 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
                               children: [
                                 Icon(Icons.checkroom_outlined,
                                     size: 56,
-                                    color: colorScheme.onSurfaceVariant
+                                    color: AppColors.info
                                         .withValues(alpha: 0.5)),
                                 AppSpacing.gapVerticalMD,
                                 Text(
@@ -247,61 +287,79 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
                               padding: AppSpacing.paddingMD,
                               itemCount: _items.length,
                               separatorBuilder: (context, index) =>
-                                  const Divider(height: 1),
+                                  AppSpacing.gapVerticalSM,
                               itemBuilder: (context, idx) {
                                 final item = _items[idx];
-                                return ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: _thumb(item.selfieUrl, Icons.face),
-                                  title: Text(
-                                    item.createdByName ?? 'Tanpa nama',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
+                                return Card(
+                                  elevation: 0,
+                                  color: colorScheme.surfaceContainerLowest,
+                                  child: Padding(
+                                    padding: AppSpacing.paddingMD,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _thumb(item.selfieUrl, Icons.face),
+                                            AppSpacing.gapHorizontalSM,
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    item.createdByName ??
+                                                        'Tanpa nama',
+                                                    style: theme
+                                                        .textTheme.bodyMedium
+                                                        ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  AppSpacing.gapVerticalXS,
+                                                  Text(
+                                                    item.storeName ?? 'Toko',
+                                                    style: theme
+                                                        .textTheme.bodySmall
+                                                        ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                  AppSpacing.gapVerticalXS,
+                                                  Text(
+                                                    _formatDate(
+                                                        item.createdAt),
+                                                    style: theme
+                                                        .textTheme.bodySmall
+                                                        ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            _buildStatusBadge(
+                                                theme, item.status),
+                                          ],
+                                        ),
+                                        AppSpacing.gapVerticalMD,
+                                        Row(
+                                          children: [
+                                            _thumb(item.leftHandUrl,
+                                                Icons.back_hand),
+                                            AppSpacing.gapHorizontalXS,
+                                            _thumb(item.rightHandUrl,
+                                                Icons.front_hand),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(item.storeName ?? 'Toko'),
-                                      Text(
-                                        _formatDate(item.createdAt),
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _thumb(item.leftHandUrl, Icons.back_hand),
-                                      AppSpacing.gapHorizontalXS,
-                                      _thumb(
-                                          item.rightHandUrl, Icons.front_hand),
-                                      AppSpacing.gapHorizontalXS,
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _statusColor(item.status)
-                                              .withValues(alpha: 0.15),
-                                          borderRadius:
-                                              AppSpacing.borderRadiusSM,
-                                        ),
-                                        child: Text(
-                                          _statusLabel(item.status),
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                            color: _statusColor(item.status),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 );
                               },

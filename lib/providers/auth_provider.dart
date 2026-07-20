@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
 import '../services/auth_service.dart';
+import '../services/leave_service.dart';
+import '../utils/constants.dart';
 
 enum AuthState { idle, loading, success, error }
 
@@ -196,5 +200,61 @@ class AuthProvider with ChangeNotifier {
     if (_userData == null) return false;
     final userRoles = List<String>.from(_userData!['roles'] ?? []);
     return userRoles.any((role) => rolesToCheck.contains(role));
+  }
+
+  // --- Home data (absorbed from HomeController) ---
+
+  Map<String, String>? _cachedUserInfo;
+
+  String get userName => _cachedUserInfo?['userName'] ?? '';
+  String get companyName => _cachedUserInfo?['companyName'] ?? 'SAGANSA';
+
+  bool _hasActiveLeave = false;
+  bool get hasActiveLeave => _hasActiveLeave;
+
+  Future<void> loadUserInfo() async {
+    if (_cachedUserInfo != null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final loginDataString = prefs.getString(AppConstants.loginDataKey);
+
+    if (loginDataString != null) {
+      final loginData = json.decode(loginDataString);
+      final userData = loginData['data']['user'];
+
+      _cachedUserInfo = {
+        'userName': userData['name'] ?? '',
+        'companyName': userData['company']?['name'] ?? 'SAGANSA',
+      };
+
+      notifyListeners();
+    }
+  }
+
+  Future<void> checkActiveLeave() async {
+    try {
+      final leaveService = LeaveService();
+      final leaves = await leaveService.getLeaves();
+      final now = DateTime.now();
+
+      _hasActiveLeave = leaves.any((leave) =>
+          leave.status == AppConstants.leaveStatusApproved &&
+          leave.fromDate.isBefore(now) &&
+          leave.untilDate.isAfter(now));
+
+      notifyListeners();
+    } catch (e) {
+      _hasActiveLeave = false;
+    }
+  }
+
+  Map<String, String> splitDateTime(String dateTimeString) {
+    final dateTime = DateTime.parse(dateTimeString);
+    return {
+      'date':
+          '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}',
+      'time':
+          '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}',
+    };
   }
 }

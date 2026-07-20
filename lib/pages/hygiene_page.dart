@@ -1,17 +1,23 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../models/hygiene_model.dart';
 import '../models/store_model.dart';
+import '../services/asset_service.dart';
 import '../services/hygiene_service.dart';
 import '../services/store_service.dart';
-import '../services/asset_service.dart';
-import '../utils/image_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_utils.dart';
+import '../utils/snackbar_utils.dart';
+import '../widgets/modern_dropdown.dart';
 
 class HygienePage extends StatefulWidget {
-  const HygienePage({super.key});
+  final int? initialStoreId;
+
+  const HygienePage({super.key, this.initialStoreId});
 
   @override
   State<HygienePage> createState() => _HygienePageState();
@@ -45,36 +51,46 @@ class _HygienePageState extends State<HygienePage> {
       final assetService = AssetService();
       final results = await Future.wait([
         _hygieneService.getRooms(),
-        _hygieneService.checkTodayStatus(),
         storeService.getStores(),
         assetService.getCurrentStoreId(),
       ]);
 
       final rooms = results[0] as List<RoomModel>;
-      final hasSubmitted = results[1] as bool;
-      final stores = results[2] as List<StoreModel>;
-      final currentStoreId = results[3] as int?;
+      final stores = results[1] as List<StoreModel>;
+      final currentStoreId = results[2] as int?;
+
+      StoreModel? selectedStore;
+      if (widget.initialStoreId != null) {
+        selectedStore =
+            stores.where((s) => s.id == widget.initialStoreId).firstOrNull;
+      }
+      if (selectedStore == null && currentStoreId != null) {
+        selectedStore = stores.where((s) => s.id == currentStoreId).firstOrNull;
+      }
+      if (selectedStore == null && stores.isNotEmpty) {
+        selectedStore = stores.first;
+      }
+      final storeId = selectedStore?.id;
+
+      // Cek status kebersihan per-TOKO (bukan per-user): bila user lain di toko
+      // sama sudah lapor hari ini, user berikutnya tidak wajib mengisi lagi.
+      final hasSubmitted = storeId != null
+          ? await _hygieneService.checkTodayStatus(storeId: storeId)
+          : false;
 
       if (mounted) {
         setState(() {
           _rooms = rooms;
           _hasSubmittedToday = hasSubmitted;
           _stores = stores;
-          if (currentStoreId != null) {
-            _selectedStore = stores.where((s) => s.id == currentStoreId).firstOrNull;
-          }
-          if (_selectedStore == null && stores.isNotEmpty) {
-            _selectedStore = stores.first;
-          }
-          _storeId = _selectedStore?.id;
+          _selectedStore = selectedStore;
+          _storeId = storeId;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: $e')),
-        );
+        SnackbarUtils.error(context, 'Gagal memuat data: $e');
         setState(() => _isLoading = false);
       }
     }
@@ -145,9 +161,7 @@ class _HygienePageState extends State<HygienePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memilih foto: $e')),
-        );
+        SnackbarUtils.error(context, 'Gagal memilih foto: $e');
       }
     }
   }
@@ -190,16 +204,12 @@ class _HygienePageState extends State<HygienePage> {
 
   Future<void> _submit() async {
     if (_storeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan pilih toko terlebih dahulu!')),
-      );
+      SnackbarUtils.warning(context, 'Silakan pilih toko terlebih dahulu!');
       return;
     }
 
     if (!_isReadyToSubmit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lengkapi semua ruangan terlebih dahulu!')),
-      );
+      SnackbarUtils.warning(context, 'Lengkapi semua ruangan terlebih dahulu!');
       return;
     }
 
@@ -240,16 +250,12 @@ class _HygienePageState extends State<HygienePage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Laporan kebersihan berhasil dikirim!')),
-        );
+        SnackbarUtils.success(context, 'Laporan kebersihan berhasil dikirim!');
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        SnackbarUtils.error(context, e.toString());
       }
     } finally {
       if (mounted) {
@@ -277,23 +283,68 @@ class _HygienePageState extends State<HygienePage> {
 
   Widget _buildSubmittedView() {
     final textTheme = Theme.of(context).textTheme;
+    final storeName = _selectedStore?.nickname.isNotEmpty == true
+        ? _selectedStore!.nickname
+        : 'toko ini';
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.check_circle, size: 80, color: AppColors.success),
-          AppSpacing.gapVerticalMD,
-          Text(
-            'Anda sudah mengirim laporan kebersihan hari ini',
-            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          AppSpacing.gapVerticalLG,
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Kembali'),
-          ),
-        ],
+      child: Padding(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, size: 80, color: AppColors.success),
+            AppSpacing.gapVerticalMD,
+            Text(
+              'Kebersihan Toko untuk $storeName\nsudah dilaporkan hari ini',
+              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            AppSpacing.gapVerticalSM,
+            Text(
+              _stores.length > 1
+                  ? 'Laporan cukup satu kali per toko per hari. Pilih toko lain di atas bila perlu.'
+                  : 'Laporan cukup satu kali per toko per hari.',
+              style: textTheme.bodyMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            if (_stores.length > 1) ...[
+              AppSpacing.gapVerticalMD,
+              ModernDropdown<StoreModel>(
+                value: _selectedStore,
+                labelText: 'Pilih Toko Lain',
+                hint: 'Pilih Toko...',
+                prefixIcon: const Icon(Icons.storefront_rounded, size: 20),
+                items: _stores,
+                getLabel: (s) =>
+                    s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
+                onChanged: (v) async {
+                  if (v == null || v.id == _storeId) return;
+                  bool submitted = false;
+                  try {
+                    submitted = await _hygieneService.checkTodayStatus(
+                      storeId: v.id,
+                    );
+                  } catch (_) {
+                    // Biarkan false bila gagal cek.
+                  }
+                  if (mounted) {
+                    setState(() {
+                      _selectedStore = v;
+                      _storeId = v.id;
+                      _hasSubmittedToday = submitted;
+                    });
+                  }
+                },
+              ),
+            ],
+            AppSpacing.gapVerticalLG,
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Kembali'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -313,28 +364,33 @@ class _HygienePageState extends State<HygienePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DropdownButtonFormField<StoreModel>(
-                        initialValue: _selectedStore,
-                        decoration: const InputDecoration(
-                          labelText: 'Pilih Toko *',
-                        ),
-                        items: _stores
-                            .map((s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s.nickname.isNotEmpty
-                                      ? s.nickname
-                                      : 'Store #${s.id}'),
-                                ))
-                            .toList(),
-                        onChanged: (v) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              setState(() {
-                                _selectedStore = v;
-                                _storeId = v?.id;
-                              });
-                            }
-                          });
+                      ModernDropdown<StoreModel>(
+                        value: _selectedStore,
+                        labelText: 'Pilih Toko',
+                        hint: 'Pilih Toko...',
+                        isRequired: true,
+                        prefixIcon:
+                            const Icon(Icons.storefront_rounded, size: 20),
+                        items: _stores,
+                        getLabel: (s) =>
+                            s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
+                        onChanged: (v) async {
+                          if (v == null || v.id == _storeId) return;
+                          // Cek ulang status kebersihan per-toko yang dipilih.
+                          bool submitted = false;
+                          try {
+                            submitted = await _hygieneService
+                                .checkTodayStatus(storeId: v.id);
+                          } catch (_) {
+                            // Biarkan false bila gagal cek; user tetap bisa isi.
+                          }
+                          if (mounted) {
+                            setState(() {
+                              _selectedStore = v;
+                              _storeId = v.id;
+                              _hasSubmittedToday = submitted;
+                            });
+                          }
                         },
                       ),
                       AppSpacing.gapVerticalMD,
@@ -377,9 +433,9 @@ class _HygienePageState extends State<HygienePage> {
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.85,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.0,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => _buildRoomCard(_rooms[index]),
@@ -400,86 +456,123 @@ class _HygienePageState extends State<HygienePage> {
 
   Widget _buildRoomCard(RoomModel room) {
     final hasPhoto = _roomPhotos.containsKey(room.id);
+    final photoFile = _roomPhotos[room.id];
     final hasNotes = _roomNotes.containsKey(room.id) && _roomNotes[room.id] != null;
-    final isComplete = hasPhoto;
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
-    return Card(
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    room.name,
-                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isComplete)
-                  Icon(Icons.check_circle, size: 16, color: AppColors.success),
-              ],
+    return ClipRRect(
+      borderRadius: AppSpacing.borderRadiusMD,
+      child: GestureDetector(
+        onTap: () => _pickImage(room.id),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            border: Border.all(
+              color: hasPhoto ? AppColors.success : colorScheme.outlineVariant,
+              width: hasPhoto ? 2 : 1,
             ),
-            AppSpacing.gapVerticalSM,
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _pickImage(room.id),
+            borderRadius: AppSpacing.borderRadiusMD,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Background Photo / Camera Placeholder (1:1 aspect ratio)
+              hasPhoto && photoFile != null
+                  ? Image.file(
+                      photoFile,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.camera_alt,
+                          size: 32,
+                          color: AppColors.info,
+                        ),
+                        AppSpacing.gapVerticalXS,
+                        Text(
+                          'Ambil Foto',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+
+              // 2. Scrim Atas: Nama Ruangan + Indicator
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
                 child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha:0.3),
-                    borderRadius: AppSpacing.borderRadiusSM,
-                    border: Border.all(
-                      color: hasPhoto
-                          ? AppColors.success
-                          : colorScheme.outlineVariant,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
-                  child: hasPhoto
-                      ? ClipRRect(
-                          borderRadius: AppSpacing.borderRadiusSM,
-                          child: Image.file(
-                            _roomPhotos[room.id]!,
-                            fit: BoxFit.cover,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          room.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
                           ),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.camera_alt,
-                              size: 28,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            AppSpacing.gapVerticalXS,
-                            Text(
-                              'Foto',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                      if (hasPhoto) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.check_circle, size: 16, color: AppColors.success),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            AppSpacing.gapVerticalSM,
-            Row(
-              children: [
-                Expanded(
+
+              // 3. Scrim Bawah: Catatan
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
                   child: GestureDetector(
                     onTap: () => _addNotes(room.id),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: hasNotes ? AppColors.info.withValues(alpha:0.1) : Colors.transparent,
-                        borderRadius: AppSpacing.borderRadiusSM,
+                        color: hasNotes
+                            ? AppColors.info
+                            : Colors.black.withValues(alpha: 0.5),
+                        borderRadius: AppSpacing.borderRadiusXS,
                         border: Border.all(
-                          color: hasNotes ? AppColors.info : colorScheme.outlineVariant,
+                          color: hasNotes ? AppColors.info : Colors.white30,
                         ),
                       ),
                       child: Row(
@@ -487,19 +580,20 @@ class _HygienePageState extends State<HygienePage> {
                         children: [
                           Icon(
                             hasNotes ? Icons.notes : Icons.notes_outlined,
-                            size: 14,
-                            color: hasNotes ? AppColors.info : colorScheme.onSurfaceVariant,
+                            size: 13,
+                            color: Colors.white,
                           ),
-                          AppSpacing.gapHorizontalXS,
+                          const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              hasNotes ? (_roomNotes[room.id] ?? 'Ada Catatan') : 'Tambah Catatan',
-                              style: TextStyle(
+                              hasNotes
+                                  ? (_roomNotes[room.id] ?? 'Ada Catatan')
+                                  : 'Catatan',
+                              style: const TextStyle(
                                 fontSize: 10,
-                                fontWeight: hasNotes ? FontWeight.bold : FontWeight.normal,
-                                color: hasNotes ? AppColors.info : colorScheme.onSurfaceVariant,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
                               ),
-                              textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -509,9 +603,9 @@ class _HygienePageState extends State<HygienePage> {
                     ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

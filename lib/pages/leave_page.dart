@@ -1,11 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/leave_model.dart';
 import '../services/leave_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/leave_detail_bottom_sheet.dart';
+import '../widgets/leave_stats_header.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
 import 'leave_form_page.dart';
@@ -29,11 +33,7 @@ class LeavePageState extends State<LeavePage> {
   bool _hasMore = true;
   String? _selectedStatus;
 
-  final Map<String, String> _statusOptions = {
-    '1': 'Pending',
-    '2': 'Disetujui',
-    '3': 'Ditolak',
-  };
+
 
   @override
   void initState() {
@@ -66,7 +66,13 @@ class LeavePageState extends State<LeavePage> {
       final userData = json.decode(userString);
       final roles = List<String>.from(userData['roles'] ?? []);
       setState(() {
-        _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+        _isAdmin = roles.any((r) => [
+              'admin',
+              'super_admin',
+              'supervisor',
+              'owner',
+              'panel_user'
+            ].contains(r));
       });
     }
     _loadLeaves();
@@ -169,20 +175,13 @@ class LeavePageState extends State<LeavePage> {
     }
   }
 
-  String _getReasonText(dynamic reason) {
-    final r = reason is int ? reason : int.tryParse(reason.toString()) ?? 0;
-    switch (r) {
-      case 1:
-        return 'Cuti';
-      case 2:
-        return 'Izin';
-      case 3:
-        return 'Sakit';
-      case 4:
-        return 'Lainnya';
-      default:
-        return 'Lainnya';
+  String _getInitials(String name) {
+    if (name.isEmpty) return 'U';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
+    return name[0].toUpperCase();
   }
 
   Future<void> _approveLeave(LeaveModel leave) async {
@@ -198,6 +197,7 @@ class LeavePageState extends State<LeavePage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
             child: const Text('Setujui'),
           ),
         ],
@@ -224,7 +224,8 @@ class LeavePageState extends State<LeavePage> {
         final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+            content: Text(e.toString().replaceAll('Exception: ', ''),
+                style: const TextStyle(color: Colors.white)),
             backgroundColor: cs.error,
           ),
         );
@@ -261,7 +262,8 @@ class LeavePageState extends State<LeavePage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Tolak'),
           ),
         ],
@@ -281,7 +283,8 @@ class LeavePageState extends State<LeavePage> {
         final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Cuti berhasil ditolak', style: TextStyle(color: Colors.white)),
+            content: const Text('Cuti berhasil ditolak',
+                style: TextStyle(color: Colors.white)),
             backgroundColor: cs.error,
           ),
         );
@@ -292,7 +295,8 @@ class LeavePageState extends State<LeavePage> {
         final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', ''), style: const TextStyle(color: Colors.white)),
+            content: Text(e.toString().replaceAll('Exception: ', ''),
+                style: const TextStyle(color: Colors.white)),
             backgroundColor: cs.error,
           ),
         );
@@ -300,10 +304,25 @@ class LeavePageState extends State<LeavePage> {
     }
   }
 
+  void _openLeaveDetail(LeaveModel leave) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LeaveDetailBottomSheet(
+        leave: leave,
+        isAdmin: _isAdmin,
+        onApprove: () => _approveLeave(leave),
+        onReject: () => _rejectLeave(leave),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final pendingCount = _leaves.where((l) => l.status == 1).length;
+    final approvedCount = _leaves.where((l) => l.status == 2).length;
+    final rejectedCount = _leaves.where((l) => l.status == 3).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -318,9 +337,21 @@ class LeavePageState extends State<LeavePage> {
       ),
       body: Column(
         children: [
-          // Filter for admin
-          if (_isAdmin) _buildFilterSection(),
-          // Content
+          // Header Stats summary
+          LeaveStatsHeader(
+            totalCount: _leaves.length,
+            pendingCount: pendingCount,
+            approvedCount: approvedCount,
+            rejectedCount: rejectedCount,
+            activeStatus: _selectedStatus,
+            onStatusSelected: (status) {
+              setState(() => _selectedStatus = status);
+              _loadLeaves();
+            },
+          ),
+          // Quick Status Filter Chips
+          _buildFilterChips(),
+          // Main list content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -356,64 +387,61 @@ class LeavePageState extends State<LeavePage> {
     );
   }
 
-  Widget _buildFilterSection() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  Widget _buildFilterChips() {
+    final cs = Theme.of(context).colorScheme;
+
+    final chips = [
+      {'key': null, 'label': 'Semua'},
+      {'key': '1', 'label': 'Pending'},
+      {'key': '2', 'label': 'Disetujui'},
+      {'key': '3', 'label': 'Ditolak'},
+    ];
 
     return Container(
-      padding: AppSpacing.paddingMD,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.filter_list, size: 20, color: colorScheme.primary),
-          AppSpacing.gapHorizontalSM,
-          Expanded(
-            child: DropdownButtonFormField<String?>(
-              value: _selectedStatus,
-              decoration: InputDecoration(
-                labelText: 'Status',
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM,
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.2),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final chip = chips[index];
+          final key = chip['key'];
+          final isSelected = _selectedStatus == key;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedStatus = key);
+              _loadLeaves();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? cs.primary
+                    : cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected
+                      ? cs.primary
+                      : cs.outlineVariant.withValues(alpha: 0.4),
                 ),
               ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Semua'),
+              child: Center(
+                child: Text(
+                  chip['label']!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+                  ),
                 ),
-                ..._statusOptions.entries.map((entry) =>
-                    DropdownMenuItem<String?>(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    )),
-              ],
-              onChanged: (value) {
-                setState(() => _selectedStatus = value);
-                _loadLeaves();
-              },
+              ),
             ),
-          ),
-          if (_selectedStatus != null) ...[
-            AppSpacing.gapHorizontalSM,
-            IconButton(
-              icon: const Icon(Icons.clear, size: 20),
-              onPressed: () {
-                setState(() => _selectedStatus = null);
-                _loadLeaves();
-              },
-            ),
-          ],
-        ],
+          );
+        },
       ),
     );
   }
@@ -497,145 +525,183 @@ class LeavePageState extends State<LeavePage> {
         return str;
       }
     }
-    return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
+    return DateFormat('d MMM yyyy', 'id_ID').format(date);
   }
 
   Widget _buildLeaveCard(LeaveModel leave) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final employeeName = leave.createdBy.name;
-    final status = leave.status;
-    final fromDate = _formatDate(leave.fromDate);
-    final untilDate = _formatDate(leave.untilDate);
-    final reason = leave.reason;
-    final notes = leave.notes;
-    final isPending = status == 1;
+    final statusColor = _getStatusColor(leave.status);
+    final initials = _getInitials(leave.createdBy.name);
+    final isPending = leave.status == 1;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (_isAdmin)
-                  Expanded(
-                    child: Text(
-                      employeeName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Text(
-                      _getReasonText(reason),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status).withValues(alpha: 0.1),
-                    borderRadius: AppSpacing.borderRadiusLG,
-                  ),
-                  child: Text(
-                    _getStatusText(status),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: _getStatusColor(status),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalSM,
-            if (_isAdmin) ...[
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: AppSpacing.borderRadiusMD,
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: AppSpacing.borderRadiusMD,
+        onTap: () => _openLeaveDetail(leave),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: Avatar / Initial + Name/Reason + Status Badge
               Row(
                 children: [
-                  Icon(Icons.category, size: 16, color: colorScheme.onSurfaceVariant),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    _getReasonText(reason),
-                    style: theme.textTheme.bodyMedium,
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isAdmin ? leave.createdBy.name : leave.formattedReason,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (_isAdmin)
+                          Text(
+                            leave.formattedReason,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      _getStatusText(leave.status),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              AppSpacing.gapVerticalXS,
-            ],
-            Row(
-              children: [
-                Icon(Icons.date_range, size: 16, color: colorScheme.onSurfaceVariant),
-                AppSpacing.gapHorizontalSM,
-                Expanded(
-                  child: Text(
-                    '$fromDate - $untilDate',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if (notes != null && notes.toString().isNotEmpty) ...[
-              AppSpacing.gapVerticalSM,
+              const SizedBox(height: 12),
+              // Row 2: Date range & Duration pill badge
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.notes, size: 16, color: colorScheme.onSurfaceVariant),
-                  AppSpacing.gapHorizontalSM,
+                  Icon(Icons.date_range_rounded, size: 16, color: colorScheme.primary),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      notes.toString(),
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      '${_formatDate(leave.fromDate)} - ${_formatDate(leave.untilDate)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      leave.durationText,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
                       ),
                     ),
                   ),
                 ],
               ),
-            ],
-            // Admin actions for pending leaves
-            if (_isAdmin && isPending) ...[
-              const Divider(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _rejectLeave(leave),
-                      icon: const Icon(Icons.close, size: 18),
-                      label: const Text('Tolak'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.error,
-                        side: BorderSide(color: colorScheme.error),
+              if (leave.notes != null && leave.notes.toString().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  leave.notes.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              // Admin Actions (if pending)
+              if (_isAdmin && isPending) ...[
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 34,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _rejectLeave(leave),
+                          icon: const Icon(Icons.close_rounded, size: 16),
+                          label: const Text('Tolak', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colorScheme.error,
+                            side: BorderSide(color: colorScheme.error),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  AppSpacing.gapHorizontalSM,
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => _approveLeave(leave),
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Setujui'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.success,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 34,
+                        child: FilledButton.icon(
+                          onPressed: () => _approveLeave(leave),
+                          icon: const Icon(Icons.check_rounded, size: 16),
+                          label: const Text('Setujui', style: TextStyle(fontSize: 12)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/printer_provider.dart';
 import '../services/thermal_printer_service.dart';
-import '../utils/constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/constants.dart';
 
 /// Halaman pengaturan printer thermal untuk cetak stiker.
 ///
@@ -243,7 +244,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
         padding: AppSpacing.paddingMD,
         child: Row(
           children: [
-            Icon(Icons.print, color: colorScheme.primary),
+            Icon(Icons.print, color: AppColors.info),
             AppSpacing.gapHorizontalSM,
             Expanded(
               child: Column(
@@ -512,7 +513,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
         padding: AppSpacing.paddingMD,
         child: Row(
           children: [
-            Icon(Icons.copy_all, color: colorScheme.primary),
+            Icon(Icons.copy_all, color: AppColors.info),
             AppSpacing.gapHorizontalSM,
             Expanded(
               child: Text(
@@ -521,7 +522,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
               ),
             ),
             IconButton(
-              icon: Icon(Icons.remove_circle_outline, color: colorScheme.primary),
+              icon: Icon(Icons.remove_circle_outline, color: AppColors.info),
               onPressed: provider.copies <= PrinterConstants.minCopies
                   ? null
                   : () => provider.setCopies(provider.copies - 1),
@@ -531,7 +532,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
               style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             IconButton(
-              icon: Icon(Icons.add_circle_outline, color: colorScheme.primary),
+              icon: Icon(Icons.add_circle_outline, color: AppColors.info),
               onPressed: provider.copies >= PrinterConstants.maxCopies
                   ? null
                   : () => provider.setCopies(provider.copies + 1),
@@ -566,7 +567,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.info_outline, color: colorScheme.onSurfaceVariant, size: 18),
+            Icon(Icons.info_outline, color: AppColors.info, size: 18),
             AppSpacing.gapHorizontalSM,
             Expanded(
               child: Text(

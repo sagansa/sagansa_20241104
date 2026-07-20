@@ -61,6 +61,9 @@ class ApiConstants {
   static const String createSalesOrderOnline =
       '$baseUrl/sales-orders/online';
 
+  // Sales Order Employee (for=2) — penjualan oleh sales.
+  static const String salesOrderEmployee = '$baseUrl/sales-orders/employee';
+
   // Sales Order Admin Endpoints
   static const String updatePaymentStatus =
       '$baseUrl/sales-orders/update-payment-status';
@@ -74,11 +77,15 @@ class ApiConstants {
   // Sales Dashboard (admin)
   static const String salesDashboard = '$baseUrl/sales-dashboard';
 
+  // Production & Recipes (admin only)
+  static const String recipes = '$baseUrl/recipes';
+  static const String productions = '$baseUrl/productions';
+
   // Daily Salary Endpoints
   static const String dailySalaries = '$baseUrl/daily-salaries';
 
   // Payment Receipt Endpoints
-  static const String paymentReceipts = '$baseUrl/payment-receipts';
+  static const String paymentReceipts = '$baseUrl/procurement/payment-receipts';
 
   // Asset Management Endpoints (kategorisasi produk + pemeriksaan berkala).
   static const String assetCategories = '$baseUrl/asset-categories';
@@ -106,23 +113,55 @@ class ApiConstants {
   }
 
   static String get closingStoreUrl {
-    String admin = 'https://www.sagansa.id/admin';
-    if (baseUrl.contains('127.0.0.1:8001')) {
-      admin = 'http://127.0.0.1:8000/admin';
-    } else if (baseUrl.contains('localhost:8001')) {
-      admin = 'http://localhost:8000/admin';
-    } else if (baseUrl.contains('192.168.')) {
-      final uri = Uri.parse(baseUrl);
-      admin = 'http://${uri.host}:8000/admin';
-    } else {
-      final uri = Uri.parse(baseUrl);
-      String host = uri.host;
-      if (host.startsWith('api.')) {
-        host = 'www.${host.substring(4)}';
-      }
-      admin = '${uri.scheme}://$host/admin';
+    return resolveClosingStoreUrl(baseUrl);
+  }
+
+  /// Resolusi URL admin panel closing store dari [apiBaseUrl] yang diberikan.
+  ///
+  /// Aturan (regression-safe terhadap implementasi lama):
+  /// - Host yang diawali `api.` → diganti jadi `www.` (production-like).
+  /// - Localhost / 127.0.0.1 / 192.168.x.x → port admin web 8000.
+  /// - HTTPS production (port 443 atau tidak ada port) → tidak menampilkan port.
+  ///
+  /// Dipisah sebagai method pure-function agar bisa di-unit-test (karena
+  /// [baseUrl] adalah `const`, tidak bisa di-override di runtime).
+  static String resolveClosingStoreUrl(String apiBaseUrl) {
+    final api = Uri.parse(apiBaseUrl);
+    final adminHost = _resolveAdminHost(api.host);
+    final adminPort = _resolveAdminPort(api);
+    final adminScheme = adminHost == api.host ? api.scheme : 'https';
+
+    final admin = api.replace(
+      scheme: adminScheme,
+      host: adminHost,
+      port: adminPort,
+      path: '/admin/transaction/closings/panel/closing-stores',
+      queryParameters: {},
+      fragment: '',
+    );
+
+    // Hilangkan port eksplisit untuk HTTPS 443 / HTTP 80.
+    final portPart = (admin.scheme == 'https' && admin.port == 443) ||
+            (admin.scheme == 'http' && admin.port == 80)
+        ? ''
+        : ':${admin.port}';
+
+    return '${admin.scheme}://${admin.host}$portPart${admin.path}';
+  }
+
+  static String _resolveAdminHost(String apiHost) {
+    if (apiHost.startsWith('api.')) {
+      return 'www.${apiHost.substring(4)}';
     }
-    return '$admin/transaction/closings/panel/closing-stores';
+    return apiHost;
+  }
+
+  static int _resolveAdminPort(Uri api) {
+    // Lokal dev: admin web jalan di port 8000.
+    if (api.host == '127.0.0.1' || api.host == 'localhost') return 8000;
+    if (api.host.startsWith('192.168.')) return 8000;
+    // Production HTTPS standar.
+    return api.port == 0 ? 443 : api.port;
   }
 }
 

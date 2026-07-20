@@ -1,12 +1,15 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../providers/fuel_service_payment_provider.dart';
 import '../services/closing_store_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
@@ -14,9 +17,9 @@ import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/fuel_service_payment_bottom_sheet.dart';
-import '../widgets/modern_bottom_nav.dart';
 import '../widgets/list_thumbnail.dart';
-import '../providers/fuel_service_payment_provider.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/modern_dropdown.dart';
 import 'fuel_service_form_page.dart';
 
 class FuelServiceListPage extends StatefulWidget {
@@ -78,6 +81,12 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     }
   }
 
+  int? _toInt(dynamic val) {
+    if (val == null) return null;
+    if (val is int) return val;
+    return int.tryParse(val.toString());
+  }
+
   Future<void> _loadAdminRole() async {
     final prefs = await SharedPreferences.getInstance();
     final userString = prefs.getString('user');
@@ -86,9 +95,13 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       final roles = List<String>.from(userData['roles'] ?? []);
       if (mounted) {
         setState(() {
-          _isAdmin = roles.contains('admin') ||
-              roles.contains('super_admin') ||
-              roles.contains('supervisor');
+          _isAdmin = roles.any((r) => [
+                'admin',
+                'super_admin',
+                'supervisor',
+                'owner',
+                'panel_user'
+              ].contains(r));
         });
         // Load user list hanya setelah role diketahui (admin only).
         if (_isAdmin) {
@@ -184,7 +197,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
         children: [
           // User filter (admin only — staff tetap lihat milik sendiri).
           if (_isAdmin) ...[
-            _buildUserDropdown(cs),
+            _buildUserFilterChip(cs),
             const SizedBox(width: 16),
             // Separator visual.
             Container(width: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
@@ -218,53 +231,108 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     );
   }
 
-  /// Dropdown untuk filter berdasarkan user (admin only).
-  Widget _buildUserDropdown(ColorScheme cs) {
+  void _showUserSelectionSheet() {
+    final userIds = [null, ..._userList.map((u) => _toInt(u['id'])).whereType<int>()];
+    showModalBottomSheet<int?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DropdownSelectionSheet<int?>(
+        title: 'Filter per Pengemudi',
+        items: userIds,
+        selectedItem: _selectedUserId,
+        getLabel: (val) {
+          if (val == null) return 'Semua User';
+          final u = _userList.firstWhere((e) => _toInt(e['id']) == val, orElse: () => {});
+          return u['name']?.toString() ?? 'User #$val';
+        },
+        getSubtitle: (val) {
+          if (val == null) return '';
+          final u = _userList.firstWhere((e) => _toInt(e['id']) == val, orElse: () => {});
+          return u['email']?.toString() ?? '';
+        },
+        searchable: _userList.length > 5,
+      ),
+    ).then((selected) {
+      if (selected != _selectedUserId) {
+        setState(() => _selectedUserId = selected);
+        _fetch();
+      }
+    });
+  }
+
+  /// Chip filter untuk user/pengemudi (admin only).
+  Widget _buildUserFilterChip(ColorScheme cs) {
     if (_isLoadingUsers) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 6),
-          Text('Memuat user...',
-              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-        ],
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Memuat user...',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int?>(
-          value: _selectedUserId,
-          isDense: true,
-          style: TextStyle(fontSize: 11, color: cs.onSurface),
-          hint: const Text('Semua User'),
-          items: [
-            const DropdownMenuItem<int?>(
-              value: null,
-              child: Text('Semua User'),
+
+    final selectedUser = _userList.firstWhere(
+      (u) => _toInt(u['id']) == _selectedUserId,
+      orElse: () => {},
+    );
+    final userLabel = _selectedUserId == null
+        ? 'Semua User'
+        : (selectedUser['name']?.toString() ?? 'User #$_selectedUserId');
+
+    final isSelected = _selectedUserId != null;
+
+    return GestureDetector(
+      onTap: _showUserSelectionSheet,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? cs.primary
+              : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? cs.primary
+                : cs.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 14,
+              color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
             ),
-            ..._userList.map((u) {
-              final id = u['id'] as int?;
-              final name = u['name']?.toString() ?? 'User #$id';
-              return DropdownMenuItem<int?>(
-                value: id,
-                child: Text(name),
-              );
-            }),
+            const SizedBox(width: 4),
+            Text(
+              userLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+            ),
           ],
-          onChanged: (val) {
-            setState(() => _selectedUserId = val);
-            _fetch();
-          },
         ),
       ),
     );
@@ -662,6 +730,6 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
 
 
 String _stripHtmlTags(String htmlText) {
-  RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
+  final RegExp exp = RegExp(r'<[^>]*>', multiLine: true, caseSensitive: true);
   return htmlText.replaceAll(exp, '').trim();
 }

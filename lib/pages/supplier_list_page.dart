@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+
+import '../../theme/app_colors.dart';
 import '../models/supplier_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/supplier_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../widgets/add_fab.dart';
-import '../widgets/status_badge.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/status_badge.dart';
 import 'supplier_detail_page.dart';
 import 'supplier_form_page.dart';
 
@@ -201,6 +204,14 @@ class _SupplierListPageState extends State<SupplierListPage> {
                             : _buildList(colorScheme, textTheme),
           ),
         ],
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 2,
+        onTap: (index) {
+          if (index != 2) {
+            Navigator.pop(context);
+          }
+        },
       ),
     );
   }
@@ -400,7 +411,7 @@ class _SupplierListPageState extends State<SupplierListPage> {
                         children: [
                           Icon(Icons.account_balance_rounded,
                               size: 13,
-                              color: colorScheme.onSurfaceVariant),
+                              color: AppColors.info),
                           AppSpacing.gapHorizontalXS,
                           Expanded(
                             child: Text(
@@ -423,7 +434,7 @@ class _SupplierListPageState extends State<SupplierListPage> {
                         children: [
                           Icon(Icons.location_on_rounded,
                               size: 13,
-                              color: colorScheme.onSurfaceVariant),
+                              color: AppColors.info),
                           AppSpacing.gapHorizontalXS,
                           Expanded(
                             child: Text(
@@ -441,7 +452,7 @@ class _SupplierListPageState extends State<SupplierListPage> {
               ),
               AppSpacing.gapHorizontalSM,
               Icon(Icons.chevron_right_rounded,
-                  color: colorScheme.onSurfaceVariant),
+                  color: AppColors.info),
             ],
           ),
         ),

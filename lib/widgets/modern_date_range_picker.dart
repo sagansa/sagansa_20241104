@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:intl/intl.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class ModernDateRangePicker extends StatelessWidget {
@@ -43,7 +45,7 @@ class ModernDateRangePicker extends StatelessWidget {
                 padding: AppSpacing.paddingSM,
                 child: Row(
                   children: [
-                    Icon(Icons.date_range, color: colorScheme.onSurfaceVariant),
+                    Icon(Icons.date_range, color: AppColors.info),
                     AppSpacing.gapHorizontalSM,
                     Expanded(
                       child: Text(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../models/procurement_model.dart';
+
+import '../../services/presence_service.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
-import '../../services/presence_service.dart';
 import '../../theme/app_spacing.dart';
 
 class CreateInvoiceFormPage extends StatefulWidget {
@@ -34,7 +34,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
   final _notesController = TextEditingController();
 
   List<Map<String, dynamic>> _detailRequests = [];
-  List<Map<String, dynamic>> _items = [];
+  final List<Map<String, dynamic>> _items = [];
 
   @override
   void initState() {
@@ -56,7 +56,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
 
   Future<void> _loadInitialData() async {
     try {
-      final presence = await PresenceService.getUserPresence();
+      final presence = await PresenceService().getUserPresence();
       final today = presence['data']?['today'];
       final storeId = today?['store_id'];
       final storeName = today?['store'] ?? '';
@@ -347,7 +347,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                       ),
                                       AppSpacing.gapVerticalSM,
                                       DropdownButtonFormField<int>(
-                                        value: _paymentTypeId,
+                                        initialValue: _paymentTypeId,
                                         decoration: const InputDecoration(
                                           labelText: 'Tipe Pembayaran *',
                                           isDense: true,
@@ -424,7 +424,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                                   labelText: 'Produk',
                                                   isDense: true,
                                                 ),
-                                                value: item['detail_request_id'],
+                                                initialValue: item['detail_request_id'],
                                                 items: _detailRequests
                                                     .map<DropdownMenuItem<int>>((dr) => DropdownMenuItem<int>(
                                                           value: dr['id'] is int ? dr['id'] : int.parse(dr['id'].toString()),

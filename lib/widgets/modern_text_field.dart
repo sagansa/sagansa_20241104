@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_colors.dart';
+
 class ModernTextField extends StatelessWidget {
   final String labelText;
   final TextEditingController controller;
@@ -42,7 +44,7 @@ class ModernTextField extends StatelessWidget {
         labelText: labelText,
         prefixIcon: Icon(
           prefixIcon,
-          color: colorScheme.onSurfaceVariant,
+          color: AppColors.info,
         ),
         suffixIcon: suffixIcon,
       ),

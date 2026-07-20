@@ -137,7 +137,7 @@ class _InventoryAnomalyPageState extends State<InventoryAnomalyPage> {
 
   String get _dateLabel {
     if (_dateFrom == _dateTo) return _fmt(_dateFrom);
-    return "${_fmt(_dateFrom)} – ${_fmt(_dateTo)}";
+    return '${_fmt(_dateFrom)} – ${_fmt(_dateTo)}';
   }
 
   String get _storeLabel {

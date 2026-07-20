@@ -1,17 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../../models/procurement_model.dart';
-import '../../services/procurement_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/procurement_service.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
+import '../../widgets/ticket_card_container.dart';
 
 class PaymentReceiptDetailPage extends StatefulWidget {
   final int receiptId;
@@ -65,8 +68,7 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
   }
 
   String _formatAmount(int amount) {
-    return amount.toString().replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.');
+    return FormatUtils.formatCurrency(amount);
   }
 
   String _imageUrl(String? path) {
@@ -74,137 +76,20 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
     return '${ApiConstants.baseUrl}/media/$path';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Payment Receipt'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: AppSpacing.paddingLG,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_errorMessage!,
-                            style: TextStyle(color: colorScheme.error)),
-                        AppSpacing.gapVerticalMD,
-                        ElevatedButton(
-                          onPressed: _fetchDetail,
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetchDetail,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppSpacing.paddingMD,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_receipt!.image != null)
-                          _buildImageCard(theme, colorScheme),
-                        if (_receipt!.supplierName != null)
-                          _buildSupplierCard(theme, colorScheme),
-                        _buildPaymentCard(theme, colorScheme),
-                        if (!_isStaff) _buildQrisCard(theme, colorScheme),
-                        if (_receipt!.notes != null &&
-                            _receipt!.notes!.isNotEmpty)
-                          _buildNotesCard(theme, colorScheme),
-                        AppSpacing.gapVerticalMD,
-                        Text(
-                          'Invoice Terkait (${_receipt!.invoicePurchases.length})',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        AppSpacing.gapVerticalSM,
-                        ..._receipt!.invoicePurchases.map(
-                          (inv) => _buildInvoiceCard(inv, theme, colorScheme),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-    );
-  }
-
-  Widget _buildImageCard(ThemeData theme, ColorScheme colorScheme) {
-    final url = _imageUrl(_receipt!.image);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.image, size: 20, color: colorScheme.primary),
-                  AppSpacing.gapHorizontalSM,
-                  Expanded(
-                    child: Text(
-                      'Bukti Pembayaran',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share, size: 20),
-                    onPressed: () => _shareImage(url),
-                    tooltip: 'Bagikan',
-                    color: colorScheme.primary,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              ClipRRect(
-                borderRadius: AppSpacing.borderRadiusMD,
-                child: GestureDetector(
-                  onTap: () => _showImageFullscreen(url),
-                  child: Image.network(
-                    url,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 200,
-                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                      child: Center(
-                        child: Icon(
-                          Icons.broken_image,
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                          size: 48,
-                        ),
-                      ),
-                    ),
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        height: 200,
-                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Future<void> _shareImage(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) throw Exception('download failed');
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/payment_receipt_${widget.receiptId}.jpg');
+      await file.writeAsBytes(response.bodyBytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Bukti Pembayaran Sagansa #${widget.receiptId}',
+      );
+    } catch (_) {
+      if (mounted) await Share.share(url);
+    }
   }
 
   void _showImageFullscreen(String url) {
@@ -215,13 +100,15 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(
-            backgroundColor: colorScheme.onSurface.withValues(alpha: 0.87),
+            backgroundColor: colorScheme.onSurface.withValues(alpha: 0.9),
             iconTheme: IconThemeData(color: colorScheme.surface),
-            title: Text('Bukti Pembayaran',
-                style: TextStyle(color: colorScheme.surface)),
+            title: Text(
+              'Bukti Pembayaran',
+              style: TextStyle(color: colorScheme.surface),
+            ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.share),
+                icon: const Icon(Icons.share_rounded),
                 onPressed: () => _shareImage(url),
                 color: colorScheme.surface,
                 tooltip: 'Bagikan',
@@ -236,106 +123,13 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                   url,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Icon(
-                    Icons.broken_image,
+                    Icons.broken_image_rounded,
                     color: colorScheme.surface.withValues(alpha: 0.54),
                     size: 64,
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _shareImage(String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) throw Exception('download failed');
-      final dir = await getTemporaryDirectory();
-      final file =
-          File('${dir.path}/payment_receipt_${widget.receiptId}.jpg');
-      await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles([XFile(file.path)],
-          text: 'Bukti Pembayaran');
-    } catch (_) {
-      if (mounted) await Share.share(url);
-    }
-  }
-
-  Widget _buildSupplierCard(ThemeData theme, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.business, size: 20, color: colorScheme.primary),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Supplier',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              Text(
-                _receipt!.supplierName ?? '-',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentCard(ThemeData theme, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.receipt, size: 20, color: colorScheme.primary),
-                  AppSpacing.gapHorizontalSM,
-                  Text(
-                    'Informasi Pembayaran',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              _infoRow('Tanggal', _receipt!.createdAt.substring(0, 10), theme),
-              AppSpacing.gapVerticalSM,
-              _infoRow(
-                'Total Invoice',
-                'Rp ${_formatAmount(_receipt!.totalAmount)}',
-                theme,
-              ),
-              AppSpacing.gapVerticalSM,
-              _infoRow(
-                'Jumlah Transfer',
-                'Rp ${_formatAmount(_receipt!.transferAmount)}',
-                theme,
-                valueColor: colorScheme.primary,
-              ),
-            ],
           ),
         ),
       ),
@@ -349,7 +143,8 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
       _qrisError = null;
     });
     try {
-      final data = await _procurementService.getPaymentReceiptQris(widget.receiptId);
+      final data =
+          await _procurementService.getPaymentReceiptQris(widget.receiptId);
       if (mounted) {
         setState(() {
           _qrisData = data;
@@ -366,266 +161,582 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
     }
   }
 
-  Widget _buildQrisCard(ThemeData theme, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Detail Payment Receipt'),
+        elevation: 0,
+        actions: [
+          if (_receipt?.image != null && _receipt!.image!.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.share_rounded),
+              tooltip: 'Bagikan Bukti',
+              onPressed: () => _shareImage(_imageUrl(_receipt!.image)),
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingLG,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_errorMessage!,
+                            style: TextStyle(color: colorScheme.error),
+                            textAlign: TextAlign.center),
+                        AppSpacing.gapVerticalMD,
+                        ElevatedButton(
+                          onPressed: _fetchDetail,
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _fetchDetail,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Column(
+                      children: [
+                        // Ticket Receipt Main Header Container
+                        _buildTicketHeader(theme, isDark),
+
+                        // Bukti Pembayaran Image Section
+                        if (_receipt!.image != null && _receipt!.image!.isNotEmpty)
+                          _buildImageCard(theme, isDark),
+
+                        // QRIS Section
+                        if (!_isStaff) _buildQrisCard(theme, isDark),
+
+                        // Catatan Card
+                        if (_receipt!.notes != null &&
+                            _receipt!.notes!.trim().isNotEmpty)
+                          _buildNotesCard(theme, isDark),
+
+                        // Invoices Itemized List
+                        if (_receipt!.invoicePurchases.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.md,
+                              AppSpacing.lg,
+                              AppSpacing.xs,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.inventory_2_outlined,
+                                    size: 18, color: AppColors.secondary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Invoice Terkait (${_receipt!.invoicePurchases.length})',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ..._receipt!.invoicePurchases.map(
+                            (inv) => _buildInvoiceCard(inv, theme, isDark),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildTicketHeader(ThemeData theme, bool isDark) {
+    final formattedDate = _receipt!.createdAt.length >= 10
+        ? _receipt!.createdAt.substring(0, 10)
+        : _receipt!.createdAt;
+
+    return TicketCardContainer(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      child: Column(
+        children: [
+          // Receipt Top Title & ID
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.qr_code, size: 20, color: colorScheme.primary),
-                  AppSpacing.gapHorizontalSM,
                   Text(
-                    'QRIS Pembayaran',
-                    style: theme.textTheme.titleSmall?.copyWith(
+                    'BUKTI PEMBAYARAN',
+                    style: TextStyle(
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: isDark ? AppColors.gold : AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '#REC-${_receipt!.id}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              if (_qrisData != null) ...[
-                Center(
-                  child: QrImageView(
-                    data: _qrisData!['payload'] as String,
-                    version: QrVersions.auto,
-                    size: 200,
-                    backgroundColor: colorScheme.surface,
-                    eyeStyle: QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: colorScheme.onSurface,
-                    ),
-                    dataModuleStyle: QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: colorScheme.onSurface,
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                    width: 1,
                   ),
                 ),
-              const SizedBox(height: AppSpacing.sectionGap),
-                _qrInfoRow('Merchant', _qrisData!['merchant_name'] as String?, theme),
-                if (_qrisData!['merchant_nmid'] != null)
-                  _qrInfoRow('NMID', _qrisData!['merchant_nmid'] as String?, theme),
-                _qrInfoRow('Nominal', 'Rp ${_formatAmount(_qrisData!['amount'] as int)}', theme),
-                AppSpacing.gapVerticalSM,
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(
-                        text: _qrisData!['payload'] as String,
-                      ));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('QRIS payload disalin'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Salin QRIS Payload'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ] else if (_qrisLoading) ...[
-                const Center(child: CircularProgressIndicator()),
-              ] else if (_qrisError != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer.withValues(alpha: 0.3),
-                    borderRadius: AppSpacing.borderRadiusMD,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: colorScheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _qrisError!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.error,
-                          ),
-                        ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded,
+                        size: 14, color: AppColors.success),
+                    SizedBox(width: 4),
+                    Text(
+                      'Terdata',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.success,
                       ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _loadQris,
-                    icon: const Icon(Icons.qr_code, size: 16),
-                    label: const Text('Generate QRIS'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _qrInfoRow(String label, String? value, ThemeData theme) {
-    if (value == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          )),
-          Text(value, style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          )),
+          const SizedBox(height: AppSpacing.md),
+          const DashedDivider(),
+          const SizedBox(height: AppSpacing.md),
+
+          // Nominal Transfer Highlight
+          Text(
+            'TOTAL TRANSFER',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatAmount(_receipt!.transferAmount),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: isDark ? AppColors.gold : AppColors.primary,
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+          const DashedDivider(),
+          const SizedBox(height: AppSpacing.md),
+
+          // Details List
+          if (_receipt!.supplierName != null &&
+              _receipt!.supplierName!.isNotEmpty)
+            _ticketInfoRow('Supplier', _receipt!.supplierName!, theme),
+          _ticketInfoRow(
+            'Jenis Pembayaran',
+            _receipt!.paymentFor == '1'
+                ? 'Fuel Service'
+                : _receipt!.paymentFor == '2'
+                    ? 'Gaji Harian'
+                    : 'Invoice Supplier',
+            theme,
+          ),
+          _ticketInfoRow('Tanggal Buat', formattedDate, theme),
+          if (_receipt!.totalAmount > 0)
+            _ticketInfoRow(
+              'Total Tagihan Invoice',
+              _formatAmount(_receipt!.totalAmount),
+              theme,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildNotesCard(ThemeData theme, ColorScheme colorScheme) {
+  Widget _ticketInfoRow(String label, String value, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.paddingMD,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageCard(ThemeData theme, bool isDark) {
+    final url = _imageUrl(_receipt!.image);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Icon(Icons.notes, size: 20, color: colorScheme.primary),
+                  const Icon(Icons.image_outlined,
+                      size: 20, color: AppColors.info),
                   AppSpacing.gapHorizontalSM,
                   Text(
-                    'Catatan',
+                    'Bukti Transfer Gambar',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-              AppSpacing.gapVerticalSM,
-              Text(
-                FormatUtils.stripHtml(_receipt!.notes!),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              TextButton.icon(
+                onPressed: () => _showImageFullscreen(url),
+                icon: const Icon(Icons.fullscreen_rounded, size: 16),
+                label: const Text('Perbesar'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.gold,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
+          GestureDetector(
+            onTap: () => _showImageFullscreen(url),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+              child: Image.network(
+                url,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 180,
+                  color: isDark ? Colors.white10 : Colors.black12,
+                  child: const Center(
+                    child: Icon(Icons.broken_image_rounded, size: 48),
+                  ),
+                ),
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    height: 180,
+                    color: isDark ? Colors.white10 : Colors.black12,
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQrisCard(ThemeData theme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.5),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.qr_code_2_rounded,
+                  size: 20, color: AppColors.gold),
+              AppSpacing.gapHorizontalSM,
+              Text(
+                'QRIS Validasi',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (_qrisData != null) ...[
+            Center(
+              child: QrImageView(
+                data: _qrisData!['payload'] as String,
+                version: QrVersions.auto,
+                size: 180,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Colors.black,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _qrRow('Merchant', _qrisData!['merchant_name'] as String?, theme),
+            _qrRow(
+                'Nominal QRIS',
+                _formatAmount(_qrisData!['amount'] as int),
+                theme),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text: _qrisData!['payload'] as String,
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payload QRIS disalin')),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Salin Payload QRIS'),
+              ),
+            ),
+          ] else if (_qrisLoading) ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ] else if (_qrisError != null) ...[
+            Text(
+              _qrisError!,
+              style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+            ),
+          ] else ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loadQris,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                label: const Text('Tampilkan Kode QRIS'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _qrRow(String label, String? val, ThemeData theme) {
+    if (val == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(val,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesCard(ThemeData theme, bool isDark) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.notes_rounded,
+                  size: 18, color: AppColors.secondary),
+              const SizedBox(width: 8),
+              Text(
+                'Catatan Pembayaran',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            FormatUtils.stripHtml(_receipt!.notes!),
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildInvoiceCard(
-      InvoicePurchase inv, ThemeData theme, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-      child: Card(
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      inv.storeName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Rp ${_formatAmount(inv.totalPrice)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-              AppSpacing.gapVerticalXS,
-              Text(
-                inv.date,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (inv.detailInvoices.isNotEmpty) ...[
-                const Divider(height: AppSpacing.md),
-                ...inv.detailInvoices.take(3).map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.productName,
-                              style: theme.textTheme.bodySmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          AppSpacing.gapHorizontalSM,
-                          Text(
-                            '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                if (inv.detailInvoices.length > 3)
-                  Text(
-                    '+${inv.detailInvoices.length - 3} item lainnya',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.primary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-              ],
-            ],
-          ),
+      InvoicePurchase inv, ThemeData theme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.4),
         ),
       ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, ThemeData theme,
-      {Color? valueColor}) {
-    final colorScheme = theme.colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  inv.storeName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                _formatAmount(inv.totalPrice),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
           ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: valueColor,
+          const SizedBox(height: 2),
+          Text(
+            'Tgl: ${inv.date}',
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-      ],
+          if (inv.detailInvoices.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            ...inv.detailInvoices.take(3).map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.productName,
+                            style: const TextStyle(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            if (inv.detailInvoices.length > 3)
+              Text(
+                '+${inv.detailInvoices.length - 3} produk lainnya',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.secondary,
+                ),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sagansa/widgets/procurement_subfilter_chips.dart';
 import 'package:sagansa/providers/theme_provider.dart';
+import 'package:sagansa/widgets/procurement_subfilter_chips.dart';
 
 void main() {
   group('ProcurementSubfilterChips', () {

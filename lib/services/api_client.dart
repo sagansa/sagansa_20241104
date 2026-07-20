@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_logger.dart';
 import '../utils/constants.dart';
 
 class ApiClient {
@@ -31,9 +31,42 @@ class ApiClient {
       uri = uri.replace(queryParameters: queryParams);
     }
 
-    debugPrint('ApiClient GET: $uri');
+    AppLogger.debug('ApiClient GET: $uri');
     final response = await http.get(uri, headers: await _headers());
     return _handleResponse(response);
+  }
+
+  /// Deteksi response sukses dari backend yang **inkonsisten**:
+  /// - Sebagian controller pakai `'success' => true`
+  /// - Sebagian controller (Leave, Readiness, Presence, Hygiene, Location,
+  ///   AdminTrackLocation) pakai `'status' => 'success'`
+  /// Keduanya dianggap sukses agar legacy controller tetap kompatibel.
+  bool _isSuccess(Map<String, dynamic> json) =>
+      json['success'] == true || json['status'] == 'success';
+
+  /// GET yang langsung return `List<T>`.
+  ///
+  /// Memanggil [get] lalu decode setiap elemen via [fromJson].
+  Future<List<T>> getList<T>(
+    String path, {
+    required T Function(Map<String, dynamic> json) fromJson,
+    Map<String, String>? queryParams,
+  }) async {
+    final data = await get(path, queryParams: queryParams);
+    final list = data is List ? data : const <dynamic>[];
+    return list
+        .map((e) => fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// GET yang return single object `T`.
+  Future<T> getObject<T>(
+    String path, {
+    required T Function(Map<String, dynamic> json) fromJson,
+    Map<String, String>? queryParams,
+  }) async {
+    final data = await get(path, queryParams: queryParams);
+    return fromJson(data as Map<String, dynamic>);
   }
 
   /// Sama seperti [get], tapi mengembalikan SELURUH body JSON (termasuk
@@ -45,7 +78,7 @@ class ApiClient {
       uri = uri.replace(queryParameters: queryParams);
     }
 
-    debugPrint('ApiClient GET (raw): $uri');
+    AppLogger.debug('ApiClient GET (raw): $uri');
     final response = await http.get(uri, headers: await _headers());
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -68,7 +101,7 @@ class ApiClient {
   /// Sends a POST request to the specified endpoint path.
   Future<dynamic> post(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
-    debugPrint('ApiClient POST: $uri');
+    AppLogger.debug('ApiClient POST: $uri');
     final response = await http.post(
       uri,
       headers: await _headers(),
@@ -77,10 +110,48 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  /// POST yang return single object `T`.
+  Future<T> postObject<T>(
+    String path, {
+    required T Function(Map<String, dynamic> json) fromJson,
+    dynamic body,
+  }) async {
+    final data = await post(path, body: body);
+    return fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Sama seperti [post], tapi mengembalikan SELURUH body JSON agar
+  /// pemanggil bisa membaca field di luar `data`.
+  Future<Map<String, dynamic>> postRaw(String path, {dynamic body}) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+    AppLogger.debug('ApiClient POST (raw): $uri');
+    final response = await http.post(
+      uri,
+      headers: await _headers(),
+      body: body != null ? jsonEncode(body) : null,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final json = jsonDecode(response.body);
+      if (json is Map<String, dynamic>) return json;
+      throw Exception('Format respons tidak dikenali.');
+    }
+
+    final json = jsonDecode(response.body);
+    final errors = json['errors'];
+    if (errors != null && errors is Map) {
+      final message = errors.values.expand((e) => e as List).join(', ');
+      throw Exception(message);
+    }
+
+    throw Exception(json['message'] ??
+        'Terjadi kesalahan pada server (Status ${response.statusCode}).');
+  }
+
   /// Sends a PUT request to the specified endpoint path.
   Future<dynamic> put(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
-    debugPrint('ApiClient PUT: $uri');
+    AppLogger.debug('ApiClient PUT: $uri');
     final response = await http.put(
       uri,
       headers: await _headers(),
@@ -89,10 +160,20 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  /// PUT yang return single object `T`.
+  Future<T> putObject<T>(
+    String path, {
+    required T Function(Map<String, dynamic> json) fromJson,
+    dynamic body,
+  }) async {
+    final data = await put(path, body: body);
+    return fromJson(data as Map<String, dynamic>);
+  }
+
   /// Sends a DELETE request to the specified endpoint path.
   Future<dynamic> delete(String path) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
-    debugPrint('ApiClient DELETE: $uri');
+    AppLogger.debug('ApiClient DELETE: $uri');
     final response = await http.delete(uri, headers: await _headers());
     return _handleResponse(response);
   }
@@ -106,7 +187,7 @@ class ApiClient {
   }) async {
     final token = await _getToken();
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
-    debugPrint('ApiClient Multipart $method: $uri');
+    AppLogger.debug('ApiClient Multipart $method: $uri');
 
     final request = http.MultipartRequest(method, uri);
     request.headers.addAll({
@@ -125,11 +206,12 @@ class ApiClient {
   }
 
   dynamic _handleResponse(http.Response response) {
-    debugPrint('ApiClient Response (${response.statusCode}): ${response.body}');
+    AppLogger.debug('ApiClient Response (${response.statusCode}): '
+        '${AppLogger.preview(response.body)}');
     final json = jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (json['success'] == true) {
+      if (json is Map<String, dynamic> && _isSuccess(json)) {
         return json['data'];
       }
     }

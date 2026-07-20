@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import '../models/storage_stock_model.dart';
 import '../services/storage_stock_service.dart';
 import '../theme/app_spacing.dart';
@@ -25,11 +26,34 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
   int _page = 1;
   String? _errorMessage;
 
+  /// Apakah user boleh membuat laporan sekarang: belum pernah lapor hari ini
+  /// DAN berada dalam window pelaporan (22:00 tgl D-1 s.d. 11:00 tgl D).
+  bool _canReport = false;
+
   @override
   void initState() {
     super.initState();
     _fetchReports();
+    _checkCanReport();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _checkCanReport() async {
+    // Window pelaporan: 22:00 tgl D-1 s.d. 11:00 tgl D. Di luar itu (jam 11-22)
+    // pelaporan ditutup, FAB disembunyikan.
+    final now = DateTime.now();
+    final inWindow = now.hour >= 22 || now.hour < 11;
+
+    bool alreadyReported = false;
+    try {
+      final status = await _service.checkTodayStatus();
+      alreadyReported = status['user_store_reported'] == 1;
+    } catch (_) {
+      // Bila gagal cek, default sembunyikan FAB demi aman.
+    }
+
+    if (!mounted) return;
+    setState(() => _canReport = inWindow && !alreadyReported);
   }
 
   @override
@@ -129,7 +153,7 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
                           Icon(
                             Icons.inventory_2_outlined,
                             size: 48,
-                            color: colorScheme.onSurfaceVariant.withValues(alpha:0.5),
+                            color: AppColors.info,
                           ),
                           AppSpacing.gapVerticalMD,
                           Text(
@@ -229,19 +253,22 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
                         },
                       ),
                     ),
-      floatingActionButton: AddFab(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateStorageStockPage(),
-            ),
-          );
-          if (result == true) {
-            _fetchReports();
-          }
-        },
-      ),
+      floatingActionButton: _canReport
+          ? AddFab(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateStorageStockPage(),
+                  ),
+                );
+                if (result == true) {
+                  _fetchReports();
+                  _checkCanReport();
+                }
+              },
+            )
+          : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {

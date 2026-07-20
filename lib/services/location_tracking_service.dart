@@ -58,7 +58,7 @@ Future<bool> _captureAndUploadLocation({
     return false;
   }
 
-  return LocationService.sendLocation(
+  return LocationService().sendLocation(
     latitude: position.latitude,
     longitude: position.longitude,
     accuracy: position.accuracy,
@@ -238,7 +238,7 @@ class LocationTrackingService {
       try {
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {
-          await LocationService.deregisterDeviceToken(token);
+          await LocationService().deregisterDeviceToken(token);
         }
       } catch (_) {/* abaikan */}
     }
@@ -263,7 +263,7 @@ class LocationTrackingService {
   }
 
   Future<void> _onTokenRefresh(String token) async {
-    await LocationService.registerDeviceToken(token);
+    await LocationService().registerDeviceToken(token);
   }
 
   Future<void> _registerCurrentToken() async {
@@ -279,7 +279,7 @@ class LocationTrackingService {
 
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        await LocationService.registerDeviceToken(token);
+        await LocationService().registerDeviceToken(token);
       }
     } catch (e) {
       debugPrint('_registerCurrentToken gagal: $e');

@@ -1,10 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../services/readiness_service.dart';
-import '../utils/image_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_utils.dart';
 
 class ReadinessPage extends StatefulWidget {
   const ReadinessPage({super.key});
@@ -164,7 +166,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
                             Icon(
                               Icons.camera_alt,
                               size: 48,
-                              color: colorScheme.onSurfaceVariant,
+                              color: AppColors.info,
                             ),
                             AppSpacing.gapVerticalSM,
                             Text(

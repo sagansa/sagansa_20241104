@@ -6,6 +6,7 @@ import '../../services/store_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
+import '../widgets/modern_dropdown.dart';
 
 class CreateProcurementPage extends StatefulWidget {
   const CreateProcurementPage({super.key});
@@ -96,15 +97,12 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                         ),
                       ),
                       AppSpacing.gapVerticalMD,
-                      DropdownButtonFormField<int>(
-                        decoration: const InputDecoration(
-                          labelText: 'Rencana Pembayaran',
-                        ),
-                        initialValue: selectedPaymentType,
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text('Transfer')),
-                          DropdownMenuItem(value: 2, child: Text('Tunai / Cash')),
-                        ],
+                      ModernDropdown<int>(
+                        labelText: 'Rencana Pembayaran',
+                        hint: 'Pilih pembayaran...',
+                        value: selectedPaymentType,
+                        items: const [1, 2],
+                        getLabel: (val) => val == 1 ? 'Transfer' : 'Tunai / Cash',
                         onChanged: (val) {
                           setModalState(() {
                             selectedPaymentType = val;
@@ -245,31 +243,17 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          DropdownButtonFormField<StoreModel>(
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Pilih Toko / Outlet',
-                              prefixIcon: Icon(Icons.storefront),
-                            ),
-                            initialValue: _selectedStore,
-                            items: _stores.map((s) {
-                              return DropdownMenuItem(
-                                value: s,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        s.nickname,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
+                          ModernDropdown<StoreModel>(
+                            labelText: 'Pilih Toko / Outlet',
+                            hint: 'Pilih outlet...',
+                            prefixIcon: const Icon(Icons.storefront, size: 20),
+                            value: _selectedStore,
+                            items: _stores,
+                            getLabel: (s) => s.nickname,
+                            getSubtitle: (s) => '',
+                            onChanged: (s) {
                               setState(() {
-                                _selectedStore = val;
+                                _selectedStore = s;
                               });
                             },
                           ),

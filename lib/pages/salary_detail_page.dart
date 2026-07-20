@@ -1,10 +1,12 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../services/salary_service.dart';
 import 'salary_pay_page.dart';
 
 class SalaryDetailPage extends StatefulWidget {
@@ -204,7 +206,7 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
             AppSpacing.gapVerticalSM,
             Row(
               children: [
-                Icon(Icons.event, size: 16, color: colorScheme.onSurfaceVariant),
+                Icon(Icons.event, size: 16, color: AppColors.info),
                 AppSpacing.gapHorizontalXS,
                 Text(
                   'Ditransfer $tanggalText',
@@ -382,7 +384,9 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
               context,
               'Total Gaji Bersih (THP)',
               currencyFormatter.format(_parseInt(salaryDetail!['amount'])),
-              valueColor: AppColors.success,
+              valueColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.success
+                  : AppColors.success,
             ),
             _buildTransferCard(context),
             _buildBreakdownCard(context),
@@ -433,9 +437,10 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
   }
 
   Color _getStatusColor(String status, ColorScheme colorScheme) {
+    final bool isDark = colorScheme.brightness == Brightness.dark;
     switch (status) {
       case 'draft':
-        return colorScheme.outline;
+        return isDark ? AppColors.darkOnSurfaceVariant : colorScheme.outline;
       case 'paid':
         return AppColors.success;
       case 'pending':

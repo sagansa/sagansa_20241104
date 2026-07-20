@@ -1,12 +1,16 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../controllers/asset_controller.dart';
+
 import '../models/store_model.dart';
+import '../providers/asset_provider.dart';
 import '../services/store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
+import '../widgets/modern_dropdown.dart';
 
 /// Buat instance aset dari produk yang sudah ditandai sebagai aset
 /// (product-driven). Memastikan konsistensi nama/kode/kategori antar toko:
@@ -24,7 +28,6 @@ class AssetFromProductPage extends StatefulWidget {
 }
 
 class _AssetFromProductPageState extends State<AssetFromProductPage> {
-  late AssetController _controller;
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isAdmin = false;
@@ -39,7 +42,6 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _load();
   }
 
@@ -66,10 +68,10 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
       }
 
       final storeService = StoreService();
-      final presenceStoreId = await _controller.loadCurrentStoreId();
+      final presenceStoreId = await context.read<AssetProvider>().loadCurrentStoreId();
       final results = await Future.wait<dynamic>([
         storeService.getStores(),
-        _controller.loadAssetProducts(),
+        context.read<AssetProvider>().loadAssetProducts(),
       ]);
       if (!mounted) return;
       final stores = results[0] as List<StoreModel>;
@@ -203,7 +205,7 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
     }
     setState(() => _isSaving = true);
     try {
-      await _controller.createFromProduct(
+      await context.read<AssetProvider>().createFromProduct(
         productId: _selectedProduct!['id'] as int,
         storeId: _selectedStore!.id,
         qty: qty,
@@ -250,28 +252,24 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
                     children: [
                       // Store dropdown.
                       // Staff: dikunci ke presence store (read-only).
-                      // Admin: bebas pilih store manapun.
-                      DropdownButtonFormField<StoreModel>(
-                        initialValue: _selectedStore,
-                        decoration: InputDecoration(
-                          labelText: 'Toko *',
-                          helperText: !_isAdmin
-                              ? (_selectedStore == null
-                                  ? 'Anda belum check-in hari ini. Lakukan presence dahulu.'
-                                  : 'Terkunci ke store presence Anda.')
-                              : null,
-                        ),
-                        items: _stores
-                            .map((s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s.nickname.isNotEmpty
-                                      ? s.nickname
-                                      : 'Store #${s.id}'),
-                                ))
-                            .toList(),
-                        onChanged: _isAdmin
-                            ? (v) => setState(() => _selectedStore = v)
-                            : null, // disabled for staff
+                      // Admin: bebas pilih store manapun
+                      ModernDropdown<StoreModel>(
+                        value: _selectedStore,
+                        labelText: 'Toko',
+                        hint: 'Pilih toko...',
+                        isRequired: true,
+                        enabled: _isAdmin,
+                        prefixIcon: const Icon(Icons.storefront, size: 20),
+                        items: _stores,
+                        getLabel: (s) => s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
+                        getSubtitle: (s) => '',
+                        onChanged: (s) {
+                          if (s == null) return;
+                          setState(() {
+                            _selectedStore = s;
+                            _selectedProduct = null;
+                          });
+                        },
                       ),
                       SizedBox(height: AppSpacing.sectionGap),
 
@@ -291,7 +289,7 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
                           child: Row(
                             children: [
                               Icon(Icons.inventory_2_outlined,
-                                  color: colorScheme.primary),
+                                  color: AppColors.info),
                               SizedBox(width: AppSpacing.rowGap),
                               Expanded(
                                 child: _selectedProduct == null
@@ -338,7 +336,7 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
                                       ),
                               ),
                               Icon(Icons.chevron_right_rounded,
-                                  color: colorScheme.onSurfaceVariant),
+                                  color: AppColors.info),
                             ],
                           ),
                         ),

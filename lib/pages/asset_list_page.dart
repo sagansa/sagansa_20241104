@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/asset_controller.dart';
+import 'package:provider/provider.dart';
+
 import '../models/asset_model.dart';
+import '../providers/asset_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'asset_detail_page.dart';
@@ -17,7 +19,6 @@ class AssetListPage extends StatefulWidget {
 }
 
 class _AssetListPageState extends State<AssetListPage> {
-  late AssetController _controller;
   final ScrollController _scrollController = ScrollController();
   List<AssetModel> _assets = [];
   bool _isLoading = true;
@@ -34,7 +35,6 @@ class _AssetListPageState extends State<AssetListPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _dueFilter = widget.initialDue;
     _fetch();
     _scrollController.addListener(_onScroll);
@@ -68,7 +68,7 @@ class _AssetListPageState extends State<AssetListPage> {
     });
 
     try {
-      final result = await _controller.loadAssetsPaged(
+      final result = await context.read<AssetProvider>().loadAssetsPaged(
         due: _dueFilter,
         status: _statusFilter,
         search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -94,7 +94,7 @@ class _AssetListPageState extends State<AssetListPage> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final result = await _controller.loadAssetsPaged(
+      final result = await context.read<AssetProvider>().loadAssetsPaged(
         due: _dueFilter,
         status: _statusFilter,
         search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -238,7 +238,7 @@ class _AssetListPageState extends State<AssetListPage> {
                               children: [
                                 Icon(Icons.inventory_2_outlined,
                                     size: 48,
-                                    color: colorScheme.onSurfaceVariant
+                                    color: AppColors.info
                                         .withValues(alpha:0.5)),
                                 AppSpacing.gapVerticalSM,
                                 Text('Tidak ada aset.',

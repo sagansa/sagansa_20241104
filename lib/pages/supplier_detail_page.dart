@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../theme/app_colors.dart';
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
-import '../widgets/status_badge.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/status_badge.dart';
 import 'supplier_form_page.dart';
 
 class SupplierDetailPage extends StatefulWidget {
@@ -104,6 +107,14 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
           : _errorMessage != null
               ? _buildError()
               : _buildContent(colorScheme, theme),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 2,
+        onTap: (index) {
+          if (index != 2) {
+            Navigator.pop(context);
+          }
+        },
+      ),
     );
   }
 
@@ -429,7 +440,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
+                Icon(icon, size: 18, color: AppColors.info),
                 const SizedBox(width: AppSpacing.sectionGap),
                 Flexible(
                   child: Column(
@@ -458,7 +469,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.sm),
                   Icon(Icons.copy_rounded,
-                      size: 14, color: colorScheme.onSurfaceVariant),
+                      size: 14, color: AppColors.info),
                 ],
               ],
             ),

@@ -35,12 +35,21 @@ class SalesSummary {
   final int omzet;
   final int orderCount;
   final int totalQty;
+  // Pembanding periode natural (today↔kemarin, month↔bulan lalu paralel, dst).
+  final int omzetPrev;
+  final int orderCountPrev;
+  final int totalQtyPrev;
+  final String prevLabel;
 
   const SalesSummary({
     required this.periodeLabel,
     required this.omzet,
     required this.orderCount,
     required this.totalQty,
+    required this.omzetPrev,
+    required this.orderCountPrev,
+    required this.totalQtyPrev,
+    required this.prevLabel,
   });
 
   factory SalesSummary.fromJson(Map<String, dynamic> j) => SalesSummary(
@@ -48,20 +57,24 @@ class SalesSummary {
         omzet: (j['omzet'] as num? ?? 0).toInt(),
         orderCount: (j['order_count'] as num? ?? 0).toInt(),
         totalQty: (j['total_qty'] as num? ?? 0).toInt(),
+        omzetPrev: (j['omzet_prev'] as num? ?? 0).toInt(),
+        orderCountPrev: (j['order_count_prev'] as num? ?? 0).toInt(),
+        totalQtyPrev: (j['total_qty_prev'] as num? ?? 0).toInt(),
+        prevLabel: j['prev_label'] as String? ?? '',
       );
 }
 
 class SalesTrendPoint {
   final String label;
-  final int omzet;
-  final int? omzetPrev;
+  final int value;
+  final int? valuePrev;
 
-  const SalesTrendPoint({required this.label, required this.omzet, this.omzetPrev});
+  const SalesTrendPoint({required this.label, required this.value, this.valuePrev});
 
   factory SalesTrendPoint.fromJson(Map<String, dynamic> j) => SalesTrendPoint(
         label: j['label'] as String? ?? '',
-        omzet: (j['omzet'] as num? ?? 0).toInt(),
-        omzetPrev: (j['omzet_prev'] as num?)?.toInt(),
+        value: (j['value'] as num? ?? 0).toInt(),
+        valuePrev: (j['value_prev'] as num?)?.toInt(),
       );
 }
 
@@ -130,7 +143,9 @@ class SalesChannelItem {
   });
 
   factory SalesChannelItem.fromJson(Map<String, dynamic> j) => SalesChannelItem(
-        channel: j['channel'] as String? ?? '',
+        // `channel` bisa int (DB tinyint di production) atau string (test
+        // factory). Normalisasi ke string agar switch _colorFor stabil.
+        channel: (j['channel'] ?? '').toString(),
         channelLabel: j['channel_label'] as String? ?? '',
         omzet: (j['omzet'] as num? ?? 0).toInt(),
         orderCount: (j['order_count'] as num? ?? 0).toInt(),

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
-import '../models/presence_model.dart';
+
 import '../models/leave_model.dart';
-import '../services/leave_service.dart';
+import '../models/presence_model.dart';
 import '../services/closing_store_service.dart';
+import '../services/leave_service.dart';
 import '../services/storage_stock_service.dart';
-import '../widgets/modern_bottom_nav.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
-import '../widgets/modern_bottom_sheet.dart';
+import '../widgets/modern_bottom_nav.dart';
 
 class CalendarPage extends StatefulWidget {
   final List<PresenceModel> presences;
@@ -213,65 +212,7 @@ class CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  void _onTap(CalendarTapDetails details) {
-    if (details.targetElement != CalendarElement.calendarCell) return;
-    final appointments = details.appointments;
-    if (appointments != null && appointments.isNotEmpty) {
-      _showEventsForDate(details.date!, appointments);
-    } else {
-      ModernBottomSheet.show(
-        context: context,
-        title: _formatDate(details.date!),
-        child: Center(
-          child: Padding(
-            padding: AppSpacing.paddingVerticalXL,
-            child: Text(
-              'Tidak ada aktivitas untuk tanggal ini',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ),
-        ),
-      );
-    }
-  }
 
-  void _showEventsForDate(DateTime date, List<dynamic> events) {
-    ModernBottomSheet.show(
-      context: context,
-      title: _formatDate(date),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: events.map((event) {
-          final appointment = event as Appointment;
-          return ListTile(
-            leading: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: appointment.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            title: Text(
-              appointment.subject,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            subtitle: appointment.notes?.isNotEmpty == true
-                ? Text(
-                    appointment.notes!,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          );
-        }).toList(),
-      ),
-    );
-  }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
@@ -317,7 +258,6 @@ class CalendarPageState extends State<CalendarPage> {
             child: SfCalendar(
               view: CalendarView.month,
               dataSource: AppointmentDataSource(_filteredAppointments),
-              onTap: _onTap,
               monthViewSettings: MonthViewSettings(
                 appointmentDisplayMode: MonthAppointmentDisplayMode.indicator,
                 showAgenda: true,

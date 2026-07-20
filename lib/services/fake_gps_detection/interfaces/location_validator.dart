@@ -1,5 +1,5 @@
-import '../models/location_data.dart';
 import '../models/detection_result.dart';
+import '../models/location_data.dart';
 
 /// Abstract base class untuk semua detector GPS palsu
 abstract class LocationValidator {

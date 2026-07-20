@@ -1,12 +1,15 @@
 import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/sales_dashboard_model.dart';
 import '../services/sales_dashboard_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
+import '../widgets/modern_bottom_nav.dart';
 
 class SalesDashboardPage extends StatefulWidget {
   const SalesDashboardPage({super.key});
@@ -101,6 +104,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
           ],
         ),
+        bottomNavigationBar: ModernBottomNav(
+          currentIndex: 3,
+          onTap: (index) {
+            if (index != 3) {
+              Navigator.pop(context);
+            }
+          },
+        ),
       ),
     );
   }
@@ -148,6 +159,7 @@ class _SummaryTabState extends State<_SummaryTab> {
   String? _errorSummary;
   String? _errorTrend;
   int? _compareYear;
+  String _metric = 'omzet'; // 'omzet' | 'order' | 'qty'
 
   @override
   void initState() {
@@ -184,7 +196,8 @@ class _SummaryTabState extends State<_SummaryTab> {
       _errorTrend = null;
     });
     try {
-      final t = await _service.getTrend(widget.periode, compareYear: _compareYear);
+      final t = await _service.getTrend(widget.periode,
+          compareYear: _compareYear, metric: _metric);
       if (!mounted) return;
       setState(() {
         _trend = t;
@@ -201,6 +214,12 @@ class _SummaryTabState extends State<_SummaryTab> {
 
   Future<void> _changeCompareYear(int? year) async {
     setState(() => _compareYear = year);
+    await _loadTrend();
+  }
+
+  Future<void> _changeMetric(String m) async {
+    if (m == _metric || _loadingTrend) return;
+    setState(() => _metric = m);
     await _loadTrend();
   }
 
@@ -299,46 +318,133 @@ class _SummaryTabState extends State<_SummaryTab> {
     final s = _summary;
     if (s == null) return const SizedBox.shrink();
 
+    final ts = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(s.periodeLabel, style: Theme.of(context).textTheme.bodySmall),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(s.periodeLabel,
+                  style: ts.bodySmall,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            AppSpacing.gapHorizontalXS,
+            Flexible(
+              child: Text(
+                s.prevLabel.isEmpty ? '' : 'vs ${s.prevLabel}',
+                style: ts.bodySmall?.copyWith(color: AppColors.onSurfaceVariant),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         AppSpacing.gapVerticalSM,
         Row(
           children: [
-            Expanded(child: _kpiCard('Omzet', FormatUtils.formatCurrencyCompact(s.omzet))),
+            Expanded(child: _kpiCard('Omzet', s.omzet, s.omzetPrev, isCurrency: true)),
             AppSpacing.gapHorizontalSM,
-            Expanded(child: _kpiCard('Order', '${s.orderCount}')),
+            Expanded(child: _kpiCard('Order', s.orderCount, s.orderCountPrev)),
             AppSpacing.gapHorizontalSM,
-            Expanded(child: _kpiCard('Qty', '${s.totalQty}')),
+            Expanded(child: _kpiCard('Qty', s.totalQty, s.totalQtyPrev)),
           ],
         ),
       ],
     );
   }
 
-  Widget _kpiCard(String label, String value) {
+  Widget _kpiCard(String label, int currentValue, int prevValue,
+      {bool isCurrency = false}) {
+    final cs = Theme.of(context).colorScheme;
+    final valueText = isCurrency
+        ? FormatUtils.formatCurrencyCompact(currentValue)
+        : FormatUtils.formatNumber(currentValue);
     return Container(
       padding: AppSpacing.paddingMD,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: cs.surface,
         borderRadius: AppSpacing.borderRadiusMD,
         boxShadow: const [
           BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(label.toUpperCase(),
               style: const TextStyle(fontSize: 10, color: AppColors.onSurfaceVariant)),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(value,
+            alignment: Alignment.centerLeft,
+            child: Text(valueText,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _deltaIndicator(currentValue, prevValue, isCurrency: isCurrency),
           ),
         ],
       ),
+    );
+  }
+
+  /// Indikator naik/turun/baru/stabil untuk KPI card.
+  /// Baris pertama: ikon + persentase. Baris kedua: nilai sebelumnya.
+  Widget _deltaIndicator(int current, int prev, {bool isCurrency = false}) {
+    final cs = Theme.of(context).colorScheme;
+    final prevText = isCurrency
+        ? FormatUtils.formatCurrencyCompact(prev)
+        : FormatUtils.formatNumber(prev);
+    if (prev == 0) {
+      // Tidak ada data pembanding → hindari div-by-zero.
+      return _pill(Icons.fiber_new, 'Baru', cs.outline);
+    }
+    final delta = current - prev;
+    final pct = (delta.abs() / prev * 100).round();
+    final Color color;
+    final IconData icon;
+    if (delta > 0) {
+      color = AppColors.success;
+      icon = Icons.arrow_upward;
+    } else if (delta < 0) {
+      color = AppColors.error;
+      icon = Icons.arrow_downward;
+    } else {
+      color = cs.outline;
+      icon = Icons.arrow_forward;
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _pill(icon, '$pct%', color),
+        const SizedBox(height: 2),
+        Text(
+          'dari $prevText',
+          style: TextStyle(
+            fontSize: 9,
+            color: AppColors.onSurfaceVariant,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _pill(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 2),
+        Text(text,
+            style: TextStyle(
+                fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 
@@ -356,12 +462,12 @@ class _SummaryTabState extends State<_SummaryTab> {
     }
 
     final cs = Theme.of(context).colorScheme;
-    final hasCompare = _compareYear != null && _trend.any((p) => p.omzetPrev != null);
+    final hasCompare = _compareYear != null && _trend.any((p) => p.valuePrev != null);
 
     final currentSpots = <FlSpot>[];
     double maxY = 0;
     for (var i = 0; i < _trend.length; i++) {
-      final v = _trend[i].omzet.toDouble();
+      final v = _trend[i].value.toDouble();
       currentSpots.add(FlSpot(i.toDouble(), v));
       if (v > maxY) maxY = v;
     }
@@ -369,22 +475,23 @@ class _SummaryTabState extends State<_SummaryTab> {
     final prevSpots = <FlSpot>[];
     if (hasCompare) {
       for (var i = 0; i < _trend.length; i++) {
-        final v = (_trend[i].omzetPrev ?? 0).toDouble();
+        final v = (_trend[i].valuePrev ?? 0).toDouble();
         prevSpots.add(FlSpot(i.toDouble(), v));
         if (v > maxY) maxY = v;
       }
     }
 
+    final metricColor = _metricColor;
     final lineBars = <LineChartBarData>[
       LineChartBarData(
         spots: currentSpots,
         isCurved: true,
-        color: cs.secondary,
+        color: metricColor,
         barWidth: 2.5,
         dotData: const FlDotData(show: false),
         belowBarData: BarAreaData(
           show: true,
-          color: cs.secondary.withValues(alpha: 0.15),
+          color: metricColor.withValues(alpha: 0.15),
         ),
       ),
     ];
@@ -411,12 +518,22 @@ class _SummaryTabState extends State<_SummaryTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tren Omzet',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          Text('Tren ${_metricLabel(_metric)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 0,
+            children: [
+              _metricChip('Omzet', 'omzet'),
+              _metricChip('Order', 'order'),
+              _metricChip('Qty', 'qty'),
+            ],
+          ),
           if (hasCompare) ...[
             const SizedBox(height: 6),
             Row(children: [
-              Icon(Icons.circle, size: 10, color: cs.secondary),
+              Icon(Icons.circle, size: 10, color: metricColor),
               const SizedBox(width: 4),
               Text('Periode ini', style: const TextStyle(fontSize: 11)),
               const SizedBox(width: 12),
@@ -440,12 +557,12 @@ class _SummaryTabState extends State<_SummaryTab> {
                         final point = _trend[idx];
                         if (hasCompare) {
                           return LineTooltipItem(
-                            '${point.label}\n• ${FormatUtils.formatCurrencyCompact(point.omzet)}\n• $_compareYear: ${FormatUtils.formatCurrencyCompact(point.omzetPrev ?? 0)}',
+                            '${point.label}\n• ${_fmtMetric(point.value)}\n• $_compareYear: ${_fmtMetric(point.valuePrev ?? 0)}',
                             const TextStyle(fontSize: 11),
                           );
                         }
                         return LineTooltipItem(
-                          '${point.label}\n${FormatUtils.formatCurrencyCompact(point.omzet)}',
+                          '${point.label}\n${_fmtMetric(point.value)}',
                           const TextStyle(fontSize: 11),
                         );
                       }).toList();
@@ -461,6 +578,52 @@ class _SummaryTabState extends State<_SummaryTab> {
           ),
         ],
       ),
+    );
+  }
+
+  // ----- Helper metric (Omzet/Order/Qty) untuk chart -----
+
+  Color get _metricColor {
+    final cs = Theme.of(context).colorScheme;
+    switch (_metric) {
+      case 'order':
+        return cs.primary;
+      case 'qty':
+        return AppColors.success;
+      default:
+        return cs.secondary; // 'omzet'
+    }
+  }
+
+  String _metricLabel(String metric) {
+    switch (metric) {
+      case 'order':
+        return 'Order';
+      case 'qty':
+        return 'Qty';
+      default:
+        return 'Omzet';
+    }
+  }
+
+  String _fmtMetric(int v) {
+    switch (_metric) {
+      case 'omzet':
+        return FormatUtils.formatCurrencyCompact(v);
+      case 'order':
+      case 'qty':
+      default:
+        return FormatUtils.formatNumber(v);
+    }
+  }
+
+  Widget _metricChip(String label, String value) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _metric == value,
+      onSelected: _loadingTrend ? null : (_) => _changeMetric(value),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity(horizontal: -3, vertical: -3),
     );
   }
 

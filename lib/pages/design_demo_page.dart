@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+
+import '../../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_text_field.dart';
-import '../widgets/modern_bottom_nav.dart';
 import '../widgets/skeleton_loading.dart';
 import '../widgets/theme_toggle_button.dart';
-import '../theme/app_spacing.dart';
 
 class DesignDemoPage extends StatefulWidget {
   const DesignDemoPage({super.key});
@@ -302,7 +304,7 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
                 ),
                 child: Icon(
                   item['icon'] as IconData,
-                  color: colorScheme.onSurfaceVariant,
+                  color: AppColors.info,
                 ),
               ),
               title: Text(
@@ -320,7 +322,7 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
               trailing: Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: colorScheme.onSurfaceVariant,
+                color: AppColors.info,
               ),
               onTap: () => _showSnackBar('${item['title']} tapped'),
             ),

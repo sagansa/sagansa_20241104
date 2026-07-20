@@ -1,13 +1,17 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../utils/image_utils.dart';
-import '../controllers/asset_controller.dart';
+import 'package:provider/provider.dart';
+
 import '../models/asset_category_model.dart';
 import '../models/store_model.dart';
+import '../providers/asset_provider.dart';
 import '../services/store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_utils.dart';
+import '../widgets/modern_dropdown.dart';
 
 /// Form catat aset manual (off-catalog). Penambahan aset dari produk
 /// (recommended) dilakukan via AssetFromProductPage — halaman ini hanya untuk
@@ -23,7 +27,6 @@ class AssetFormPage extends StatefulWidget {
 }
 
 class _AssetFormPageState extends State<AssetFormPage> {
-  late AssetController _controller;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
   bool _isSaving = false;
@@ -45,7 +48,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
   void initState() {
     super.initState();
     _selectedStoreId = widget.initialStoreId;
-    _controller = AssetController(context);
     _loadLookups();
   }
 
@@ -61,7 +63,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
     try {
       final storeService = StoreService();
       final results = await Future.wait<dynamic>([
-        _controller.loadCategories(),
+        context.read<AssetProvider>().loadCategories(),
         storeService.getStores(),
       ]);
       if (!mounted) return;
@@ -116,7 +118,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
     }
     setState(() => _isSaving = true);
     try {
-      await _controller.saveAsset(
+      await context.read<AssetProvider>().saveAsset(
         name: _nameCtrl.text.trim(),
         code: _codeCtrl.text.trim().isEmpty ? null : _codeCtrl.text.trim(),
         assetCategoryId: _selectedCategoryId!,
@@ -233,65 +235,68 @@ class _AssetFormPageState extends State<AssetFormPage> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sectionGap),
-                    DropdownButtonFormField<int>(
-                      initialValue: _selectedCategoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Kategori *',
-                      ),
-                      items: _categories
-                          .map((c) => DropdownMenuItem(
-                                value: c.id,
-                                child: Text(
-                                    '${c.name} (${c.frequencyLabel})'),
-                              ))
-                          .toList(),
+                    ModernDropdown<int>(
+                      value: _selectedCategoryId,
+                      labelText: 'Kategori',
+                      hint: 'Pilih kategori...',
+                      isRequired: true,
+                      prefixIcon: const Icon(Icons.category_outlined, size: 20),
+                      items: _categories.map((c) => c.id).toList(),
+                      getLabel: (v) {
+                        final c = _categories.firstWhere((e) => e.id == v, orElse: () => AssetCategoryModel(id: 0, name: '', frequencyDays: 30));
+                        return '${c.name} (${c.frequencyLabel})';
+                      },
                       onChanged: (v) => setState(() => _selectedCategoryId = v),
                     ),
                     const SizedBox(height: AppSpacing.sectionGap),
-                    DropdownButtonFormField<int>(
-                      initialValue: _selectedStoreId,
-                      decoration: const InputDecoration(
-                        labelText: 'Toko *',
-                      ),
-                      items: _stores
-                          .map((s) => DropdownMenuItem(
-                                value: s.id,
-                                child: Text(s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}'),
-                              ))
-                          .toList(),
+                    ModernDropdown<int>(
+                      value: _selectedStoreId,
+                      labelText: 'Toko',
+                      hint: 'Pilih toko...',
+                      isRequired: true,
+                      prefixIcon: const Icon(Icons.storefront, size: 20),
+                      items: _stores.map((s) => s.id).toList(),
+                      getLabel: (v) {
+                        final s = _stores.firstWhere((e) => e.id == v, orElse: () => StoreModel(id: 0, nickname: '', latitude: 0, longitude: 0));
+                        return s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}';
+                      },
+                      getSubtitle: (v) {
+                        return '';
+                      },
                       onChanged: (v) => setState(() => _selectedStoreId = v),
                     ),
                     const SizedBox(height: AppSpacing.sectionGap),
-                    // Condition & status stacked vertically to avoid overflow.
-                    DropdownButtonFormField<int>(
-                      initialValue: _selectedCondition,
-                      decoration: const InputDecoration(
-                        labelText: 'Kondisi',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('Baik')),
-                        DropdownMenuItem(
-                            value: 2, child: Text('Rusak Ringan')),
-                        DropdownMenuItem(
-                            value: 3, child: Text('Rusak Berat')),
-                        DropdownMenuItem(value: 4, child: Text('Hilang')),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _selectedCondition = v ?? 1),
+                    ModernDropdown<int>(
+                      value: _selectedCondition,
+                      labelText: 'Kondisi',
+                      hint: 'Pilih kondisi...',
+                      items: const [1, 2, 3, 4],
+                      getLabel: (v) {
+                        switch (v) {
+                          case 1: return 'Baik';
+                          case 2: return 'Rusak Ringan';
+                          case 3: return 'Rusak Berat';
+                          case 4: return 'Hilang';
+                          default: return 'Baik';
+                        }
+                      },
+                      onChanged: (v) => setState(() => _selectedCondition = v ?? 1),
                     ),
                     const SizedBox(height: AppSpacing.sectionGap),
-                    DropdownButtonFormField<int>(
-                      initialValue: _selectedStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('Aktif')),
-                        DropdownMenuItem(value: 2, child: Text('Dipelihara')),
-                        DropdownMenuItem(value: 3, child: Text('Non-Aktif')),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _selectedStatus = v ?? 1),
+                    ModernDropdown<int>(
+                      value: _selectedStatus,
+                      labelText: 'Status',
+                      hint: 'Pilih status...',
+                      items: const [1, 2, 3],
+                      getLabel: (v) {
+                        switch (v) {
+                          case 1: return 'Aktif';
+                          case 2: return 'Dipelihara';
+                          case 3: return 'Non-Aktif';
+                          default: return 'Aktif';
+                        }
+                      },
+                      onChanged: (v) => setState(() => _selectedStatus = v ?? 1),
                     ),
                     const SizedBox(height: AppSpacing.sectionGap),
                     TextFormField(

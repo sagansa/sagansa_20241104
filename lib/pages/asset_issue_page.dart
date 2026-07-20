@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/asset_controller.dart';
+import 'package:provider/provider.dart';
+
 import '../models/asset_issue_model.dart';
+import '../providers/asset_provider.dart';
 import '../services/asset_issue_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -15,7 +17,6 @@ class AssetIssuePage extends StatefulWidget {
 }
 
 class _AssetIssuePageState extends State<AssetIssuePage> {
-  late AssetController _controller;
   final AssetIssueService _issueService = AssetIssueService();
   final ScrollController _scrollController = ScrollController();
   List<AssetIssueModel> _issues = [];
@@ -29,7 +30,6 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _fetch();
     _scrollController.addListener(_onScroll);
   }
@@ -164,7 +164,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                         children: [
                           Icon(Icons.task_alt_rounded,
                               size: 48,
-                              color: colorScheme.onSurfaceVariant
+                              color: AppColors.info
                                   .withValues(alpha:0.5)),
                           AppSpacing.gapVerticalSM,
                           Text(
@@ -231,7 +231,7 @@ class _AssetIssuePageState extends State<AssetIssuePage> {
                                   ? TextButton(
                                       onPressed: () async {
                                         try {
-                                          await _controller.closeIssue(issue.id);
+                                          await context.read<AssetProvider>().closeIssue(issue.id);
                                           if (!context.mounted) return;
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(

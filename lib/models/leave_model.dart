@@ -37,11 +37,50 @@ class LeaveModel {
       status: int.tryParse(json['status']?.toString() ?? '0') ?? 0,
       statusText: json['status_text'] ?? '',
       notes: json['notes'],
-      createdBy: CreatedBy.fromJson(json['created_by']),
+      createdBy: CreatedBy.fromJson(
+        json['created_by'] is Map<String, dynamic>
+            ? json['created_by']
+            : {'id': 0, 'name': json['created_by']?.toString() ?? 'User'},
+      ),
       approvedBy: json['approved_by'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
+  }
+
+  int get durationDays {
+    final start = DateTime(fromDate.year, fromDate.month, fromDate.day);
+    final end = DateTime(untilDate.year, untilDate.month, untilDate.day);
+    final diff = end.difference(start).inDays + 1;
+    return diff > 0 ? diff : 1;
+  }
+
+  String get durationText => '$durationDays Hari';
+
+  String get formattedReason {
+    if (reasonText.isNotEmpty) return reasonText;
+    switch (reason) {
+      case 1:
+        return 'Cuti Menikah';
+      case 2:
+        return 'Sakit';
+      case 3:
+        return 'Pulang Kampung / Izin';
+      case 4:
+        return 'Libur / Cuti Tahunan';
+      case 5:
+        return 'Duka / Keluarga Meninggal';
+      default:
+        return 'Izin / Cuti';
+    }
+  }
+
+  String? get approvedByName {
+    if (approvedBy == null) return null;
+    if (approvedBy is Map) {
+      return approvedBy['name']?.toString();
+    }
+    return approvedBy.toString();
   }
 }
 

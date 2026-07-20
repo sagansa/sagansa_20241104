@@ -136,7 +136,7 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
 
     final d = _detail ?? {};
     final detail = ApplicantDetail.fromJson(
-        d is Map<String, dynamic> ? d : <String, dynamic>{});
+        d);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Profil')),

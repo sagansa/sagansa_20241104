@@ -1,7 +1,7 @@
 class FormatUtils {
   static String formatNumber(int number) {
-    RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-    String result = number
+    final RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    final String result = number
         .toString()
         .replaceAllMapped(reg, (Match match) => '${match[1]}.');
     return result;

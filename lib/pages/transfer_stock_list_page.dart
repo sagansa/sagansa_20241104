@@ -152,7 +152,7 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                           Icon(
                             Icons.swap_horiz_rounded,
                             size: 48,
-                            color: colorScheme.onSurfaceVariant
+                            color: AppColors.info
                                 .withValues(alpha: 0.5),
                           ),
                           AppSpacing.gapVerticalMD,

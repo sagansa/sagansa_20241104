@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/hygiene_model.dart';
 import '../services/hygiene_service.dart';
 import '../theme/app_colors.dart';
@@ -6,10 +7,10 @@ import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'home_page.dart';
 import 'hrd_dashboard_page.dart';
-import 'stock_dashboard_page.dart';
-import 'transaction_dashboard_page.dart';
 import 'hygiene_detail_page.dart';
 import 'hygiene_page.dart';
+import 'stock_dashboard_page.dart';
+import 'transaction_dashboard_page.dart';
 
 class HygieneListPage extends StatefulWidget {
   const HygieneListPage({super.key});
@@ -20,14 +21,35 @@ class HygieneListPage extends StatefulWidget {
 
 class _HygieneListPageState extends State<HygieneListPage> {
   final HygieneService _service = HygieneService();
+  final ScrollController _scrollController = ScrollController();
   List<HygieneModel> _items = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _errorMessage;
+  int _currentPage = 1;
+  int _lastPage = 1;
+  bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
   }
 
   void _handleNavigation(BuildContext context, int index) {
@@ -66,12 +88,16 @@ class _HygieneListPageState extends State<HygieneListPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _currentPage = 1;
+      _hasMore = true;
     });
     try {
-      final data = await _service.getHistory();
+      final result = await _service.getHistory(page: 1);
       if (!mounted) return;
       setState(() {
-        _items = data;
+        _items = result['data'];
+        _lastPage = result['meta']['last_page'] ?? 1;
+        _hasMore = _currentPage < _lastPage;
         _isLoading = false;
       });
     } catch (e) {
@@ -80,6 +106,25 @@ class _HygieneListPageState extends State<HygieneListPage> {
         _errorMessage = 'Gagal memuat daftar kebersihan: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getHistory(page: _currentPage + 1);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(result['data']);
+        _currentPage++;
+        _lastPage = result['meta']['last_page'] ?? _currentPage;
+        _hasMore = _currentPage < _lastPage;
+        _isLoadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -150,7 +195,7 @@ class _HygieneListPageState extends State<HygieneListPage> {
                         children: [
                           Icon(Icons.cleaning_services_outlined,
                               size: 56,
-                              color: colorScheme.onSurfaceVariant
+                              color: AppColors.info
                                   .withValues(alpha: 0.5)),
                           AppSpacing.gapVerticalMD,
                           Text(
@@ -165,11 +210,18 @@ class _HygieneListPageState extends State<HygieneListPage> {
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.separated(
+                        controller: _scrollController,
                         padding: AppSpacing.paddingMD,
-                        itemCount: _items.length,
+                        itemCount: _items.length + (_hasMore ? 1 : 0),
                         separatorBuilder: (context, index) =>
                             const Divider(height: 1),
                         itemBuilder: (context, idx) {
+                          if (idx == _items.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
                           final item = _items[idx];
                           final dirtyRooms = item.rooms
                               .where((r) => r.condition == 3 || r.condition == 2)
@@ -181,14 +233,15 @@ class _HygieneListPageState extends State<HygieneListPage> {
                           return Card(
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(
-                              onTap: () {
-                                Navigator.push(
+                              onTap: () async {
+                                final changed = await Navigator.push<bool>(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => HygieneDetailPage(
                                         hygiene: item),
                                   ),
                                 );
+                                if (changed == true) _load();
                               },
                               child: Padding(
                                 padding: AppSpacing.paddingMD,

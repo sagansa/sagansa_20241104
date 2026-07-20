@@ -30,11 +30,7 @@ import '../services/leave_service.dart';
 import 'asset_dashboard_page.dart';
 import '../services/asset_service.dart';
 import '../services/hygiene_service.dart';
-import 'hygiene_page.dart';
-import 'hygiene_list_page.dart';
 import '../services/readiness_service.dart';
-import 'readiness_page.dart';
-import 'readiness_list_page.dart';
 import 'closing_store_page.dart';
 import '../services/user_service.dart';
 import '../services/sales_dashboard_service.dart';
@@ -364,7 +360,7 @@ class HomePageState extends State<HomePage> {
     int totalEmployees = 0;
 
     try {
-      final result = await PresenceService.getAllTodayPresences();
+      final result = await PresenceService().getAllTodayPresences();
       presences = result.presences;
       final summary = result.summary;
       if (mounted) {
@@ -525,7 +521,7 @@ class HomePageState extends State<HomePage> {
     setState(() => isLoadingOrders = true);
     try {
       // 1. Fetch Online Orders (for = '3')
-      final onlineResult = await PresenceService.getSalesOrders(
+      final onlineResult = await PresenceService().getSalesOrders(
         deliveryStatus: 2,
         page: 1,
         perPage: 1,
@@ -541,7 +537,7 @@ class HomePageState extends State<HomePage> {
       }
 
       // 2. Fetch Direct Orders (for = '1')
-      final directResult = await PresenceService.getSalesOrders(
+      final directResult = await PresenceService().getSalesOrders(
         deliveryStatus: 2,
         page: 1,
         perPage: 1,

@@ -1,5 +1,7 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
+
 import '../models/asset_category_model.dart';
 import '../models/asset_check_model.dart';
 import '../models/asset_issue_model.dart';
@@ -8,16 +10,20 @@ import '../services/asset_check_service.dart';
 import '../services/asset_issue_service.dart';
 import '../services/asset_service.dart';
 
-/// Controller untuk modul Asset. Mengikuti bentuk PresenceController: kelas
-/// biasa yang dibangun dengan BuildContext, memanggil service, dan melempar
-/// exception berbahasa Indonesia ke caller (UI menangkap & menampilkan SnackBar).
-class AssetController {
-  AssetController(this.context);
+enum AssetState { idle, loading, success, error }
 
-  final BuildContext context;
+class AssetProvider extends ChangeNotifier {
   final AssetService _assetService = AssetService();
   final AssetCheckService _checkService = AssetCheckService();
   final AssetIssueService _issueService = AssetIssueService();
+
+  AssetState _state = AssetState.idle;
+  String? _errorMessage;
+
+  AssetState get state => _state;
+  String? get errorMessage => _errorMessage;
+  bool get isLoading => _state == AssetState.loading;
+  bool get hasError => _state == AssetState.error;
 
   Future<List<AssetCategoryModel>> loadCategories() async {
     try {
@@ -27,7 +33,6 @@ class AssetController {
     }
   }
 
-  /// Daftar produk yang ditandai sebagai aset (untuk product-picker).
   Future<List<Map<String, dynamic>>> loadAssetProducts() async {
     try {
       return await _assetService.getAssetProducts();
@@ -36,8 +41,6 @@ class AssetController {
     }
   }
 
-  /// Buat aset dari produk. Nama/kode/kategori otomatis dari produk agar
-  /// konsisten antar toko.
   Future<void> createFromProduct({
     required int productId,
     required int storeId,
@@ -122,8 +125,6 @@ class AssetController {
     }
   }
 
-  /// Store_id dari presence hari ini. Null bila belum check-in. Dipakai
-  /// sebagai default filter awal (terutama untuk staff).
   Future<int?> loadCurrentStoreId() async {
     try {
       return await _assetService.getCurrentStoreId();
@@ -248,7 +249,6 @@ class AssetController {
     }
   }
 
-  /// Hapus aset (admin saja). Backend akan menolak bila bukan admin.
   Future<void> deleteAsset(int id) async {
     try {
       await _assetService.deleteAsset(id);
@@ -257,8 +257,12 @@ class AssetController {
     }
   }
 
-  /// Selalu melempar exception (return type Never agar analyzer tahu path
-  /// catch tidak "jatuh" tanpa return value).
+  void reset() {
+    _state = AssetState.idle;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Never _rethrow(Object e, {required String fallback}) {
     final msg = e.toString().replaceFirst('Exception: ', '');
     throw Exception(msg.isEmpty ? fallback : msg);

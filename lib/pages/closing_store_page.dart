@@ -1,18 +1,22 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/auth_provider.dart';
 import '../services/closing_store_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../widgets/modern_bottom_sheet.dart';
-import '../widgets/modern_text_form_field.dart';
-import '../widgets/empty_state.dart';
 import '../widgets/add_fab.dart';
-import '../widgets/status_badge.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/modern_bottom_sheet.dart';
+import '../widgets/modern_dropdown.dart';
+import '../widgets/modern_text_form_field.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/supplier_picker_modal.dart';
 
 class ClosingStorePage extends StatefulWidget {
   const ClosingStorePage({super.key});
@@ -684,15 +688,21 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                   AppSpacing.gapVerticalSM,
 
                   // Vehicle Dropdown
-                  DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(labelText: 'Pilih Kendaraan *'),
-                    initialValue: selectedVehicleId,
-                    items: vehicles.map((v) {
-                      return DropdownMenuItem<int>(
-                        value: v['id'] as int,
-                        child: Text(v['no_register'] ?? ''),
-                      );
-                    }).toList(),
+                  ModernDropdown<int>(
+                    labelText: 'Pilih Kendaraan',
+                    hint: 'Pilih kendaraan...',
+                    isRequired: true,
+                    prefixIcon: const Icon(Icons.directions_car_outlined, size: 20),
+                    value: selectedVehicleId,
+                    items: vehicles.map((v) => v['id'] as int).toList(),
+                    getLabel: (val) {
+                      final v = vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                      return v['no_register']?.toString() ?? '';
+                    },
+                    getSubtitle: (val) {
+                      final v = vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                      return v['name']?.toString() ?? '';
+                    },
                     onChanged: (val) => setModalState(() => selectedVehicleId = val),
                     validator: (val) => val == null ? 'Pilih kendaraan' : null,
                   ),
@@ -701,64 +711,13 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                   // Supplier (searchable dialog)
                   InkWell(
                     onTap: () async {
-                      final result = await showDialog<int>(
+                      final result = await SupplierPickerModal.show(
                         context: context,
-                        builder: (dialogCtx) {
-                          String query = '';
-                          return StatefulBuilder(
-                            builder: (dialogCtx, setDialogState) {
-                              final filtered = suppliers.where((s) {
-                                if (query.isEmpty) return true;
-                                return (s['name'] ?? '')
-                                    .toString()
-                                    .toLowerCase()
-                                    .contains(query.toLowerCase());
-                              }).toList();
-                              return Dialog(
-                                insetPadding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md, vertical: 80),
-                                child: Column(
-                                  children: [
-                                    Padding(
-                                      padding: AppSpacing.paddingSM,
-                                      child: TextField(
-                                        decoration: const InputDecoration(
-                                          hintText: 'Cari supplier...',
-                                          prefixIcon: Icon(Icons.search),
-                                          isDense: true,
-                                        ),
-                                        onChanged: (v) =>
-                                            setDialogState(() => query = v),
-                                        autofocus: true,
-                                      ),
-                                    ),
-                                    const Divider(height: 1),
-                                    Expanded(
-                                      child: filtered.isEmpty
-                                          ? const Center(
-                                              child: Text('Tidak ada supplier'))
-                                          : ListView.separated(
-                                              itemCount: filtered.length,
-                                              separatorBuilder: (_, __) =>
-                                                  const Divider(height: 1),
-                                              itemBuilder: (_, i) => ListTile(
-                                                title: Text(
-                                                    filtered[i]['name'] ?? ''),
-                                                onTap: () => Navigator.pop(
-                                                    dialogCtx,
-                                                    filtered[i]['id']),
-                                              ),
-                                            ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                        },
+                        suppliers: suppliers,
+                        selectedSupplierId: selectedSupplierId,
                       );
                       if (result != null) {
-                        setModalState(() => selectedSupplierId = result);
+                        setModalState(() => selectedSupplierId = result['id']);
                       }
                     },
                     borderRadius: AppSpacing.borderRadiusXS,
@@ -1211,7 +1170,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                   children: [
                     CircleAvatar(
                       backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                      child: Icon(Icons.storefront, color: colorScheme.onSurfaceVariant),
+                      child: Icon(Icons.storefront, color: AppColors.info),
                     ),
                     AppSpacing.gapHorizontalMD,
                     Expanded(
@@ -1337,7 +1296,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add_circle, color: AppColors.primary),
+                  icon: const Icon(Icons.add_circle, color: AppColors.info),
                   onPressed: _isEditable ? _showAddFuelServiceBottomSheet : null,
                 ),
               ],

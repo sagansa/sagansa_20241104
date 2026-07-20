@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class EmptyState extends StatelessWidget {
@@ -29,7 +30,7 @@ class EmptyState extends StatelessWidget {
             Icon(
               icon,
               size: 64,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: AppColors.info,
             ),
             AppSpacing.gapVerticalMD,
             Text(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import '../services/network_service.dart';
-import '../utils/constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import 'package:http/http.dart' as http;
+import '../utils/constants.dart';
 
 class ConnectionTestWidget extends StatefulWidget {
   const ConnectionTestWidget({super.key});

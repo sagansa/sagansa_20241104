@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'dart:io';
+
 import '../models/sales_order_online_model.dart';
 import '../models/store_model.dart';
 import '../services/sales_order_service.dart';
@@ -10,6 +12,7 @@ import '../services/store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
+import '../widgets/modern_dropdown.dart';
 
 class CreateSalesOrderOnlinePage extends StatefulWidget {
   const CreateSalesOrderOnlinePage({super.key});
@@ -325,7 +328,10 @@ class _CreateSalesOrderOnlinePageState
                 )
               : Form(
                   key: _formKey,
-                  child: ListView(
+                  child: GestureDetector(
+                    onTap: () => FocusScope.of(context).unfocus(),
+                    behavior: HitTestBehavior.translucent,
+                    child: ListView(
                     padding: AppSpacing.paddingMD,
                     children: [
                       // === Header fields ===
@@ -339,59 +345,47 @@ class _CreateSalesOrderOnlinePageState
                                   style: textTheme.titleMedium
                                       ?.copyWith(fontWeight: FontWeight.bold)),
                               AppSpacing.gapVerticalMD,
-                              DropdownButtonFormField<StoreModel>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Toko *',
-                                  prefixIcon: Icon(Icons.storefront),
-                                ),
-                                initialValue: _selectedStore,
-                                items: _stores
-                                    .map((s) => DropdownMenuItem(
-                                          value: s,
-                                          child: Text(s.nickname),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _selectedStore = v),
-                                validator: (v) =>
-                                    v == null ? 'Pilih toko' : null,
-                              ),
-                              AppSpacing.gapVerticalSM,
-                              DropdownButtonFormField<OnlineShopProvider>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Online Shop Provider *',
-                                  prefixIcon: Icon(Icons.shopping_bag_outlined),
-                                ),
-                                initialValue: _selectedProvider,
-                                items: _providers
-                                    .map((p) => DropdownMenuItem(
-                                          value: p,
-                                          child: Text(p.name),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _selectedProvider = v),
-                                validator: (v) =>
-                                    v == null ? 'Pilih provider' : null,
-                              ),
-                              AppSpacing.gapVerticalSM,
-                              DropdownButtonFormField<DeliveryServiceOption>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Delivery Service *',
-                                  prefixIcon: Icon(Icons.local_shipping_outlined),
-                                ),
-                                initialValue: _selectedDeliveryService,
-                                items: _deliveryServices
-                                    .map((d) => DropdownMenuItem(
-                                          value: d,
-                                          child: Text(d.name),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) => setState(
-                                    () => _selectedDeliveryService = v),
-                                validator: (v) =>
-                                    v == null ? 'Pilih delivery service' : null,
-                              ),
+                               ModernDropdown<StoreModel>(
+                                 labelText: 'Toko',
+                                 hint: 'Pilih toko...',
+                                 isRequired: true,
+                                 prefixIcon: const Icon(Icons.storefront, size: 20),
+                                 value: _selectedStore,
+                                 items: _stores,
+                                 getLabel: (s) => s.nickname,
+                                 onChanged: (v) =>
+                                     setState(() => _selectedStore = v),
+                                 validator: (v) =>
+                                     v == null ? 'Pilih toko' : null,
+                               ),
+                               AppSpacing.gapVerticalSM,
+                               ModernDropdown<OnlineShopProvider>(
+                                 labelText: 'Online Shop Provider',
+                                 hint: 'Pilih provider...',
+                                 isRequired: true,
+                                 prefixIcon: const Icon(Icons.shopping_bag_outlined, size: 20),
+                                 value: _selectedProvider,
+                                 items: _providers,
+                                 getLabel: (p) => p.name,
+                                 onChanged: (v) =>
+                                     setState(() => _selectedProvider = v),
+                                 validator: (v) =>
+                                     v == null ? 'Pilih provider' : null,
+                               ),
+                               AppSpacing.gapVerticalSM,
+                               ModernDropdown<DeliveryServiceOption>(
+                                 labelText: 'Delivery Service',
+                                 hint: 'Pilih kurir...',
+                                 isRequired: true,
+                                 prefixIcon: const Icon(Icons.local_shipping_outlined, size: 20),
+                                 value: _selectedDeliveryService,
+                                 items: _deliveryServices,
+                                 getLabel: (d) => d.name,
+                                 onChanged: (v) =>
+                                     setState(() => _selectedDeliveryService = v),
+                                 validator: (v) =>
+                                     v == null ? 'Pilih delivery service' : null,
+                               ),
                               AppSpacing.gapVerticalSM,
                               InkWell(
                                 onTap: _pickDate,
@@ -558,6 +552,7 @@ class _CreateSalesOrderOnlinePageState
                       ),
                       AppSpacing.gapVerticalMD,
                     ],
+                    ),
                   ),
                 ),
       bottomNavigationBar: _buildBottomBar(),
@@ -610,23 +605,21 @@ class _CreateSalesOrderOnlinePageState
             children: [
               Expanded(
                 flex: 3,
-                child: DropdownButtonFormField<SalesOrderOnlineProduct>(
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Produk',
-                    isDense: true,
-                  ),
-                  value: product, // ignore: deprecated_member_use
-                  items: _products
-                      .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(
-                              p.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => item['product'] = v),
+                child: ModernDropdown<SalesOrderOnlineProduct>(
+                  labelText: 'Produk',
+                  hint: 'Pilih produk...',
+                  value: product,
+                  items: _products,
+                  getLabel: (p) => p.name,
+                  getSubtitle: (p) => p.unit,
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        item['product'] = v;
+                        item['product_id'] = v.id;
+                      });
+                    }
+                  },
                 ),
               ),
               AppSpacing.gapHorizontalSM,

@@ -1,10 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'create_invoice_page.dart';
 import 'invoice_detail_page.dart';
 
@@ -136,7 +138,7 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
     if (_request == null) return;
 
     final approvedItems = _request!.detailRequests
-        .where((item) => item.status == '4')
+        .where((item) => item.statusEnum.isApproved)
         .toList();
 
     if (approvedItems.isEmpty) {
@@ -189,7 +191,7 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final hasApprovedItems = _request?.detailRequests.any((item) => item.status == '4') ?? false;
+    final hasApprovedItems = _request?.detailRequests.any((item) => item.statusEnum.isPartiallyApproved) ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -298,21 +300,21 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
                                               if (item.paymentTypeId != null)
                                                 Text(
                                                   item.paymentTypeId == 2 
-                                                      ? (item.status == '1' ? 'Tunai (Butuh Approval)' : 'Tunai (Langsung)')
+                                                      ? (item.statusEnum.isPending ? 'Tunai (Butuh Approval)' : 'Tunai (Langsung)')
                                                       : 'Transfer (Langsung)',
                                                   style: theme.textTheme.bodySmall?.copyWith(
-                                                    color: (item.paymentTypeId == 2 && item.status == '1') ? AppColors.warning : AppColors.success,
+                                                    color: (item.paymentTypeId == 2 && item.statusEnum.isPending) ? AppColors.warning : AppColors.success,
                                                   ),
                                                 ),
                                             ],
                                           ),
                                           // Admin Actions inline (Approve, Reject, Tidak Digunakan)
-                                          if (_isAdmin && (item.status == '1' || item.status == '4')) ...[
+                                          if (_isAdmin && (item.statusEnum.isPending || item.statusEnum.isPartiallyApproved)) ...[
                                             const Divider(height: 20),
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.end,
                                               children: [
-                                                if (item.status == '1') ...[
+                                                if (item.statusEnum.isPending) ...[
                                                   OutlinedButton.icon(
                                                     onPressed: _isActionLoading ? null : () => _rejectItem(item.id),
                                                     style: OutlinedButton.styleFrom(

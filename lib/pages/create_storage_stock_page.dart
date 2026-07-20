@@ -4,6 +4,7 @@ import '../models/store_model.dart';
 import '../services/storage_stock_service.dart';
 import '../services/store_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_dropdown.dart';
 
 class CreateStorageStockPage extends StatefulWidget {
   const CreateStorageStockPage({super.key});
@@ -172,18 +173,14 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                       children: [
                         Padding(
                           padding: AppSpacing.paddingMD,
-                          child: DropdownButtonFormField<StoreModel>(
-                            decoration: const InputDecoration(
-                              labelText: 'Pilih Gudang / Outlet',
-                              prefixIcon: Icon(Icons.storefront),
-                            ),
-                            initialValue: _selectedStore,
-                            items: _stores.map((s) {
-                              return DropdownMenuItem(
-                                value: s,
-                                child: Text(s.nickname),
-                              );
-                            }).toList(),
+                          child: ModernDropdown<StoreModel>(
+                            labelText: 'Pilih Gudang / Outlet',
+                            hint: 'Pilih outlet...',
+                            prefixIcon: const Icon(Icons.storefront, size: 20),
+                            value: _selectedStore,
+                            items: _stores,
+                            getLabel: (s) => s.nickname,
+                            getSubtitle: (s) => '',
                             onChanged: (val) {
                               setState(() {
                                 _selectedStore = val;

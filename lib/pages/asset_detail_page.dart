@@ -1,14 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../controllers/asset_controller.dart';
-import '../widgets/modern_fab.dart';
+
 import '../models/asset_check_model.dart';
 import '../models/asset_issue_model.dart';
 import '../models/asset_model.dart';
+import '../providers/asset_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
+import '../widgets/modern_fab.dart';
 import 'asset_check_form_page.dart';
 
 /// Detail profil aset: info, kondisi, jadwal, riwayat check & issue.
@@ -22,7 +25,6 @@ class AssetDetailPage extends StatefulWidget {
 }
 
 class _AssetDetailPageState extends State<AssetDetailPage> {
-  late AssetController _controller;
   AssetModel? _asset;
   List<AssetCheckModel> _checks = [];
   List<AssetIssueModel> _issues = [];
@@ -33,7 +35,6 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _loadRole();
     _load();
   }
@@ -55,10 +56,10 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
       _errorMessage = null;
     });
     try {
-      final asset = await _controller.loadAssetDetail(widget.assetId);
+      final asset = await context.read<AssetProvider>().loadAssetDetail(widget.assetId);
       // Fetch eksplisit checks & issues untuk aset ini.
-      final checks = await _controller.loadChecks(assetId: widget.assetId);
-      final issues = await _controller.loadIssues(assetId: widget.assetId);
+      final checks = await context.read<AssetProvider>().loadChecks(assetId: widget.assetId);
+      final issues = await context.read<AssetProvider>().loadIssues(assetId: widget.assetId);
       if (!mounted) return;
       setState(() {
         _asset = asset;
@@ -108,7 +109,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
     if (confirmed != true) return;
 
     try {
-      await _controller.deleteAsset(widget.assetId);
+      await context.read<AssetProvider>().deleteAsset(widget.assetId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aset berhasil dihapus.')),
@@ -218,7 +219,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                             const Icon(Icons.inventory_2),
                       ),
                     )
-                  : Icon(Icons.inventory_2, color: colorScheme.primary),
+                  : Icon(Icons.inventory_2, color: AppColors.info),
             ),
             SizedBox(width: AppSpacing.rowGap),
             Expanded(
@@ -357,7 +358,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                       ? TextButton(
                           onPressed: () async {
                             try {
-                              await _controller.closeIssue(i.id);
+                              await context.read<AssetProvider>().closeIssue(i.id);
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(

@@ -1,111 +1,62 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
-import '../models/store_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/shift_store_model.dart';
-import 'dart:io';
+import '../models/store_model.dart';
 import '../utils/constants.dart';
+import 'api_client.dart';
 import 'image_upload_service.dart';
-import 'dart:developer' as developer;
 
 class PresenceService {
-  static const String tokenKey = 'token';
+  final ApiClient _api = ApiClient();
 
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(tokenKey);
-    debugPrint('Token yang diambil: $token');
-    return token;
-  }
-
-  static Future<Map<String, String>> getHeaders() async {
-    final token = await getToken();
-    return {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  static Future<List<Store>> getStores() async {
+  Future<List<Store>> getStores() async {
     try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.stores),
-        headers: await getHeaders(),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-
-        if (data['data'] != null) {
-          final List<dynamic> storesData = data['data'];
-          return storesData.map((store) => Store.fromJson(store)).toList();
-        } else {
-          throw Exception('Data stores tidak ditemukan');
-        }
-      } else {
-        throw Exception('Gagal memuat data stores: ${response.statusCode}');
-      }
+      final data = await _api.get('stores');
+      return (data as List<dynamic>)
+          .map((store) => Store.fromJson(store))
+          .toList();
     } catch (e) {
       debugPrint('Error dalam getStores: $e');
       throw Exception('Gagal memuat data stores: $e');
     }
   }
 
-  static Future<List<ShiftStore>> getShiftStores() async {
+  Future<List<ShiftStore>> getShiftStores() async {
     debugPrint('Memulai getShiftStores()');
     try {
-      final token = await getToken();
-      if (token == null) {
-        throw Exception('Token tidak ditemukan');
-      }
-
-      final response = await http
-          .get(
-            Uri.parse(ApiConstants.shiftStores),
-            headers: ApiConstants.headers(token),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        if ((responseData['success'] == true ||
-                responseData['status'] == 'success') &&
-            responseData['data'] is List) {
-          final List<dynamic> shiftStoresData = responseData['data'];
-          return shiftStoresData
-              .map((json) => ShiftStore.fromJson(json))
-              .toList();
-        } else {
-          throw Exception('Format respons tidak sesuai');
-        }
-      } else {
-        throw Exception('Gagal memuat data shift: ${response.statusCode}');
-      }
+      final data = await _api.get('shift-stores');
+      debugPrint('Response data: $data');
+      return (data as List<dynamic>)
+          .map((json) => ShiftStore.fromJson(json))
+          .toList();
     } catch (e) {
       debugPrint('Error dalam getShiftStores: $e');
       rethrow;
     }
   }
 
-  static Future<Map<String, dynamic>> uploadImage(
+  /// Upload presence image via multipart POST.
+  /// Kept on raw http because callers inspect `error_code` (READINESS_REQUIRED /
+  /// HYGIENE_REQUIRED) which ApiClient._handleResponse strips away.
+  Future<Map<String, dynamic>> uploadImage(
     File imageFile,
     bool isCheckIn,
     Map<String, dynamic> data,
   ) async {
-    final token = await getToken();
     final endpoint = isCheckIn ? '/check-in' : '/check-out';
     final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
 
     try {
-      var request = http.MultipartRequest('POST', uri)
-        ..headers.addAll(ApiConstants.headers(token))
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(await _getAuthHeaders())
         ..fields
             .addAll(data.map((key, value) => MapEntry(key, value.toString())));
 
@@ -113,8 +64,6 @@ class PresenceService {
       String? path;
       if (kIsWeb) {
         final bytes = await XFile(imageFile.path).readAsBytes();
-        // Pertahankan ekstensi file aktual (mis. .webp di Android, .jpg di iOS)
-        // agar content-type dan validasi backend tetap konsisten.
         final ext = p.extension(imageFile.path).toLowerCase();
         final filename = isCheckIn ? 'image_in$ext' : 'image_out$ext';
         path = await ImageUploadService.uploadBytes(
@@ -133,33 +82,21 @@ class PresenceService {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      return json.decode(response.body); // Langsung return decoded response
+      return json.decode(response.body);
     } catch (e) {
-      developer.log('Error uploading presence image: $e', name: 'PresenceService');
+      developer.log('Error uploading presence image: $e',
+          name: 'PresenceService');
       throw Exception('Gagal mengirim data presensi');
     }
   }
 
-  static Future<void> submitPresence(
+  Future<void> submitPresence(
     Map<String, dynamic> data,
     bool isCheckIn,
   ) async {
     try {
-      final token = await getToken();
       final endpoint = isCheckIn ? '/check-in' : '/check-out';
-      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
-
-      final response = await http.post(
-        uri,
-        headers: ApiConstants.headers(token),
-        body: data,
-      );
-
-      final responseData = json.decode(response.body);
-
-      if (response.statusCode != 200) {
-        throw Exception('Gagal melakukan presensi: ${responseData['message']}');
-      }
+      await _api.post(endpoint, body: data);
     } catch (e) {
       throw Exception('Error saat submit presensi: $e');
     }
@@ -168,32 +105,17 @@ class PresenceService {
   /// Get all employees' presence data for today (admin only).
   /// Returns record (presences, summary) where summary contains
   /// late_count, on_time_count, total_count from backend.
-  static Future<({List<dynamic> presences, Map<String, dynamic>? summary})>
+  Future<({List<dynamic> presences, Map<String, dynamic>? summary})>
       getAllTodayPresences() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AppConstants.tokenKey);
-
-      final response = await http.get(
-        Uri.parse(ApiConstants.todayPresenceEndpoint),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final body = json.decode(response.body) as Map<String, dynamic>;
-        if (body['status'] == 'success' || body['success'] == true) {
-          return (
-            presences: body['data'] as List<dynamic>? ?? [],
-            summary: body['summary'] as Map<String, dynamic>?,
-          );
-        }
-        throw Exception(body['message'] ?? 'Gagal memuat presensi.');
-      } else {
-        throw Exception('Gagal memuat presensi: ${response.statusCode}');
+      final body = await _api.getRaw('presences/today');
+      if (body['status'] == 'success' || body['success'] == true) {
+        return (
+          presences: body['data'] as List<dynamic>? ?? [],
+          summary: body['summary'] as Map<String, dynamic>?,
+        );
       }
+      throw Exception(body['message'] ?? 'Gagal memuat presensi.');
     } catch (e) {
       developer.log('Error in getAllTodayPresences',
           error: e, name: 'PresenceService');
@@ -201,29 +123,12 @@ class PresenceService {
     }
   }
 
-  static Future<Map<String, dynamic>> getUserPresence() async {
+  Future<Map<String, dynamic>> getUserPresence() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AppConstants.tokenKey);
-
-      final response = await http.get(
-        Uri.parse(ApiConstants.userPresence),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-
-      developer.log('User Presence API Raw Response: ${response.body}',
+      final data = await _api.getRaw('user-presence');
+      developer.log('User Presence API Response: $data',
           name: 'PresenceService');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data;
-      } else {
-        throw Exception(
-            'Failed to load presence data (status: ${response.statusCode}, body: ${response.body})');
-      }
+      return data;
     } catch (e) {
       developer.log('Error in getUserPresence',
           error: e, name: 'PresenceService');
@@ -232,7 +137,7 @@ class PresenceService {
   }
 
   /// Returns true when the current user has an active clock-in for today.
-  static Future<bool> isClockedIn() async {
+  Future<bool> isClockedIn() async {
     try {
       final data = await getUserPresence();
       final presenceData = data['data'] as Map<String, dynamic>?;
@@ -242,7 +147,7 @@ class PresenceService {
     }
   }
 
-  static Future<Map<String, dynamic>> getSalesOrders({
+  Future<Map<String, dynamic>> getSalesOrders({
     int page = 1,
     int perPage = 10,
     int? deliveryStatus,
@@ -251,7 +156,6 @@ class PresenceService {
     String? orderFor,
   }) async {
     try {
-      final token = await getToken();
       final queryParameters = <String, String>{
         'page': page.toString(),
         'per_page': perPage.toString(),
@@ -261,120 +165,75 @@ class PresenceService {
           'has_payment_proof': hasPaymentProof ? '1' : '0',
         if (paymentProofPrinted != null)
           'payment_proof_printed': paymentProofPrinted ? '1' : '0',
-        if (orderFor != null)
-          'for': orderFor,
+        if (orderFor != null) 'for': orderFor,
       };
-      final uri = Uri.parse(ApiConstants.searchSalesOrder)
-          .replace(queryParameters: queryParameters);
-      final response = await http.get(
-        uri,
-        headers: ApiConstants.headers(token),
-      );
-
-      final responseData = json.decode(response.body);
-      if (response.statusCode == 200) {
-        return responseData;
-      } else {
-        throw Exception(
-            responseData['message'] ?? 'Gagal memuat daftar order.');
-      }
+      return await _api.getRaw('sales-orders/search',
+          queryParams: queryParameters);
     } catch (e) {
       throw Exception('Error saat memuat daftar order: $e');
     }
   }
 
-  static Future<Map<String, dynamic>> markPaymentProofsPrinted({
+  Future<Map<String, dynamic>> markPaymentProofsPrinted({
     required List<int> orderIds,
   }) async {
     try {
-      final token = await getToken();
-      final response = await http.post(
-        Uri.parse(ApiConstants.markPaymentProofsPrinted),
-        headers: ApiConstants.headers(token),
-        body: json.encode({'order_ids': orderIds}),
+      return await _api.postRaw(
+        'sales-orders/payment-proofs/printed',
+        body: {'order_ids': orderIds},
       );
-
-      final responseData = json.decode(response.body);
-      if (response.statusCode == 200) {
-        return responseData;
-      } else {
-        throw Exception(responseData['message'] ??
-            'Gagal memperbarui status print bukti pembayaran.');
-      }
     } catch (e) {
       throw Exception('Error saat memperbarui status print: $e');
     }
   }
 
-  static Future<Map<String, dynamic>> searchSalesOrder(String receiptNo, {String? orderFor}) async {
+  Future<Map<String, dynamic>> searchSalesOrder(String receiptNo,
+      {String? orderFor}) async {
     try {
-      final token = await getToken();
-      final forQuery = orderFor != null ? '&for=$orderFor' : '';
-      final uri =
-          Uri.parse('${ApiConstants.searchSalesOrder}?receipt_no=$receiptNo$forQuery');
-      final response = await http.get(
-        uri,
-        headers: ApiConstants.headers(token),
-      );
-
-      final responseData = json.decode(response.body);
-      if (response.statusCode == 200) {
-        return responseData;
-      } else {
-        throw Exception(responseData['message'] ?? 'Gagal mencari data resi.');
-      }
+      final queryParams = <String, String>{
+        'receipt_no': receiptNo,
+        if (orderFor != null) 'for': orderFor,
+      };
+      return await _api.getRaw('sales-orders/search', queryParams: queryParams);
     } catch (e) {
       throw Exception('Error saat mencari resi: $e');
     }
   }
 
-  static Future<Map<String, dynamic>> markReadyToShip({
+  Future<Map<String, dynamic>> markReadyToShip({
     required int orderId,
     String? orderFor,
   }) async {
     try {
-      final token = await getToken();
       final body = <String, dynamic>{'id': orderId};
       if (orderFor != null) body['for'] = orderFor;
-      final response = await http.post(
-        Uri.parse(ApiConstants.readyToShip),
-        headers: ApiConstants.headers(token),
-        body: json.encode(body),
-      );
-
-      final responseData = json.decode(response.body);
-      if (response.statusCode == 200) {
-        return responseData;
-      } else {
-        throw Exception(responseData['message'] ??
-            'Gagal mengubah status menjadi siap dikirim.');
-      }
+      return await _api.postRaw('sales-orders/ready-to-ship', body: body);
     } catch (e) {
       throw Exception('Error saat mengubah status pengiriman: $e');
     }
   }
 
-  static Future<Map<String, dynamic>> updateDeliveryStatus({
+  /// Kept on raw http because callers inspect `success` in the full response
+  /// body, which ApiClient._handleResponse strips to just `data`.
+  Future<Map<String, dynamic>> updateDeliveryStatus({
     required String receiptNo,
     File? imageFile,
     String? receivedBy,
     int? deliveryStatus,
     String? notes,
   }) async {
-    final token = await getToken();
     final uri = Uri.parse(ApiConstants.updateDeliveryStatus);
 
     try {
-      var request = http.MultipartRequest('POST', uri)
-        ..headers.addAll(ApiConstants.headers(token))
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(await _getAuthHeaders())
         ..fields.addAll({
           'receipt_no': receiptNo,
           if (receivedBy != null && receivedBy.isNotEmpty)
             'received_by': receivedBy,
           if (deliveryStatus != null)
             'delivery_status': deliveryStatus.toString(),
-          if (notes != null && notes.isNotEmpty)
-            'notes': notes,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
         });
 
       if (imageFile != null) {
@@ -402,87 +261,61 @@ class PresenceService {
   }
 
   /// Update payment status for a direct sales order (admin only).
-  static Future<Map<String, dynamic>> updatePaymentStatus({
+  Future<Map<String, dynamic>> updatePaymentStatus({
     required int orderId,
     required String paymentStatus,
   }) async {
-    final token = await getToken();
-    final uri = Uri.parse(ApiConstants.updatePaymentStatus);
-
     try {
-      final response = await http.post(
-        uri,
-        headers: ApiConstants.headers(token),
-        body: json.encode({
+      return await _api.postRaw(
+        'sales-orders/update-payment-status',
+        body: {
           'order_id': orderId,
           'payment_status': paymentStatus,
-        }),
+        },
       );
-
-      final decodedData = json.decode(response.body);
-
-      if (response.statusCode == 200) {
-        return decodedData;
-      } else {
-        throw Exception(
-            decodedData['message'] ?? 'Gagal memperbarui status pembayaran.');
-      }
     } catch (e) {
       throw Exception('Error saat memperbarui status pembayaran: $e');
     }
   }
 
   /// Update order items for a direct sales order (admin only).
-  static Future<Map<String, dynamic>> updateOrderItems({
+  Future<Map<String, dynamic>> updateOrderItems({
     required int orderId,
     required List<Map<String, dynamic>> items,
   }) async {
-    final token = await getToken();
-    final uri = Uri.parse(ApiConstants.updateOrderItems);
-
     try {
-      final response = await http.post(
-        uri,
-        headers: ApiConstants.headers(token),
-        body: json.encode({
+      return await _api.postRaw(
+        'sales-orders/update-items',
+        body: {
           'order_id': orderId,
           'items': items,
-        }),
+        },
       );
-
-      final decodedData = json.decode(response.body);
-
-      if (response.statusCode == 200) {
-        return decodedData;
-      } else {
-        throw Exception(
-            decodedData['message'] ?? 'Gagal memperbarui item order.');
-      }
     } catch (e) {
       throw Exception('Error saat memperbarui item order: $e');
     }
   }
 
   /// Check if there are pending utility reports for a store.
-  static Future<bool> checkPendingUtilityReports(int storeId) async {
-    final token = await getToken();
-    if (token == null) return false;
-
+  Future<bool> checkPendingUtilityReports(int storeId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/utility-reports/pending?store_id=$storeId'),
-        headers: await getHeaders(),
+      final body = await _api.getRaw(
+        'utility-reports/pending',
+        queryParams: {'store_id': storeId.toString()},
       );
-
-      if (response.statusCode == 200) {
-        final body = json.decode(response.body);
-        return body['has_pending'] == true;
-      }
-      return false;
-    } catch (e) {
+      return body['has_pending'] == true;
+    } catch (_) {
       return false;
     }
   }
 
-
+  /// Auth headers for multipart methods that need raw http responses.
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+    return {
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 }

@@ -213,7 +213,7 @@ class _AssetCheckListPageState extends State<AssetCheckListPage> {
                         children: [
                           Icon(Icons.history,
                               size: 48,
-                              color: colorScheme.onSurfaceVariant
+                              color: AppColors.info
                                   .withValues(alpha:0.5)),
                           AppSpacing.gapVerticalSM,
                           Text('Belum ada riwayat pemeriksaan.',

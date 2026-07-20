@@ -1,4 +1,5 @@
 import '../services/image_service.dart';
+import 'enums/procurement_item_status.dart';
 
 class ProcurementProduct {
   final int id;
@@ -75,6 +76,13 @@ class DetailRequestItem {
       unitName: json['product']?['unit']?['unit'] ?? '',
     );
   }
+}
+
+/// Extension untuk mapping `DetailRequestItem.status` (String) ke enum.
+extension DetailRequestItemStatusX on DetailRequestItem {
+  /// Status sebagai enum ter-type-safe.
+  ProcurementItemStatus get statusEnum =>
+      ProcurementItemStatus.fromApi(status);
 }
 
 class DetailInvoiceItem {
@@ -215,8 +223,8 @@ class InvoicePurchase {
   }
 
   factory InvoicePurchase.fromJson(Map<String, dynamic> json) {
-    var list = json['detail_invoices'] as List? ?? [];
-    List<DetailInvoiceItem> items = list.map((i) => DetailInvoiceItem.fromJson(i)).toList();
+    final list = json['detail_invoices'] as List? ?? [];
+    final List<DetailInvoiceItem> items = list.map((i) => DetailInvoiceItem.fromJson(i)).toList();
 
     return InvoicePurchase(
       id: json['id'],
@@ -261,16 +269,24 @@ class RequestPurchase {
 
   String get overallStatusText {
     if (detailRequests.isEmpty) return 'No Items';
-    if (detailRequests.any((item) => item.status == '1')) return 'Pending Approval';
-    if (detailRequests.every((item) => item.status == '3')) return 'Rejected';
-    if (detailRequests.any((item) => item.status == '4')) return 'Partially Approved';
-    if (detailRequests.every((item) => item.status == '2')) return 'Done';
+    if (detailRequests.any((item) => item.statusEnum.isPending)) {
+      return ProcurementItemStatus.pending.displayLabel;
+    }
+    if (detailRequests.every((item) => item.statusEnum.isRejected)) {
+      return ProcurementItemStatus.rejected.displayLabel;
+    }
+    if (detailRequests.any((item) => item.statusEnum.isPartiallyApproved)) {
+      return ProcurementItemStatus.partiallyApproved.displayLabel;
+    }
+    if (detailRequests.every((item) => item.statusEnum.isDone)) {
+      return ProcurementItemStatus.done.displayLabel;
+    }
     return 'Processed';
   }
 
   factory RequestPurchase.fromJson(Map<String, dynamic> json) {
-    var list = json['detail_requests'] as List? ?? [];
-    List<DetailRequestItem> items = list.map((i) => DetailRequestItem.fromJson(i)).toList();
+    final list = json['detail_requests'] as List? ?? [];
+    final List<DetailRequestItem> items = list.map((i) => DetailRequestItem.fromJson(i)).toList();
 
     return RequestPurchase(
       id: json['id'],
@@ -332,8 +348,8 @@ class PaymentReceipt {
   });
 
   factory PaymentReceipt.fromJson(Map<String, dynamic> json) {
-    var list = json['invoice_purchases'] as List? ?? [];
-    List<InvoicePurchase> invoices = list.map((i) => InvoicePurchase.fromJson(i)).toList();
+    final list = json['invoice_purchases'] as List? ?? [];
+    final List<InvoicePurchase> invoices = list.map((i) => InvoicePurchase.fromJson(i)).toList();
 
     return PaymentReceipt(
       id: json['id'],

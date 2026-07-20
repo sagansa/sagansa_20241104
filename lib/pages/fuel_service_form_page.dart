@@ -1,10 +1,14 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../services/closing_store_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_dropdown.dart';
+import '../widgets/supplier_picker_modal.dart';
 
 class FuelServiceFormPage extends StatefulWidget {
   const FuelServiceFormPage({super.key});
@@ -289,17 +293,21 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         const SizedBox(height: AppSpacing.sectionGap),
 
                         // Vehicle Dropdown
-                        DropdownButtonFormField<int>(
-                          decoration: const InputDecoration(
-                            labelText: 'Pilih Kendaraan *',
-                          ),
-                          initialValue: _selectedVehicleId,
-                          items: _vehicles.map((v) {
-                            return DropdownMenuItem<int>(
-                              value: v['id'] as int,
-                              child: Text(v['no_register'] ?? ''),
-                            );
-                          }).toList(),
+                        ModernDropdown<int>(
+                          labelText: 'Pilih Kendaraan',
+                          hint: 'Pilih kendaraan...',
+                          isRequired: true,
+                          prefixIcon: const Icon(Icons.directions_car_outlined, size: 20),
+                          value: _selectedVehicleId,
+                          items: _vehicles.map((v) => v['id'] as int).toList(),
+                          getLabel: (val) {
+                            final v = _vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                            return v['no_register']?.toString() ?? '';
+                          },
+                          getSubtitle: (val) {
+                            final v = _vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                            return v['name']?.toString() ?? '';
+                          },
                           onChanged: (val) => setState(() => _selectedVehicleId = val),
                           validator: (val) => val == null ? 'Pilih kendaraan' : null,
                         ),
@@ -308,9 +316,13 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         // Supplier Dropdown (searchable)
                         InkWell(
                           onTap: () async {
-                            final result = await _showSupplierSearchDialog(context, _suppliers);
-                            if (result != null) {
-                              setState(() => _selectedSupplierId = result);
+                            final res = await SupplierPickerModal.show(
+                              context: context,
+                              suppliers: _suppliers,
+                              selectedSupplierId: _selectedSupplierId,
+                            );
+                            if (res != null) {
+                              setState(() => _selectedSupplierId = res['id']);
                             }
                           },
                           borderRadius: AppSpacing.borderRadiusXS,

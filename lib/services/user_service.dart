@@ -1,74 +1,24 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/constants.dart';
 import '../models/applicant_detail_model.dart';
+import 'api_client.dart';
 
 class UserService {
+  final ApiClient _api = ApiClient();
+
   Future<List<Map<String, dynamic>>> getUsers({String? role}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final uri = Uri.parse('${ApiConstants.baseUrl}/users').replace(
-      queryParameters: role != null ? {'role': role} : null,
-    );
-
-    final response = await http.get(uri, headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    });
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return List<Map<String, dynamic>>.from(jsonResponse['data']);
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to load users');
-    }
+    final data = await _api.get('users', queryParams: role != null ? {'role': role} : null);
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<ApplicantDetail> getProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/user/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return ApplicantDetail.fromJson(jsonResponse['data']);
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to load profile');
-    }
+    final data = await _api.get('profile');
+    if (data == null) return ApplicantDetail();
+    return ApplicantDetail.fromJson(data);
   }
 
   Future<ApplicantDetail> updateProfile(ApplicantDetail data) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.put(
-      Uri.parse('${ApiConstants.baseUrl}/user/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data.toJson()),
-    );
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return ApplicantDetail.fromJson(jsonResponse['data']);
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to update profile');
-    }
+    final result = await _api.put('profile', body: data.toJson());
+    if (result == null) return ApplicantDetail();
+    return ApplicantDetail.fromJson(result);
   }
 
   Future<Map<String, dynamic>> getAdminProfiles({
@@ -77,75 +27,26 @@ class UserService {
     String? search,
     String? status,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    var url = '${ApiConstants.baseUrl}/admin/profiles?page=$page&per_page=$perPage';
+    final queryParams = {
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
     if (search != null && search.isNotEmpty) {
-      url += '&search=$search';
+      queryParams['search'] = search;
     }
     if (status != null && status.isNotEmpty) {
-      url += '&status=$status';
+      queryParams['status'] = status;
     }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return jsonResponse;
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to load admin profiles');
-    }
+    return await _api.getRaw('admin/profile', queryParams: queryParams);
   }
 
   Future<Map<String, dynamic>> getAdminProfileDetail(dynamic profileId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/admin/profiles/$profileId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return jsonResponse['data'] ?? jsonResponse;
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to load profile detail');
-    }
+    final data = await _api.get('admin/profile/$profileId');
+    return data as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> setProfileStatus(dynamic profileId, String status) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.put(
-      Uri.parse('${ApiConstants.baseUrl}/admin/profiles/$profileId/status'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'status': status}),
-    );
-
-    final jsonResponse = json.decode(response.body);
-    if (response.statusCode == 200 && jsonResponse['success'] == true) {
-      return jsonResponse['data'] ?? jsonResponse;
-    } else {
-      throw Exception(jsonResponse['message'] ?? 'Failed to update profile status');
-    }
+    final data = await _api.put('admin/profile/$profileId/status', body: {'status': status});
+    return data as Map<String, dynamic>;
   }
 }

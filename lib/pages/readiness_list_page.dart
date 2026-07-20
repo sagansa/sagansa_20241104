@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/readiness_model.dart';
 import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
@@ -6,10 +7,9 @@ import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'home_page.dart';
 import 'hrd_dashboard_page.dart';
+import 'readiness_page.dart';
 import 'stock_dashboard_page.dart';
 import 'transaction_dashboard_page.dart';
-import 'operational_dashboard_page.dart';
-import 'readiness_page.dart';
 
 class ReadinessListPage extends StatefulWidget {
   const ReadinessListPage({super.key});
@@ -100,7 +100,7 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
           color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
           borderRadius: AppSpacing.borderRadiusSM,
         ),
-        child: Icon(icon, color: AppColors.onSurfaceVariant),
+        child: Icon(icon, color: AppColors.info),
       );
     }
     return ClipRRect(
@@ -114,7 +114,7 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
           width: 48,
           height: 48,
           color: AppColors.onSurfaceVariant.withValues(alpha: 0.1),
-          child: Icon(icon, color: AppColors.onSurfaceVariant),
+          child: Icon(icon, color: AppColors.info),
         ),
       ),
     );
@@ -164,7 +164,7 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
                         children: [
                           Icon(Icons.checkroom_outlined,
                               size: 56,
-                              color: colorScheme.onSurfaceVariant
+                              color: AppColors.info
                                   .withValues(alpha: 0.5)),
                           AppSpacing.gapVerticalMD,
                           Text(

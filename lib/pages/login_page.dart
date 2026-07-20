@@ -1,14 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:convert';
-import 'home_page.dart';
-import '../widgets/modern_text_field.dart';
-import '../widgets/modern_button.dart';
-import '../widgets/app_version_text.dart';
-import '../theme/app_spacing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../providers/auth_provider.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/app_version_text.dart';
+import '../widgets/modern_button.dart';
+import '../widgets/modern_text_field.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -145,7 +147,7 @@ class LoginPageState extends State<LoginPage> {
                             ),
                             AppSpacing.gapVerticalLG,
                             Text(
-                              "Login",
+                              'Login',
                               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),

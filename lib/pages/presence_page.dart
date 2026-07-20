@@ -1,21 +1,25 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
-import '../models/store_model.dart';
+import 'package:provider/provider.dart';
+
 import '../models/shift_store_model.dart';
+import '../models/store_model.dart';
 import '../pages/home_page.dart';
-import '../widgets/modern_button.dart';
-import '../widgets/modern_dropdown.dart';
-import '../controllers/presence_controller.dart';
-import '../utils/image_utils.dart';
+import '../pages/hygiene_page.dart';
+import '../pages/readiness_page.dart';
+import '../providers/presence_provider.dart';
+import '../services/hygiene_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import '../services/hygiene_service.dart';
-import '../pages/hygiene_page.dart';
+import '../utils/image_utils.dart';
+import '../utils/snackbar_utils.dart';
+import '../widgets/modern_button.dart';
+import '../widgets/modern_dropdown.dart';
 
 class PresencePage extends StatefulWidget {
   final bool isCheckIn;
@@ -37,10 +41,13 @@ class PresencePageState extends State<PresencePage> {
   bool isLoadingLocation = false;
   bool isLocationValid = false;
   bool isTimeValid = true;
-  late PresenceController _presenceController;
 
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+
+  /// Toko yang sudah memiliki laporan kebersihan hari ini (boleh presensi).
+  /// Cukup satu laporan per toko per hari, boleh oleh user lain.
+  final Set<int> _storeHygieneDone = {};
 
   final TextEditingController _salaryAmountController = TextEditingController(text: '50000');
   int? _selectedPaymentTypeId = 2; // Default Tunai (2)
@@ -48,7 +55,6 @@ class PresencePageState extends State<PresencePage> {
   @override
   void initState() {
     super.initState();
-    _presenceController = PresenceController(context);
     _loadData();
     _validateCheckoutTime();
   }
@@ -56,17 +62,16 @@ class PresencePageState extends State<PresencePage> {
   Future<void> _loadData() async {
     setState(() => isLoading = true);
     try {
-      final data = await _presenceController.loadInitialData();
+      final provider = context.read<PresenceProvider>();
+      await provider.loadInitialData();
       setState(() {
-        stores = data['stores'];
-        shiftStores = data['shiftStores'];
+        stores = provider.stores;
+        shiftStores = provider.shiftStores;
       });
       _getCurrentLocation();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      SnackbarUtils.error(context, e.toString());
     } finally {
       setState(() => isLoading = false);
     }
@@ -75,15 +80,18 @@ class PresencePageState extends State<PresencePage> {
   Future<void> _getCurrentLocation() async {
     setState(() => isLoadingLocation = true);
     try {
-      final position = await _presenceController.getCurrentLocation();
+      final provider = context.read<PresenceProvider>();
+      await provider.getCurrentLocation();
+      final position = provider.currentLocation;
+      if (position == null) throw Exception('Gagal mendapatkan lokasi');
+      Store? nearestStore;
+      double shortestDistance = double.infinity;
+
       setState(() {
         currentPosition = position;
 
-        Store? nearestStore;
-        double shortestDistance = double.infinity;
-
         for (var store in stores) {
-          double distance = Geolocator.distanceBetween(
+          final double distance = Geolocator.distanceBetween(
             position.latitude,
             position.longitude,
             store.latitude,
@@ -96,27 +104,36 @@ class PresencePageState extends State<PresencePage> {
           }
         }
 
-        if (nearestStore != null) {
-          selectedStore = nearestStore;
-          isLocationValid = shortestDistance <= nearestStore.radius;
+        final picked = nearestStore;
+        if (picked != null) {
+          selectedStore = picked;
+          isLocationValid = shortestDistance <= picked.radius;
 
           if (!widget.isCheckIn) {
-            _salaryAmountController.text = nearestStore.dailySalaryAmount;
+            _salaryAmountController.text = picked.dailySalaryAmount;
           }
 
-          String message = isLocationValid
-              ? 'Anda berada di area ${nearestStore.nickname} (${shortestDistance.toStringAsFixed(2)} meter)'
-              : 'Anda berada di luar area ${nearestStore.nickname}. Jarak: ${shortestDistance.toStringAsFixed(2)} meter';
+          final String message = isLocationValid
+              ? 'Anda berada di area ${picked.nickname} (${shortestDistance.toStringAsFixed(2)} meter)'
+              : 'Anda berada di luar area ${picked.nickname}. Jarak: ${shortestDistance.toStringAsFixed(2)} meter';
 
-          final cs = Theme.of(context).colorScheme;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message, style: const TextStyle(color: Colors.white)),
-              backgroundColor: isLocationValid ? Colors.green.shade600 : cs.error,
-            ),
+          SnackbarUtils.show(
+            context,
+            message,
+            backgroundColor:
+                isLocationValid ? Colors.green.shade600 : Colors.red.shade800,
           );
         }
       });
+
+      // Cek status kebersihan toko terdekat (hanya untuk check-in), sama
+      // seperti saat user memilih toko manual. Tanpa ini, store tidak masuk
+      // _storeHygieneDone dan tombol clock-in tidak aktif meski semua syarat
+      // lain sudah terpenuhi (lihat kondisi isButtonEnabled baris ~327).
+      // Dipanggil di luar setState karena method async & dapat mem-push halaman.
+      if (widget.isCheckIn && nearestStore != null) {
+        await _ensureStoreHygiene(nearestStore!);
+      }
 
       mapController.move(
         LatLng(position.latitude, position.longitude),
@@ -124,9 +141,7 @@ class PresencePageState extends State<PresencePage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      SnackbarUtils.error(context, e.toString());
     } finally {
       setState(() => isLoadingLocation = false);
     }
@@ -141,12 +156,9 @@ class PresencePageState extends State<PresencePage> {
       });
 
       if (!isTimeValid) {
-        final cs = Theme.of(context).colorScheme;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Waktu checkout hanya diperbolehkan sampai jam 02:00', style: TextStyle(color: Colors.white)),
-            backgroundColor: cs.error,
-          ),
+        SnackbarUtils.error(
+          context,
+          'Waktu checkout hanya diperbolehkan sampai jam 02:00',
         );
       }
     }
@@ -154,13 +166,7 @@ class PresencePageState extends State<PresencePage> {
 
   Future<void> _validateAndSubmitPresence() async {
     if (_imageFile == null) {
-      final cs = Theme.of(context).colorScheme;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Harap ambil foto selfie terlebih dahulu', style: TextStyle(color: Colors.white)),
-          backgroundColor: cs.error,
-        ),
-      );
+      SnackbarUtils.error(context, 'Harap ambil foto selfie terlebih dahulu');
       return;
     }
 
@@ -168,46 +174,23 @@ class PresencePageState extends State<PresencePage> {
 
     try {
       // Validasi kebersihan: clock-in wajib lapor kebersihan dulu.
-      if (widget.isCheckIn) {
-        final hygieneService = HygieneService();
-        final hasHygiene = await hygieneService.checkTodayStatus(storeId: selectedStore!.id);
-        if (!hasHygiene) {
-          if (!mounted) return;
-          setState(() => isLoading = false);
-
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Laporan Kebersihan Belum Diisi'),
-              content: Text(
-                'Laporan kebersihan untuk toko ${selectedStore!.nickname} belum diisi hari ini. '
-                'Harap isi laporan kebersihan terlebih dahulu sebelum melakukan Check In.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Batal'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HygienePage(),
-                      ),
-                    );
-                  },
-                  child: const Text('Isi Laporan'),
-                ),
-              ],
-            ),
-          );
-          return;
-        }
+      // Status sudah dicek saat memilih toko (_ensureStoreHygiene), cukup
+      // verifikasi di sini bahwa toko terpilih sudah tercatat melakukan
+      // kebersihan hari ini. Backend tetap menjadi penjaga final.
+      if (widget.isCheckIn &&
+          !_storeHygieneDone.contains(selectedStore!.id)) {
+        if (!mounted) return;
+        setState(() => isLoading = false);
+        SnackbarUtils.warning(
+          context,
+          'Laporan kebersihan untuk ${selectedStore!.nickname} belum diisi. '
+          'Pilih toko tersebut untuk mengisi laporan terlebih dahulu.',
+        );
+        return;
       }
 
-      await _presenceController.submitPresence(
+      final provider = context.read<PresenceProvider>();
+      final responseData = await provider.submitPresence(
         isCheckIn: widget.isCheckIn,
         currentPosition: currentPosition!,
         selectedStore: selectedStore!,
@@ -215,27 +198,96 @@ class PresencePageState extends State<PresencePage> {
         imageFile: _imageFile!,
         dailySalaryAmount: widget.isCheckIn ? null : _salaryAmountController.text,
         dailySalaryPaymentTypeId: widget.isCheckIn ? null : _selectedPaymentTypeId.toString(),
-        onSuccess: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-            (route) => false,
-          );
-        },
-        onError: (error) {
-          final cs = Theme.of(context).colorScheme;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error, style: const TextStyle(color: Colors.white)), backgroundColor: cs.error),
-          );
-        },
       );
+
+      if (!mounted) return;
+
+      if (responseData['status'] == 'success') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+          (route) => false,
+        );
+      } else {
+        final errorCode = responseData['error_code'];
+        final message = responseData['message'] ?? 'Gagal melakukan presensi';
+
+        if (errorCode == 'READINESS_REQUIRED') {
+          SnackbarUtils.warning(context, message);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReadinessPage()),
+          );
+        } else if (errorCode == 'HYGIENE_REQUIRED') {
+          SnackbarUtils.warning(context, message);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HygienePage()),
+          );
+        } else {
+          SnackbarUtils.error(context, message);
+        }
+      }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      SnackbarUtils.error(context, e.toString());
     } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  /// Pastikan toko sudah memiliki laporan kebersihan hari ini.
+  /// Jika belum, arahkan ke form kebersihan untuk toko tersebut dan tunggu
+  /// hingga user mengisi (atau membatalkan). Hasilnya disimpan di
+  /// [_storeHygieneDone] agar toko dianggap "aktif" untuk presensi.
+  Future<void> _ensureStoreHygiene(Store store) async {
+    if (_storeHygieneDone.contains(store.id)) return;
+
+    bool hasHygiene;
+    try {
+      hasHygiene =
+          await HygieneService().checkTodayStatus(storeId: store.id);
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarUtils.error(context, 'Gagal mengecek laporan kebersihan: $e');
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (hasHygiene) {
+      setState(() => _storeHygieneDone.add(store.id));
+      SnackbarUtils.success(
+        context,
+        'Toko ${store.nickname} sudah memiliki laporan kebersihan hari ini.',
+      );
+      return;
+    }
+
+    // Toko belum lapor kebersihan -> langsung buka form untuk toko tersebut.
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HygienePage(initialStoreId: store.id),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      setState(() => _storeHygieneDone.add(store.id));
+      SnackbarUtils.success(
+        context,
+        'Laporan kebersihan untuk ${store.nickname} berhasil dikirim.',
+      );
+    } else {
+      // User membatalkan -> batalkan pemilihan toko agar tidak bisa presensi.
+      setState(() => selectedStore = null);
+      SnackbarUtils.warning(
+        context,
+        'Laporan kebersihan untuk ${store.nickname} belum diisi. '
+        'Pilih toko lain atau isi laporan terlebih dahulu.',
+      );
     }
   }
 
@@ -287,9 +339,7 @@ class PresencePageState extends State<PresencePage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil foto: ${e.toString()}')),
-      );
+      SnackbarUtils.error(context, 'Gagal mengambil foto: ${e.toString()}');
     }
   }
 
@@ -306,8 +356,10 @@ class PresencePageState extends State<PresencePage> {
         _imageFile != null;
 
     if (widget.isCheckIn) {
-      isButtonEnabled =
-          isButtonEnabled && selectedShiftStore != null && isLocationValid;
+      isButtonEnabled = isButtonEnabled &&
+          selectedShiftStore != null &&
+          isLocationValid &&
+          _storeHygieneDone.contains(selectedStore!.id);
     } else {
       isButtonEnabled = isButtonEnabled && isTimeValid;
     }
@@ -368,7 +420,9 @@ class PresencePageState extends State<PresencePage> {
                           value: selectedStore,
                           hint: 'Pilih Toko',
                           items: stores,
-                          getLabel: (store) => store.nickname,
+                          getLabel: (store) => _storeHygieneDone.contains(store.id)
+                              ? '${store.nickname}  •  sudah kebersihan'
+                              : store.nickname,
                           onChanged: (value) async {
                             setState(() {
                               selectedStore = value;
@@ -376,7 +430,7 @@ class PresencePageState extends State<PresencePage> {
                             });
 
                             if (value != null && currentPosition != null) {
-                              double distance = Geolocator.distanceBetween(
+                              final double distance = Geolocator.distanceBetween(
                                 currentPosition!.latitude,
                                 currentPosition!.longitude,
                                 value.latitude,
@@ -388,13 +442,17 @@ class PresencePageState extends State<PresencePage> {
                               });
 
                               if (!isLocationValid) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter', style: const TextStyle(color: Colors.white)),
-                                    backgroundColor: colorScheme.error,
-                                  ),
+                                SnackbarUtils.error(
+                                  context,
+                                  'Anda berada di luar area toko. Jarak: ${distance.toStringAsFixed(2)} meter',
                                 );
                               }
+                            }
+
+                            // Check-in: toko wajib sudah lapor kebersihan hari ini.
+                            // Cukup satu laporan per toko (boleh oleh user lain).
+                            if (widget.isCheckIn && value != null) {
+                              await _ensureStoreHygiene(value);
                             }
 
                             _updateMapView();
@@ -508,7 +566,7 @@ class PresencePageState extends State<PresencePage> {
                                 AppSpacing.gapVerticalSM,
                                 Row(
                                   children: [
-                                    Icon(Icons.store, color: colorScheme.onSurfaceVariant),
+                                    Icon(Icons.store, color: AppColors.info),
                                     AppSpacing.gapHorizontalSM,
                                     Expanded(
                                       child: Text(
@@ -523,7 +581,7 @@ class PresencePageState extends State<PresencePage> {
                                   Row(
                                     children: [
                                       Icon(Icons.location_on,
-                                          color: colorScheme.onSurfaceVariant),
+                                          color: AppColors.info),
                                       AppSpacing.gapHorizontalSM,
                                       Text(
                                         'Jarak: ${Geolocator.distanceBetween(
@@ -593,16 +651,12 @@ class PresencePageState extends State<PresencePage> {
                           ),
                         ),
                         SizedBox(height: AppSpacing.sectionGap),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedPaymentTypeId,
-                          decoration: const InputDecoration(
-                            labelText: 'Payment Type',
-
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('Transfer')),
-                            DropdownMenuItem(value: 2, child: Text('Tunai')),
-                          ],
+                        ModernDropdown<int>(
+                          value: _selectedPaymentTypeId,
+                          labelText: 'Payment Type',
+                          hint: 'Pilih tipe pembayaran...',
+                          items: const [1, 2],
+                          getLabel: (v) => v == 1 ? 'Transfer' : 'Tunai',
                           onChanged: (value) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (mounted) {

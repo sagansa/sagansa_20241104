@@ -35,11 +35,19 @@ class HygieneRoomModel {
   });
 
   factory HygieneRoomModel.fromJson(Map<String, dynamic> json) {
+    final rawImage = json['image'];
+    String? imagePath;
+    if (rawImage is String) {
+      imagePath = rawImage;
+    } else if (rawImage is List && rawImage.isNotEmpty) {
+      imagePath = rawImage.first?.toString();
+    }
+
     return HygieneRoomModel(
       id: json['id'] ?? 0,
       roomId: json['room_id'] ?? 0,
       roomName: json['room']?['name'] ?? json['room_name'],
-      image: json['image'],
+      image: imagePath,
       condition: json['condition'],
       notes: json['notes'],
     );
@@ -53,6 +61,8 @@ class HygieneRoomModel {
         return 'Perlu Perhatian';
       case 3:
         return 'Kotor';
+      case 4:
+        return 'Tidak Sesuai';
       default:
         return '-';
     }

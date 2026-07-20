@@ -1,15 +1,18 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import '../utils/image_utils.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../controllers/asset_controller.dart';
+
 import '../models/asset_category_model.dart';
 import '../models/asset_model.dart';
+import '../providers/asset_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_utils.dart';
 
 /// Form pemeriksaan aset: checklist dinamis per kategori, foto kondisi,
 /// geotag (wajib), severity, dan catatan. Submit multipart ke /asset-checks.
@@ -23,7 +26,6 @@ class AssetCheckFormPage extends StatefulWidget {
 }
 
 class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
-  late AssetController _controller;
   AssetModel? _asset;
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -49,7 +51,6 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _load();
   }
 
@@ -75,12 +76,12 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
         _isAdmin = roles.contains('admin');
       }
 
-      final asset = await _controller.loadAssetDetail(widget.assetId);
-      final already = await _controller.hasCheckedToday(widget.assetId);
+      final asset = await context.read<AssetProvider>().loadAssetDetail(widget.assetId);
+      final already = await context.read<AssetProvider>().hasCheckedToday(widget.assetId);
 
       // Ambil kategori untuk dapat definisi checklist.
       AssetCategoryModel? category;
-      final cats = await _controller.loadCategories();
+      final cats = await context.read<AssetProvider>().loadCategories();
       category = cats.isEmpty
           ? null
           : cats.where((c) => c.id == asset.assetCategoryId).firstOrNull ??
@@ -202,7 +203,7 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
           .map((e) => {'label': e.label, 'value': e.value ? 1 : 0, 'note': e.note})
           .toList();
 
-      await _controller.submitCheck(
+      await context.read<AssetProvider>().submitCheck(
         assetId: widget.assetId,
         checkDate: DateTime.now().toIso8601String().substring(0, 10),
         conditionBefore: _asset!.condition,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../models/hygiene_model.dart';
 import '../services/hygiene_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
+import '../utils/snackbar_utils.dart';
 
 /// Detail dari sebuah laporan kebersihan: info toko/tanggal/status +
 /// daftar tiap ruangan beserta foto, kondisi, dan catatan.
@@ -24,6 +26,10 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
   late HygieneModel _hygiene;
   bool _isSaving = false;
 
+  /// True jika ada mutasi (menilai ruangan) yang mempengaruhi list.
+  /// Dikirim ke list saat pop agar list di-refresh.
+  bool _dirty = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,25 +46,22 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
         if (idx != -1) {
           _hygiene.rooms[idx] = updated;
         }
+        _dirty = true;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            condition == 1
-                ? 'Ruangan ditandai Bersih.'
-                : 'Ruangan ditandai Kotor.',
-          ),
-          backgroundColor: AppColors.success,
-        ),
+      SnackbarUtils.success(
+        context,
+        condition == 1
+            ? 'Ruangan ditandai Bersih.'
+            : condition == 3
+                ? 'Ruangan ditandai Kotor.'
+                : 'Foto ditandai Tidak Sesuai.',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
+      SnackbarUtils.error(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -88,19 +91,6 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
     }
   }
 
-  Color _conditionColor(int? condition) {
-    switch (condition) {
-      case 1:
-        return AppColors.success;
-      case 2:
-        return AppColors.warning;
-      case 3:
-        return AppColors.error;
-      default:
-        return AppColors.onSurfaceVariant;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -110,7 +100,14 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
         .where((r) => r.condition == 3 || r.condition == 2)
         .length;
 
-    return Scaffold(
+    return PopScope<bool>(
+      // Saat user tekan back, kirim _dirty agar list tahu perlu refresh.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pop(context, _dirty);
+      },
+      child: Scaffold(
       appBar: AppBar(title: const Text('Detail Kebersihan')),
       body: SingleChildScrollView(
         padding: AppSpacing.paddingMD,
@@ -229,185 +226,178 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: AppSpacing.itemGap,
-                crossAxisSpacing: AppSpacing.itemGap,
-                childAspectRatio: 0.8,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                childAspectRatio: 1.0,
                 children: _hygiene.rooms.map((room) {
                   final imageUrl = room.imageUrl;
-                  return Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  final hasNotes = room.notes != null && room.notes!.isNotEmpty;
+
+                  return ClipRRect(
+                    borderRadius: AppSpacing.borderRadiusMD,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        // Penanda status di pojok atas gambar. Dibungkus
-                        // Expanded agar gambar fleksibel menyerap sisa ruang
-                        // sel — mencegah overflow 3px saat notes/buttons ikut
-                        // menentukan tinggi cell (lihat GridView childAspectRatio).
-                        Expanded(
-                          child: AspectRatio(
-                            aspectRatio: 1.5,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                              imageUrl != null
-                                  ? GestureDetector(
-                                      onTap: () =>
-                                          _showImage(context, imageUrl),
-                                      child: Image.network(
-                                        imageUrl,
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            Container(
-                                          color: colorScheme
-                                              .surfaceContainerHighest
-                                              .withValues(alpha: 0.3),
-                                          child: Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        loadingBuilder: (_, child, progress) {
-                                          if (progress == null) return child;
-                                          return Container(
-                                            color: colorScheme
-                                                .surfaceContainerHighest
-                                                .withValues(alpha: 0.3),
-                                            child: const Center(
-                                              child: CircularProgressIndicator(),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  : Container(
-                                      width: double.infinity,
-                                      height: double.infinity,
+                        // Foto ruangan (1:1 aspect ratio)
+                        imageUrl != null
+                            ? GestureDetector(
+                                onTap: () => _showImage(context, imageUrl),
+                                child: Image.network(
+                                  imageUrl,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                    child: Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: AppColors.info,
+                                    ),
+                                  ),
+                                  loadingBuilder: (_, child, progress) {
+                                    if (progress == null) return child;
+                                    return Container(
                                       color: colorScheme.surfaceContainerHighest
                                           .withValues(alpha: 0.3),
-                                      child: Icon(
-                                        Icons.image_not_supported_outlined,
-                                        color: colorScheme.onSurfaceVariant,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
                                       ),
-                                    ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.sm, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: _conditionColor(room.condition)
-                                        .withValues(alpha: 0.9),
-                                    borderRadius: AppSpacing.borderRadiusMD,
-                                  ),
-                                  child: Text(
-                                    room.conditionLabel,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                    );
+                                  },
+                                ),
+                              )
+                            : Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.3),
+                                child: Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: AppColors.info,
                                 ),
                               ),
-                            ],
-                          ),
-                          ),
-                        ),
-                        Padding(
-                          padding: AppSpacing.paddingXS,
-                          child: Text(
-                            room.roomName ?? 'Ruangan',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (room.notes != null && room.notes!.isNotEmpty)
-                          Padding(
+
+                        // Scrim atas: Nama ruangan
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xs),
-                            child: Text(
-                              room.notes!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.75),
+                                  Colors.transparent,
+                                ],
                               ),
-                              maxLines: 2,
+                            ),
+                            child: Text(
+                              room.roomName ?? 'Ruangan',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                shadows: [
+                                  Shadow(blurRadius: 2, color: Colors.black54)
+                                ],
+                              ),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        AppSpacing.gapVerticalXS,
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _isSaving
-                                      ? null
-                                      : () => _markRoom(room, 1),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.success,
-                                    side: BorderSide(
-                                      color: room.condition == 1
-                                          ? AppColors.success
-                                          : AppColors.success
-                                              .withValues(alpha: 0.4),
-                                    ),
-                                    backgroundColor: room.condition == 1
-                                        ? AppColors.success
-                                            .withValues(alpha: 0.12)
-                                        : null,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 4, horizontal: 4),
-                                    visualDensity: VisualDensity.compact,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: Text(
-                                    'Bersih',
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                ),
+                        ),
+
+                        // Catatan ruangan (jika ada)
+                        if (hasNotes)
+                          Positioned(
+                            top: 34,
+                            left: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                borderRadius: AppSpacing.borderRadiusXS,
                               ),
-                              AppSpacing.gapHorizontalXS,
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _isSaving
-                                      ? null
-                                      : () => _markRoom(room, 3),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.error,
-                                    side: BorderSide(
-                                      color: room.condition == 3
-                                          ? AppColors.error
-                                          : AppColors.error
-                                              .withValues(alpha: 0.4),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.notes,
+                                      size: 12, color: Colors.amberAccent),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      room.notes!,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    backgroundColor: room.condition == 3
-                                        ? AppColors.error
-                                            .withValues(alpha: 0.12)
-                                        : null,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 4, horizontal: 4),
-                                    visualDensity: VisualDensity.compact,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                  child: Text(
-                                    'Kotor',
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
+                          ),
+
+                        // Scrim bawah: Tombol Aksi Kondisi (Bersih | Kotor | Tdk Sesuai)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.85),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                _conditionButton(
+                                  context: context,
+                                  label: 'Bersih',
+                                  color: AppColors.success,
+                                  active: room.condition == 1,
+                                  onTap: () => _markRoom(room, 1),
+                                  saving: _isSaving,
+                                  theme: theme,
+                                ),
+                                const SizedBox(width: 4),
+                                _conditionButton(
+                                  context: context,
+                                  label: 'Kotor',
+                                  color: AppColors.error,
+                                  active: room.condition == 3,
+                                  onTap: () => _markRoom(room, 3),
+                                  saving: _isSaving,
+                                  theme: theme,
+                                ),
+                                const SizedBox(width: 4),
+                                _conditionButton(
+                                  context: context,
+                                  label: 'Tdk Sesuai',
+                                  color: AppColors.info,
+                                  active: room.condition == 4,
+                                  onTap: () => _markRoom(room, 4),
+                                  saving: _isSaving,
+                                  theme: theme,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        AppSpacing.gapVerticalXS,
                       ],
                     ),
                   );
@@ -415,6 +405,46 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
               ),
             SizedBox(height: AppSpacing.xxl),
           ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _conditionButton({
+    required BuildContext context,
+    required String label,
+    required Color color,
+    required bool active,
+    required VoidCallback onTap,
+    required bool saving,
+    required ThemeData theme,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: saving ? null : onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: active
+                ? color
+                : Colors.black.withValues(alpha: 0.45),
+            borderRadius: AppSpacing.borderRadiusXS,
+            border: Border.all(
+              color: active ? color : Colors.white38,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: active ? FontWeight.bold : FontWeight.w500,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );

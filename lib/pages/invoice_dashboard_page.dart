@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/modern_bottom_nav.dart';
 import 'create_invoice_form_page.dart';
 import 'invoice_detail_page.dart';
-import '../../widgets/modern_bottom_nav.dart';
 
 class InvoiceDashboardPage extends StatefulWidget {
   const InvoiceDashboardPage({super.key});
@@ -149,6 +150,49 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     }
   }
 
+  void _showInvoiceImage(BuildContext context, String url) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 120,
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Gagal memuat gambar',
+                          style: TextStyle(color: colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -205,7 +249,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                             Icon(
                               Icons.receipt_outlined,
                               size: 48,
-                              color: colorScheme.onSurfaceVariant
+                              color: AppColors.info
                                   .withValues(alpha: 0.5),
                             ),
                             AppSpacing.gapVerticalMD,
@@ -286,35 +330,71 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                       ],
                                     ),
                                     AppSpacing.gapVerticalSM,
-                                    Text(
-                                      'Tanggal: ${invoice.date}',
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                        color:
-                                            colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    if (invoice.supplierName != null) ...[
-                                      AppSpacing.gapVerticalXS,
-                                      Text(
-                                        'Supplier: ${invoice.supplierName}',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                          color: colorScheme
-                                              .onSurfaceVariant
-                                              .withValues(alpha: 0.8),
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Tanggal: ${invoice.date}',
+                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                  color: colorScheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                              if (invoice.supplierName != null) ...[
+                                                AppSpacing.gapVerticalXS,
+                                                Text(
+                                                  'Supplier: ${invoice.supplierName}',
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                                  ),
+                                                ),
+                                              ],
+                                              AppSpacing.gapVerticalXS,
+                                              Text(
+                                                '${invoice.detailInvoices.length} item • ${invoice.paymentTypeText}',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                    AppSpacing.gapVerticalXS,
-                                    Text(
-                                      '${invoice.detailInvoices.length} item • ${invoice.paymentTypeText}',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                        color: colorScheme
-                                            .onSurfaceVariant
-                                            .withValues(alpha: 0.8),
-                                      ),
+                                        if (invoice.imageUrl != null && invoice.imageUrl!.isNotEmpty) ...[
+                                          const SizedBox(width: 16),
+                                          GestureDetector(
+                                            onTap: () => _showInvoiceImage(context, invoice.imageUrl!),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  Image.network(
+                                                    invoice.imageUrl!,
+                                                    width: 60,
+                                                    height: 60,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) => Container(
+                                                      width: 60,
+                                                      height: 60,
+                                                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                                      child: const Icon(Icons.broken_image, size: 20),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    width: 60,
+                                                    height: 60,
+                                                    color: Colors.black26,
+                                                    child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     const Divider(height: 20),
                                     Row(

@@ -13,17 +13,22 @@ import '../utils/format_utils.dart';
 import '../widgets/supplier_payment_info_card.dart';
 import '../widgets/supplier_picker_modal.dart';
 
-/// Halaman buat Payment Receipt untuk invoice procurement.
+/// Halaman buat Payment Receipt.
 ///
-/// Simplified: hanya mode invoice (sebelumnya ada FuelService/DailySalary).
-/// User pilih supplier → list invoice siap bayar dari supplier itu muncul
-/// di bottom sheet → pilih satu atau beberapa → total auto-computed.
+/// Mendukung 2 mode:
+///  - Invoice procurement (default): user pilih supplier → pilih invoice.
+///  - Daily Salary: menggunakan [dailySalaries] yang sudah dipilih dari
+///    DailySalaryListPage (payment_for = 2), total auto-computed.
 class CreatePaymentReceiptPage extends StatefulWidget {
   /// Pre-loaded invoices (dipakai saat user tap "Bayar" dari card invoice
   /// atau dari batch mode di workflow page). Bisa 1 atau banyak.
   final List<InvoicePurchase>? invoices;
 
-  const CreatePaymentReceiptPage({super.key, this.invoices});
+  /// Pre-loaded daily salary (dipakai dari DailySalaryListPage). Payment
+  /// receipt akan dibuat dengan payment_for = 2.
+  final List<Map<String, dynamic>>? dailySalaries;
+
+  const CreatePaymentReceiptPage({super.key, this.invoices, this.dailySalaries});
 
   @override
   State<CreatePaymentReceiptPage> createState() =>
@@ -47,6 +52,9 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
   bool _isLoadingInvoices = false;
   String? _errorMessage;
 
+  /// Mode daily salary = true kalau page dibuka dari DailySalaryListPage.
+  late final bool _isDailySalaryMode;
+
   // Supplier state
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
@@ -55,13 +63,22 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
   // Invoice state — list invoice yang akan dibayar (bisa banyak).
   List<InvoicePurchase> _selectedInvoices = [];
 
+  // Daily salary state — list daily salary yang akan dibayar (bisa banyak).
+  List<Map<String, dynamic>> _selectedDailySalaries = [];
+
   // Image
   File? _selectedImage;
 
   @override
   void initState() {
     super.initState();
-    if (widget.invoices != null && widget.invoices!.isNotEmpty) {
+    _isDailySalaryMode =
+        widget.dailySalaries != null && widget.dailySalaries!.isNotEmpty;
+
+    if (_isDailySalaryMode) {
+      _selectedDailySalaries = List.from(widget.dailySalaries!);
+      _recalculateTotal();
+    } else if (widget.invoices != null && widget.invoices!.isNotEmpty) {
       _selectedInvoices = List.from(widget.invoices!);
       // Ambil supplier dari invoice pertama (semua invoice harus 1 supplier).
       _selectedSupplierId = _selectedInvoices.first.supplierId;
@@ -106,10 +123,14 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
     }
   }
 
-  /// Hitung ulang total nominal dari invoice yang dipilih.
+  /// Hitung ulang total nominal dari invoice/daily salary yang dipilih.
   void _recalculateTotal() {
-    final total =
-        _selectedInvoices.fold<int>(0, (sum, inv) => sum + inv.totalPrice);
+    final total = _isDailySalaryMode
+        ? _selectedDailySalaries.fold<int>(0, (sum, s) {
+            final amount = double.tryParse(s['amount'].toString()) ?? 0;
+            return sum + amount.toInt();
+          })
+        : _selectedInvoices.fold<int>(0, (sum, inv) => sum + inv.totalPrice);
     _transferAmountController.text = total.toString();
     setState(() {});
   }
@@ -357,6 +378,13 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
     _recalculateTotal();
   }
 
+  void _removeDailySalary(int id) {
+    setState(() {
+      _selectedDailySalaries.removeWhere((s) => s['id'] == id);
+    });
+    _recalculateTotal();
+  }
+
   Future<void> _pickImage() async {
     try {
       final photo = await ImageService.selectAndPickImage(context);
@@ -374,7 +402,14 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedInvoices.isEmpty) {
+    if (_isDailySalaryMode) {
+      if (_selectedDailySalaries.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih minimal 1 daily salary.')),
+        );
+        return;
+      }
+    } else if (_selectedInvoices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih minimal 1 invoice.')),
       );
@@ -392,13 +427,21 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
     setState(() => _isSubmitting = true);
     try {
       final data = <String, dynamic>{
-        'payment_for': 3, // InvoicePurchase
+        'payment_for': _isDailySalaryMode ? 2 : 3,
         'transfer_amount': transferAmount,
-        'invoice_ids': _selectedInvoices.map((inv) => inv.id).toList(),
       };
-      if (_selectedSupplierId != null) {
-        data['supplier_id'] = _selectedSupplierId;
+
+      if (_isDailySalaryMode) {
+        data['daily_salary_ids'] =
+            _selectedDailySalaries.map((s) => s['id']).toList();
+      } else {
+        data['invoice_ids'] =
+            _selectedInvoices.map((inv) => inv.id).toList();
+        if (_selectedSupplierId != null) {
+          data['supplier_id'] = _selectedSupplierId;
+        }
       }
+
       if (_notesController.text.isNotEmpty) {
         data['notes'] = _notesController.text;
       }
@@ -439,7 +482,9 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Buat Payment Receipt'),
+        title: Text(_isDailySalaryMode
+            ? 'Buat Payment Receipt Gaji'
+            : 'Buat Payment Receipt'),
         elevation: 0,
       ),
       body: _errorMessage != null
@@ -461,18 +506,21 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
               child: ListView(
                 padding: AppSpacing.paddingMD,
                 children: [
-                  // === Supplier Picker ===
-                  _sectionContainer(
-                    isDark: isDark,
-                    theme: theme,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Supplier',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
+                  if (_isDailySalaryMode)
+                    _buildDailySalarySection(isDark, theme)
+                  else ...[
+                    // === Supplier Picker ===
+                    _sectionContainer(
+                      isDark: isDark,
+                      theme: theme,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Supplier',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
                         AppSpacing.gapVerticalSM,
                         InkWell(
                           onTap: _pickSupplier,
@@ -588,6 +636,7 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                       ],
                     ),
                   ),
+                  ],
                   AppSpacing.gapVerticalMD,
 
                   // === Detail Transfer & Notes & Bukti ===
@@ -762,6 +811,82 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                 ],
               ),
             ),
+    );
+  }
+
+  /// Section khusus daily salary: menampilkan list daily salary terpilih
+  /// (dari DailySalaryListPage) tanpa perlu pilih supplier/invoice.
+  Widget _buildDailySalarySection(bool isDark, ThemeData theme) {
+    return _sectionContainer(
+      isDark: isDark,
+      theme: theme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Daily Salary Terpilih (${_selectedDailySalaries.length})',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          AppSpacing.gapVerticalSM,
+          if (_selectedDailySalaries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Belum ada daily salary dipilih.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            )
+          else ...[
+            ..._selectedDailySalaries.map((s) {
+              final employeeName = s['created_by']?['name'] ?? 'Staff';
+              final storeName = s['store']?['nickname'] ??
+                  s['store']?['name'] ??
+                  '-';
+              final date = s['date'] ?? '';
+              final amount =
+                  double.tryParse(s['amount'].toString()) ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$employeeName • $storeName',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '$date • ${currencyFormatter.format(amount)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.gold
+                                  : AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => _removeDailySalary(s['id']),
+                      tooltip: 'Hapus',
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
     );
   }
 

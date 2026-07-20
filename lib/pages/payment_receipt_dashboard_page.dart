@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../models/procurement_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/procurement_service.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/add_fab.dart';
-import '../../widgets/list_thumbnail.dart';
 import '../../widgets/modern_bottom_nav.dart';
+import '../../widgets/payment_receipt_card.dart';
 import 'invoice_selection_page.dart';
 import 'payment_receipt_detail_page.dart';
 
@@ -24,6 +24,7 @@ class _PaymentReceiptDashboardPageState
     extends State<PaymentReceiptDashboardPage> {
   final ProcurementService _procurementService = ProcurementService();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
 
   List<PaymentReceipt> _receipts = [];
   bool _isLoading = true;
@@ -32,16 +33,21 @@ class _PaymentReceiptDashboardPageState
   int _currentPage = 1;
   String? _errorMessage;
 
+  // Filter states: '0' = All, '1' = Fuel Service, '2' = Gaji Harian, '3' = Invoice Supplier
+  String _selectedPaymentFor = '0';
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _loadUser();
+    _fetchReceipts();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -52,10 +58,6 @@ class _PaymentReceiptDashboardPageState
         _hasMore) {
       _loadMore();
     }
-  }
-
-  Future<void> _loadUser() async {
-    _fetchReceipts();
   }
 
   Future<void> _fetchReceipts() async {
@@ -104,207 +106,284 @@ class _PaymentReceiptDashboardPageState
     }
   }
 
-  String _formatAmount(int amount) {
-    return amount.toString().replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.');
+  List<PaymentReceipt> get _filteredReceipts {
+    return _receipts.where((receipt) {
+      // Type Filter
+      if (_selectedPaymentFor != '0' && receipt.paymentFor != _selectedPaymentFor) {
+        return false;
+      }
+      // Search Filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        final matchId = receipt.id.toString().contains(query);
+        final matchSupplier =
+            (receipt.supplierName ?? '').toLowerCase().contains(query);
+        final matchNotes = (receipt.notes ?? '').toLowerCase().contains(query);
+        return matchId || matchSupplier || matchNotes;
+      }
+      return true;
+    }).toList();
   }
 
-  String _imageUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return '${ApiConstants.baseUrl}/media/$path';
+  int get _totalFilteredAmount {
+    return _filteredReceipts.fold(0, (sum, item) => sum + item.transferAmount);
+  }
+
+  Widget _buildSummaryCard(ThemeData theme, bool isDark) {
+    final totalAmountFormatted = FormatUtils.formatCurrency(_totalFilteredAmount);
+    final count = _filteredReceipts.length;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF2C281E), const Color(0xFF1A1A1A)]
+              : [AppColors.primary, const Color(0xFF3A3A3A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLG),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL BUKTI TRANSFER',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                  color: isDark ? AppColors.gold : AppColors.gold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$count Receipt',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          AppSpacing.gapVerticalSM,
+          Text(
+            totalAmountFormatted,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Ringkasan pengeluaran bukti pembayaran terdata',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(ThemeData theme) {
+    final filters = [
+      {'id': '0', 'label': 'Semua'},
+      {'id': '3', 'label': 'Invoice'},
+      {'id': '2', 'label': 'Gaji Harian'},
+      {'id': '1', 'label': 'Fuel Service'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      child: Row(
+        children: filters.map((f) {
+          final isSelected = _selectedPaymentFor == f['id'];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(f['label']!),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _selectedPaymentFor = f['id']!);
+                }
+              },
+              selectedColor: AppColors.gold,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.black : theme.colorScheme.onSurface,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
+    final filtered = _filteredReceipts;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Payment Receipt'),
+        elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: AppSpacing.paddingLG,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_errorMessage!,
-                            style: TextStyle(color: colorScheme.error)),
-                        AppSpacing.gapVerticalMD,
-                        ElevatedButton(
-                          onPressed: _fetchReceipts,
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _receipts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.5),
-                          ),
-                          AppSpacing.gapVerticalMD,
-                          Text(
-                            'Belum ada payment receipt.',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _fetchReceipts,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        padding: AppSpacing.paddingMD,
-                        itemCount:
-                            _receipts.length + (_loadingMore ? 1 : 0),
-                        itemBuilder: (context, idx) {
-                          if (idx == _receipts.length) {
-                            return const Padding(
-                              padding: AppSpacing.paddingMD,
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                ),
-                              ),
-                            );
-                          }
-                          final receipt = _receipts[idx];
-                          final invoiceCount =
-                              receipt.invoicePurchases.length;
-                          final storeName =
-                              receipt.invoicePurchases.isNotEmpty
-                                  ? receipt.invoicePurchases.first
-                                      .storeName
-                                  : (receipt.supplierName ?? 'Invoice');
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _searchQuery = val),
+              decoration: InputDecoration(
+                hintText: 'Cari supplier, nomor receipt, catatan...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                filled: true,
+                fillColor: isDark
+                    ? theme.cardColor
+                    : AppColors.surfaceVariant.withValues(alpha: 0.6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          
+          // Summary Card
+          if (!_isLoading && _errorMessage == null)
+            _buildSummaryCard(theme, isDark),
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
-                            child: InkWell(
-                              borderRadius: AppSpacing.borderRadiusLG,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        PaymentReceiptDetailPage(
-                                            receiptId: receipt.id),
+          // Category Chips Filter
+          _buildFilterChips(theme),
+
+          // Main List View
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? Center(
+                        child: Padding(
+                          padding: AppSpacing.paddingLG,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _errorMessage!,
+                                style: TextStyle(color: colorScheme.error),
+                                textAlign: TextAlign.center,
+                              ),
+                              AppSpacing.gapVerticalMD,
+                              ElevatedButton(
+                                onPressed: _fetchReceipts,
+                                child: const Text('Coba Lagi'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.receipt_long_outlined,
+                                  size: 56,
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                                ),
+                                AppSpacing.gapVerticalMD,
+                                Text(
+                                  _searchQuery.isNotEmpty || _selectedPaymentFor != '0'
+                                      ? 'Tidak ada receipt yang sesuai filter.'
+                                      : 'Belum ada payment receipt.',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
-                                );
-                              },
-                              child: Padding(
-                                padding: AppSpacing.paddingMD,
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    ListThumbnail(
-                                      imageUrl: _imageUrl(receipt.image),
-                                    ),
-                                    const SizedBox(width: AppSpacing.md),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment
-                                                    .spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  storeName,
-                                                  style: theme
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow
-                                                      .ellipsis,
-                                                ),
-                                              ),
-                                              Text(
-                                                'Rp ${receipt.transferAmount != 0 ? _formatAmount(receipt.transferAmount) : '0'}',
-                                                style: theme
-                                                    .textTheme.titleMedium
-                                                    ?.copyWith(
-                                                  fontWeight:
-                                                      FontWeight.bold,
-                                                  color:
-                                                      colorScheme.primary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                          AppSpacing.gapVerticalSM,
-                          Text(
-                                            '$invoiceCount invoice • ${receipt.createdAt.substring(0, 10)}',
-                                            style: theme
-                                                .textTheme.bodySmall
-                                                ?.copyWith(
-                                              color: colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                          ),
-                                          if (receipt.notes != null &&
-                                              receipt
-                                                  .notes!.isNotEmpty) ...[
-                                            AppSpacing.gapVerticalXS,
-                                            Text(
-                                              FormatUtils.stripHtml(
-                                                  receipt.notes!),
-                                              style: theme
-                                                  .textTheme.bodySmall
-                                                  ?.copyWith(
-                                                color: colorScheme
-                                                    .onSurfaceVariant
-                                                    .withValues(alpha: 0.8),
-                                                fontStyle:
-                                                    FontStyle.italic,
-                                              ),
-                                              maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ],
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _fetchReceipts,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              itemCount: filtered.length + (_loadingMore ? 1 : 0),
+                              itemBuilder: (context, idx) {
+                                if (idx == filtered.length) {
+                                  return const Padding(
+                                    padding: AppSpacing.paddingMD,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
                                       ),
                                     ),
-                                    const SizedBox(width: AppSpacing.xs),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      size: 20,
-                                      color: colorScheme.onSurfaceVariant
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                  );
+                                }
+                                final receipt = filtered[idx];
+                                return PaymentReceiptCard(
+                                  receipt: receipt,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PaymentReceiptDetailPage(
+                                          receiptId: receipt.id,
+                                        ),
+                                      ),
+                                    ).then((_) => _fetchReceipts());
+                                  },
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+          ),
+        ],
+      ),
       floatingActionButton: context.watch<AuthProvider>().hasAnyRole(['staff', 'storage-staff'])
           ? null
           : AddFab(
@@ -327,6 +406,4 @@ class _PaymentReceiptDashboardPageState
       ),
     );
   }
-
 }
-

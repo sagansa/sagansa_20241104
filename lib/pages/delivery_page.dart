@@ -1,22 +1,25 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import '../utils/image_utils.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../providers/printer_provider.dart';
 import '../services/presence_service.dart';
 import '../services/thermal_printer_service.dart';
-import '../providers/printer_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_utils.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/modern_dropdown.dart';
 import 'create_sales_order_online_page.dart';
 
 class DeliveryPage extends StatefulWidget {
@@ -54,13 +57,34 @@ class _DeliveryPageState extends State<DeliveryPage> {
   bool _hasMore = true;
   bool _isAdmin = false;
   bool _isUpdatingPaymentStatus = false;
+  final Set<int> _printedStickers = {};
 
   @override
   void initState() {
     super.initState();
     _loadAdminRole();
+    _loadPrintedStickers();
     _loadInitialOrders();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadPrintedStickers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final printedList = prefs.getStringList('printed_stickers') ?? [];
+    if (mounted) {
+      setState(() {
+        _printedStickers.addAll(printedList.map((id) => int.tryParse(id) ?? 0));
+      });
+    }
+  }
+
+  Future<void> _savePrintedSticker(int orderId) async {
+    final prefs = await SharedPreferences.getInstance();
+    _printedStickers.add(orderId);
+    await prefs.setStringList('printed_stickers', _printedStickers.map((id) => id.toString()).toList());
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadAdminRole() async {
@@ -105,7 +129,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.getSalesOrders(page: 1, perPage: 10, orderFor: widget.orderFor);
+      final result = await PresenceService().getSalesOrders(page: 1, perPage: 10, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true) {
         final List<dynamic> fetchedOrders = result['data'] ?? [];
@@ -144,7 +168,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       final result =
-          await PresenceService.getSalesOrders(page: nextPage, perPage: 10, orderFor: widget.orderFor);
+          await PresenceService().getSalesOrders(page: nextPage, perPage: 10, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true) {
         final List<dynamic> fetchedOrders = result['data'] ?? [];
@@ -193,7 +217,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.searchSalesOrder(receiptNo, orderFor: widget.orderFor);
+      final result = await PresenceService().searchSalesOrder(receiptNo, orderFor: widget.orderFor);
       if (!mounted) return;
       if (result['success'] == true && result['data'] != null) {
         setState(() {
@@ -341,7 +365,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.updateDeliveryStatus(
+      final result = await PresenceService().updateDeliveryStatus(
         receiptNo: receiptNo,
         imageFile: _imageFile,
         receivedBy: _selectedStatus == 6 ? null : _receiverController.text.trim(),
@@ -411,7 +435,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
-      final result = await PresenceService.markReadyToShip(
+      final result = await PresenceService().markReadyToShip(
         orderId: orderId,
         orderFor: widget.orderFor,
       );
@@ -457,6 +481,16 @@ class _DeliveryPageState extends State<DeliveryPage> {
         });
       }
     }
+  }
+
+  String _formatPrice(dynamic price) {
+    if (price == null) return 'Rp 0';
+    final parsed = double.tryParse(price.toString()) ?? 0;
+    final formatter = parsed.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+    return 'Rp $formatter';
   }
 
   bool _canPrintPaymentProof(Map<String, dynamic> order) {
@@ -529,7 +563,11 @@ class _DeliveryPageState extends State<DeliveryPage> {
       return AppColors.onSurfaceVariant;
     }
 
-    return _isPaymentProofPrinted(order) ? AppColors.success : AppColors.primary;
+    return _isPaymentProofPrinted(order)
+        ? AppColors.success
+        : (colorScheme.brightness == Brightness.dark
+            ? AppColors.darkPrimary
+            : AppColors.primary);
   }
 
   int _getPaymentProofPrintCount(Map<String, dynamic> order) {
@@ -680,7 +718,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       );
 
       if (printCompleted && printedOrderIds.isNotEmpty) {
-        await PresenceService.markPaymentProofsPrinted(
+        await PresenceService().markPaymentProofsPrinted(
           orderIds: printedOrderIds,
         );
 
@@ -780,6 +818,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
             : 'Gagal mencetak stiker.';
       }
 
+      if (ok) {
+        final orderId = order['id'];
+        if (orderId != null) {
+          await _savePrintedSticker(int.tryParse(orderId.toString()) ?? 0);
+        }
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -809,7 +854,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
 
     try {
       do {
-        final result = await PresenceService.getSalesOrders(
+        final result = await PresenceService().getSalesOrders(
           page: page,
           perPage: 100,
           deliveryStatus: 1,
@@ -900,7 +945,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       decoration: InputDecoration(
         labelText: labelText,
         labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-        prefixIcon: Icon(prefixIcon, color: colorScheme.primary),
+        prefixIcon: Icon(prefixIcon, color: AppColors.info),
         suffixIcon: suffixIcon,
       ),
     );
@@ -913,7 +958,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
         title: Text(
           _selectedOrder == null
               ? (widget.orderFor == '3' ? 'PENGIRIMAN ONLINE' : 'PENGIRIMAN DIRECT')
-              : 'DETAIL PENGIRIMAN',
+              : (widget.orderFor == '3' ? 'DETAIL PENGIRIMAN ONLINE' : 'DETAIL PENGIRIMAN DIRECT'),
           style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
@@ -1053,6 +1098,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
         AppSpacing.gapVerticalXS,
         if (widget.orderFor != '1') ...[
           ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed:
                 _isPrintingPaymentProof ? null : _printAllPendingPaymentProofs,
             icon: _isPrintingPaymentProof
@@ -1067,9 +1118,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 : Icon(Icons.print, color: colorScheme.onPrimary),
             label: Text(
               _isPrintingPaymentProof
-                  ? 'Menyiapkan Cetakan...'
-                  : 'Cetak Bukti Pembayaran Belum Dikirim & Belum Dicetak',
-              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ? 'Menyiapkan Resi...'
+                  : 'Cetak Resi Belum Dikirim Seluruhnya',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onPrimary,
+              ),
             ),
           ),
           AppSpacing.gapVerticalSM,
@@ -1087,7 +1141,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 return Padding(
                   padding: AppSpacing.paddingVerticalMD,
                   child: Center(
-                    child: CircularProgressIndicator(color: colorScheme.primary),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 );
               }
@@ -1183,7 +1237,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         Row(
                           children: [
                             Icon(Icons.storefront,
-                                size: 16, color: colorScheme.primary),
+                                size: 16, color: AppColors.info),
                             AppSpacing.gapHorizontalSM,
                             Expanded(
                               child: Text(
@@ -1198,7 +1252,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         Row(
                           children: [
                             Icon(Icons.local_shipping_outlined,
-                                size: 16, color: colorScheme.primary),
+                                size: 16, color: AppColors.info),
                             AppSpacing.gapHorizontalSM,
                             Expanded(
                               child: Text(
@@ -1216,7 +1270,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           Row(
                             children: [
                               Icon(Icons.calendar_today,
-                                  size: 14, color: colorScheme.primary),
+                                  size: 14, color: AppColors.info),
                               AppSpacing.gapHorizontalSM,
                               Text(
                                 order['delivery_date'],
@@ -1232,7 +1286,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             Row(
                               children: [
                                 Icon(Icons.person_outline,
-                                    size: 16, color: colorScheme.primary),
+                                    size: 16, color: AppColors.info),
                                 AppSpacing.gapHorizontalSM,
                                 Expanded(
                                   child: Text(
@@ -1250,7 +1304,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(Icons.location_on_outlined,
-                                    size: 16, color: colorScheme.primary),
+                                    size: 16, color: AppColors.info),
                                 AppSpacing.gapHorizontalSM,
                                 Expanded(
                                   child: Text(
@@ -1267,7 +1321,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             Row(
                               children: [
                                 Icon(Icons.location_on_outlined,
-                                    size: 16, color: colorScheme.primary),
+                                    size: 16, color: AppColors.info),
                                 AppSpacing.gapHorizontalSM,
                                 const Expanded(
                                   child: Text(
@@ -1360,21 +1414,26 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               ],
                             ),
                           ),
-                          if (_canPrintPaymentProof(
-                              Map<String, dynamic>.from(order))) ...[
+                          if (order != null) ...[
                             AppSpacing.gapVerticalSM,
                             OutlinedButton.icon(
-                              onPressed: _isPrintingPaymentProof
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 44),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _isPrintingSticker
                                   ? null
-                                  : () => _printPaymentProofs([
+                                  : () => _printSticker(
                                         Map<String, dynamic>.from(order),
-                                      ]),
+                                      ),
                               icon: const Icon(Icons.print, size: 18),
                               label: Text(
-                                _isPaymentProofPrinted(
-                                        Map<String, dynamic>.from(order))
-                                    ? 'Cetak Ulang Bukti Pembayaran'
-                                    : 'Cetak Bukti Pembayaran',
+                                _printedStickers.contains(
+                                        int.tryParse(order['id'].toString()) ?? -1)
+                                    ? 'Cetak Ulang Resi'
+                                    : 'Cetak Resi',
                               ),
                             ),
                           ],
@@ -1388,6 +1447,183 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildDashedLine() {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final boxWidth = constraints.constrainWidth();
+        const dashWidth = 5.0;
+        const dashHeight = 1.0;
+        final dashCount = (boxWidth / (2 * dashWidth)).floor();
+        return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
+          children: List.generate(dashCount, (_) {
+            return SizedBox(
+              width: dashWidth,
+              height: dashHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildDeliveryStepper(int status) {
+    final bool isOnline = widget.orderFor == '3';
+    final int orderId = _selectedOrder != null ? int.tryParse(_selectedOrder!['id'].toString()) ?? 0 : 0;
+    int activeStep = 0;
+    final bool isReturned = status == 6;
+
+    if (isOnline) {
+      // Flow: Belum Kirim -> Resi Sudah Dicetak -> Siap Kirim -> Terkirim
+      if (status == 1) {
+        if (_printedStickers.contains(orderId)) {
+          activeStep = 1;
+        } else {
+          activeStep = 0;
+        }
+      } else if (status == 4) {
+        activeStep = 2;
+      } else if (status == 3 || status == 2 || status == 6) {
+        activeStep = 3;
+      }
+    } else {
+      // Flow: Belum Kirim -> Siap Kirim -> Terkirim
+      if (status == 1) {
+        activeStep = 0;
+      } else if (status == 4) {
+        activeStep = 1;
+      } else if (status == 3 || status == 2 || status == 6) {
+        activeStep = 2;
+      }
+    }
+
+    final List<Map<String, dynamic>> steps;
+    if (isOnline) {
+      steps = [
+        {'label': 'Belum Kirim', 'icon': Icons.pending_actions},
+        {'label': 'Resi Dicetak', 'icon': Icons.print_outlined},
+        {'label': 'Siap Kirim', 'icon': Icons.inventory_2_outlined},
+        {
+          'label': isReturned ? 'Retur' : 'Terkirim',
+          'icon': isReturned ? Icons.assignment_return_outlined : Icons.check_circle_outline
+        },
+      ];
+    } else {
+      steps = [
+        {'label': 'Belum Kirim', 'icon': Icons.pending_actions},
+        {'label': 'Siap Kirim', 'icon': Icons.inventory_2_outlined},
+        {
+          'label': isReturned ? 'Retur' : 'Terkirim',
+          'icon': isReturned ? Icons.assignment_return_outlined : Icons.check_circle_outline
+        },
+      ];
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(steps.length, (index) {
+          final step = steps[index];
+          final isCompleted = index < activeStep;
+          final isActive = index == activeStep;
+          
+          Color iconBgColor = colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+          Color iconColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+          Color textColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+          FontWeight fontWeight = FontWeight.normal;
+          
+          if (isActive) {
+            iconBgColor = isReturned
+                ? AppColors.error.withValues(alpha: 0.15)
+                : colorScheme.primary.withValues(alpha: 0.15);
+            iconColor = isReturned ? AppColors.error : colorScheme.primary;
+            textColor = isReturned ? AppColors.error : colorScheme.primary;
+            fontWeight = FontWeight.bold;
+          } else if (isCompleted) {
+            iconBgColor = AppColors.success.withValues(alpha: 0.15);
+            iconColor = AppColors.success;
+            textColor = AppColors.success;
+          }
+
+          return Expanded(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: index == 0
+                          ? const SizedBox()
+                          : Divider(
+                              thickness: 2,
+                              color: index <= activeStep
+                                  ? AppColors.success
+                                  : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            ),
+                    ),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isActive
+                              ? (isReturned ? AppColors.error : colorScheme.primary)
+                              : (isCompleted ? AppColors.success : Colors.transparent),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        step['icon'] as IconData,
+                        size: 16,
+                        color: iconColor,
+                      ),
+                    ),
+                    Expanded(
+                      child: index == steps.length - 1
+                          ? const SizedBox()
+                          : Divider(
+                              thickness: 2,
+                              color: index < activeStep
+                                  ? AppColors.success
+                                  : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  step['label'] as String,
+                  style: textTheme.labelSmall?.copyWith(
+                    fontSize: 9,
+                    fontWeight: fontWeight,
+                    color: textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -1428,31 +1664,12 @@ class _DeliveryPageState extends State<DeliveryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sleek Inline Back Button & Header
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.arrow_back, color: colorScheme.primary),
-                onPressed: () {
-                  setState(() {
-                    _selectedOrder = null;
-                    _imageFile = null;
-                    _receiverController.clear();
-                  });
-                },
-              ),
-              Text(
-                'Detail Pengiriman Online',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
+
+          // Visual Stepper
+          _buildDeliveryStepper(deliveryStatus),
           AppSpacing.gapVerticalMD,
 
-          // Card 1: Status & Info Transaksi Utama
+          // Card 1: Status & Info Transaksi Utama (Digital Pass Style)
           Card(
             color: colorScheme.surface,
             elevation: 0,
@@ -1463,82 +1680,122 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 width: 1,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.shopping_bag,
-                              size: 14,
-                              color: colorScheme.onSurfaceVariant,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              providerName,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.shopping_bag, size: 12, color: AppColors.info),
+                                const SizedBox(width: 6),
+                                Text(
+                                  providerName,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getDeliveryStatusColor(order['delivery_status']).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: _getDeliveryStatusColor(order['delivery_status']).withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              _getDeliveryStatusText(order['delivery_status']),
                               style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                color: _getDeliveryStatusColor(order['delivery_status']),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getDeliveryStatusColor(order['delivery_status'])
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _getDeliveryStatusText(order['delivery_status']),
-                          style: textTheme.bodySmall?.copyWith(
-                            color: _getDeliveryStatusColor(order['delivery_status']),
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'NOMOR RESI',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  receiptNo,
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (receiptNo != '-')
+                            IconButton(
+                              icon: Icon(Icons.copy, size: 18, color: AppColors.info),
+                              tooltip: 'Salin Resi',
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: receiptNo));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Nomor resi disalin ke clipboard'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Resi: $receiptNo',
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                  const SizedBox(height: 12),
-                  Row(
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildDashedLine(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Toko',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                              'TOKO ASAL',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               storeName,
                               style: textTheme.bodyMedium?.copyWith(
@@ -1555,12 +1812,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Dipesan Oleh',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
+                                'DIPESAN OLEH',
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 4),
                               Text(
                                 order['ordered_by_name'],
                                 style: textTheme.bodyMedium?.copyWith(
@@ -1573,8 +1832,8 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           AppSpacing.gapVerticalMD,
@@ -1603,11 +1862,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           color: colorScheme.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.person_pin_circle,
-                          color: colorScheme.onSurfaceVariant,
-                          size: 20,
-                        ),
+                        child: Icon(Icons.person_pin_circle, color: colorScheme.primary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -1630,12 +1885,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Nama Penerima',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                              'NAMA PENERIMA',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               recipientName,
                               style: textTheme.bodyLarge?.copyWith(
@@ -1648,14 +1904,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       ),
                       if (recipientPhone != '-' && recipientPhone.isNotEmpty)
                         IconButton(
-                          icon: Icon(Icons.copy, size: 18, color: colorScheme.primary),
-                          tooltip: 'Salin nomor telepon',
+                          icon: Icon(Icons.copy, size: 18, color: AppColors.info),
+                          tooltip: 'Salin Telepon',
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: recipientPhone));
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Nomor telepon disalin ke clipboard'),
-                                duration: Duration(seconds: 2),
+                                duration: Duration(seconds: 1),
                               ),
                             );
                           },
@@ -1667,12 +1923,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Nomor Telepon',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                        'NOMOR TELEPON',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         recipientPhone,
                         style: textTheme.bodyMedium?.copyWith(
@@ -1693,18 +1950,18 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             Row(
                               children: [
                                 Text(
-                                  'Alamat Pengiriman',
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
+                                  'ALAMAT PENGIRIMAN',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 if (addressName.isNotEmpty) ...[
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: colorScheme.secondary.withValues(alpha: 0.15),
+                                      color: colorScheme.secondary.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -1719,7 +1976,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                 ],
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Text(
                               fullAddress.isEmpty ? '-' : fullAddress,
                               style: textTheme.bodyMedium?.copyWith(
@@ -1732,14 +1989,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       ),
                       if (fullAddress.isNotEmpty && fullAddress != '-')
                         IconButton(
-                          icon: Icon(Icons.copy, size: 18, color: colorScheme.primary),
-                          tooltip: 'Salin alamat lengkap',
+                          icon: Icon(Icons.copy, size: 18, color: AppColors.info),
+                          tooltip: 'Salin Alamat',
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: fullAddress));
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Alamat lengkap disalin ke clipboard'),
-                                duration: Duration(seconds: 2),
+                                duration: Duration(seconds: 1),
                               ),
                             );
                           },
@@ -1776,25 +2033,21 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           color: colorScheme.secondary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.local_shipping,
-                          color: colorScheme.secondary,
-                          size: 20,
-                        ),
+                        child: Icon(Icons.local_shipping, color: colorScheme.secondary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Informasi Pengiriman',
+                        'Informasi Logistik',
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: colorScheme.secondary,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -1802,12 +2055,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Jasa Kirim',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                              'EKSPEDISI / JASA KIRIM',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               deliveryServiceName,
                               style: textTheme.bodyMedium?.copyWith(
@@ -1823,12 +2077,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Tanggal Kirim',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                              'TANGGAL KIRIM',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               deliveryDate,
                               style: textTheme.bodyMedium?.copyWith(
@@ -1841,55 +2096,63 @@ class _DeliveryPageState extends State<DeliveryPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      Text(
-                        'Status Cetak Label',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'STATUS CETAK LABEL',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              printStatus,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        printStatus,
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
+                      if (isLocked)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PENERIMA LAPANGAN',
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                order['received_by'] ?? '-',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                  if (isLocked) ...[
-                    const SizedBox(height: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Penerima',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          order['received_by'] ?? '-',
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
           AppSpacing.gapVerticalMD,
 
-          // Card 4: Daftar Produk
+          // Card 4: Daftar Produk (Compact Itemized List)
           Card(
             color: colorScheme.surface,
             elevation: 0,
@@ -1913,18 +2176,14 @@ class _DeliveryPageState extends State<DeliveryPage> {
                           color: Colors.blue.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.inventory_2_outlined,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
+                        child: const Icon(Icons.inventory_2_outlined, color: Colors.blue, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Daftar Produk',
+                        'Rincian Produk',
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -1932,45 +2191,87 @@ class _DeliveryPageState extends State<DeliveryPage> {
                   const SizedBox(height: 12),
                   Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
                   const SizedBox(height: 12),
-                  if (order['items'] != null && (order['items'] as List).isNotEmpty)
+                  if (order['items'] != null && (order['items'] as List).isNotEmpty) ...[
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: (order['items'] as List).length,
-                      separatorBuilder: (context, index) => const Divider(height: 16),
+                      separatorBuilder: (context, index) => Divider(height: 16, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
                       itemBuilder: (context, index) {
                         final item = order['items'][index];
+                        final unitPrice = item['unit_price'] ?? 0;
+                        final subtotalPrice = item['subtotal_price'] ?? 0;
                         return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: colorScheme.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
                               ),
                               child: Text(
                                 '${item['quantity']} ${item['product_unit'] ?? 'pcs'}',
                                 style: textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: colorScheme.onSurfaceVariant,
+                                  color: colorScheme.primary,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 16),
                             Expanded(
-                              child: Text(
-                                item['product_name'] ?? '-',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.onSurface,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['product_name'] ?? '-',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  if (_isAdmin) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${_formatPrice(unitPrice)} x ${item['quantity']} = ${_formatPrice(subtotalPrice)}',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           ],
                         );
                       },
-                    )
+                    ),
+                    if (_isAdmin) ...[
+                      const SizedBox(height: 16),
+                      Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Harga',
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            _formatPrice(order['total_price']),
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ]
                   else
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -1991,27 +2292,32 @@ class _DeliveryPageState extends State<DeliveryPage> {
           if (order['image_payment_url'] != null) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Icon(Icons.payment, color: colorScheme.primary, size: 18),
-                        AppSpacing.gapHorizontalSM,
+                        const SizedBox(width: 8),
                         Text(
-                          'Foto Bukti Pembayaran',
+                          'Resi',
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalSM,
+                    const SizedBox(height: 12),
                     ClipRRect(
-                      borderRadius: AppSpacing.borderRadiusMD,
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -2028,8 +2334,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.close,
-                                        color: colorScheme.onSurface, size: 30),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -2047,19 +2352,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  height: 100,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  height: 120,
+                                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                                   alignment: Alignment.center,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image,
-                                          color: AppColors.error, size: 36),
-                                      AppSpacing.gapVerticalSM,
+                                      const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                                      const SizedBox(height: 8),
                                       Text(
-                                        'Gagal memuat gambar',
-                                        style: textTheme.bodySmall?.copyWith(
-                                            color: AppColors.onSurfaceVariant),
+                                        'Gagal memuat bukti pembayaran',
+                                        style: textTheme.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -2068,14 +2371,19 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: colorScheme.onSurface.withValues(alpha: 0.54),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                              child: Text(
-                                'Klik untuk memperbesar gambar',
-                                style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
+                              color: Colors.black.withValues(alpha: 0.6),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Ketuk untuk memperbesar gambar',
+                                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -2089,37 +2397,6 @@ class _DeliveryPageState extends State<DeliveryPage> {
             AppSpacing.gapVerticalMD,
           ],
 
-          // Print Bukti Pembayaran
-          if (_canPrintPaymentProof(order)) ...[
-            ElevatedButton.icon(
-              onPressed: _isPrintingPaymentProof
-                  ? null
-                  : () => _printPaymentProofs([
-                        Map<String, dynamic>.from(order),
-                      ]),
-              icon: _isPrintingPaymentProof
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        color: colorScheme.onPrimary,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(Icons.print, color: colorScheme.onPrimary),
-              label: Text(
-                _isPrintingPaymentProof
-                    ? 'Menyiapkan Cetakan...'
-                    : _isPaymentProofPrinted(order)
-                        ? 'Cetak Ulang Bukti Pembayaran'
-                        : 'Cetak Bukti Pembayaran',
-                style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-            AppSpacing.gapVerticalMD,
-          ],
-
           // Cetak Resi Stiker (khusus online)
           _buildStickerPrintButton(order),
           AppSpacing.gapVerticalMD,
@@ -2128,27 +2405,32 @@ class _DeliveryPageState extends State<DeliveryPage> {
           if (order['image_delivery_url'] != null) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Icon(Icons.photo, color: colorScheme.primary, size: 18),
-                        AppSpacing.gapHorizontalSM,
+                        const SizedBox(width: 8),
                         Text(
                           'Foto Bukti Pengiriman',
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalSM,
+                    const SizedBox(height: 12),
                     ClipRRect(
-                      borderRadius: AppSpacing.borderRadiusMD,
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -2165,8 +2447,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.close,
-                                        color: colorScheme.onSurface, size: 30),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -2184,19 +2465,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  height: 100,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  height: 120,
+                                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                                   alignment: Alignment.center,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image,
-                                          color: AppColors.error, size: 36),
-                                      AppSpacing.gapVerticalSM,
+                                      const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                                      const SizedBox(height: 8),
                                       Text(
-                                        'Gagal memuat gambar',
-                                        style: textTheme.bodySmall?.copyWith(
-                                            color: AppColors.onSurfaceVariant),
+                                        'Gagal memuat bukti pengiriman',
+                                        style: textTheme.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -2205,14 +2484,19 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: colorScheme.onSurface.withValues(alpha: 0.54),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                              child: Text(
-                                'Klik untuk memperbesar gambar',
-                                style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
+                              color: Colors.black.withValues(alpha: 0.6),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Ketuk untuk memperbesar gambar',
+                                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -2230,16 +2514,20 @@ class _DeliveryPageState extends State<DeliveryPage> {
           if (canMarkReadyToShip) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: AppColors.warning.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.inventory_2_outlined,
-                            color: AppColors.warning, size: 20),
-                        AppSpacing.gapHorizontalSM,
+                        Icon(Icons.inventory_2_outlined, color: AppColors.warning, size: 20),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Order Belum Siap Dikirim',
@@ -2251,33 +2539,35 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalXS,
+                    const SizedBox(height: 8),
                     Text(
                       'Tandai order ini sebagai siap dikirim sebelum mengunggah bukti pengiriman.',
                       style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
-                    AppSpacing.gapVerticalMD,
-                    ElevatedButton.icon(
-                      onPressed:
-                          _isLoadingReadyToShip ? null : _markReadyToShip,
-                      icon: _isLoadingReadyToShip
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                color: colorScheme.onPrimary,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Icon(Icons.local_shipping,
-                              color: colorScheme.onPrimary),
-                      label: Text(
-                        _isLoadingReadyToShip
-                            ? 'Memproses...'
-                            : 'Tandai Siap Dikirim',
-                          style: textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
                         ),
+                        onPressed: _isLoadingReadyToShip ? null : _markReadyToShip,
+                        icon: _isLoadingReadyToShip
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(Icons.local_shipping, color: Colors.white),
+                        label: Text(
+                          _isLoadingReadyToShip ? 'Memproses...' : 'Tandai Siap Dikirim',
+                          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -2286,8 +2576,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ] else if (canSubmitDelivery) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2298,161 +2593,177 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         color: colorScheme.primary,
                       ),
                     ),
-                    AppSpacing.gapVerticalMD,
+                    const SizedBox(height: 16),
                     _buildGoldTextField(
                       labelText: 'Nama Penerima (Wajib)',
                       controller: _receiverController,
                       prefixIcon: Icons.person_outline,
                     ),
-                    AppSpacing.gapVerticalMD,
-                    if (_imageFile != null) ...[
-                      ClipRRect(
-                        borderRadius: AppSpacing.borderRadiusMD,
-                        child: Image.file(
-                          _imageFile!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+                    const SizedBox(height: 16),
+                    
+                    // Upload Photo Dropzone Style
+                    GestureDetector(
+                      onTap: _takePhoto,
+                      child: Container(
+                        width: double.infinity,
+                        height: _imageFile != null ? 220 : 120,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                            style: BorderStyle.solid,
+                            width: 1.5,
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapVerticalSM,
-                    ],
-                    ElevatedButton.icon(
-                      onPressed: _takePhoto,
-                      icon: Icon(Icons.add_a_photo, color: colorScheme.onSurface),
-                      label: Text(
-                        _imageFile == null
-                            ? 'Unggah Foto Bukti Pengiriman'
-                            : 'Ganti Foto',
-                        style: TextStyle(color: colorScheme.onSurface),
+                        child: _imageFile != null
+                            ? Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      _imageFile!,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                        onPressed: _takePhoto,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo_outlined, color: colorScheme.primary, size: 36),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Unggah Foto Bukti Pengiriman',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Ketuk untuk membuka kamera / galeri',
+                                    style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    AppSpacing.gapVerticalMD,
-                    ElevatedButton(
-                      onPressed: _imageFile == null
-                          ? null
-                          : () {
-                              if (!_isLoadingSubmit) {
-                                if (_receiverController.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Text('Harap isi nama penerima terlebih dahulu.', style: TextStyle(color: Colors.white)),
-                                      backgroundColor: colorScheme.error,
-                                    ),
-                                  );
-                                  return;
-                                }
+                    const SizedBox(height: 20),
+                    
+                    // Submit Button with Premium Gold Gradient Style
+                    Container(
+                      width: double.infinity,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: _imageFile == null ? null : AppColors.primaryGradient,
+                        color: _imageFile == null ? colorScheme.outlineVariant.withValues(alpha: 0.3) : null,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: _imageFile == null ? null : [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _imageFile == null
+                              ? null
+                              : () {
+                                  if (!_isLoadingSubmit) {
+                                    if (_receiverController.text.trim().isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Text('Harap isi nama penerima terlebih dahulu.', style: TextStyle(color: Colors.white)),
+                                          backgroundColor: colorScheme.error,
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('Konfirmasi Pengiriman'),
-                                      content: const Text(
-                                          'Apakah Anda yakin ingin mengirim bukti pengiriman ini? '
-                                          'Status pengiriman akan diubah menjadi "Sudah Dikirim" dan tidak dapat diubah lagi.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('Batal'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            setState(() {
-                                              _selectedStatus = 3;
-                                            });
-                                            _submitDelivery();
-                                          },
-                                          child: const Text('Ya, Kirim'),
-                                        ),
-                                      ],
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          title: const Text('Konfirmasi Pengiriman'),
+                                          content: const Text(
+                                              'Apakah Anda yakin ingin mengirim bukti pengiriman ini? '
+                                              'Status pengiriman akan diubah menjadi "Sudah Dikirim" dan tidak dapat diubah lagi.'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              child: const Text('Batal'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                setState(() {
+                                                  _selectedStatus = 3;
+                                                });
+                                                _submitDelivery();
+                                              },
+                                              child: const Text('Ya, Kirim'),
+                                            ),
+                                          ],
+                                        );
+                                      },
                                     );
-                                  },
-                                );
-                              }
-                            },
-                      child: _isLoadingSubmit
-                          ? CircularProgressIndicator(color: colorScheme.onPrimary)
-                          : Text(
-                              'Kirim Bukti Pengiriman',
-                              style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold),
-                            ),
+                                  }
+                                },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Center(
+                            child: _isLoadingSubmit
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : Text(
+                                    'Kirim Bukti Pengiriman',
+                                    style: textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: _imageFile == null ? colorScheme.onSurfaceVariant : Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
             AppSpacing.gapVerticalMD,
+            
+            // Refund Outlined Action
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: colorScheme.error,
-                side: BorderSide(color: colorScheme.error),
+                side: BorderSide(color: colorScheme.error.withValues(alpha: 0.6)),
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(Icons.assignment_return),
+              icon: const Icon(Icons.assignment_return, size: 20),
               label: const Text('Refund / Kembalikan Order', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () {
-                _showRefundDialog();
-              },
+              onPressed: _showRefundDialog,
             ),
-          ] else ...[
-            Builder(builder: (context) {
-              final isStatusTwo = deliveryStatus == 2;
-              final isStatusSix = deliveryStatus == 6;
-              Color cardColor = const Color(0xFF1F2E35);
-              if (isStatusTwo) {
-                cardColor = const Color(0xFF142B1A);
-              } else if (isStatusSix) {
-                cardColor = const Color(0xFF2C1919);
-              }
-
-              IconData icon = Icons.local_shipping;
-              Color iconColor = colorScheme.primary;
-              Color textColor = colorScheme.primary;
-              String statusText = 'Orderan ini sudah dikirim.';
-
-              if (isStatusTwo) {
-                icon = Icons.check_circle;
-                iconColor = AppColors.success;
-                textColor = AppColors.success;
-                statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
-              } else if (isStatusSix) {
-                icon = Icons.assignment_return;
-                iconColor = Colors.redAccent;
-                textColor = Colors.white;
-                statusText = 'Orderan ini dikembalikan.';
-              }
-
-              return Card(
-                color: cardColor,
-                child: Padding(
-                  padding: AppSpacing.paddingMD,
-                  child: Row(
-                    children: [
-                      Icon(
-                        icon,
-                        color: iconColor,
-                      ),
-                      AppSpacing.gapHorizontalSM,
-                      Expanded(
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            color: textColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
           ],
         ],
       ),
@@ -2523,7 +2834,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
-          Icon(Icons.payment, size: 16, color: colorScheme.primary),
+          Icon(Icons.payment, size: 16, color: AppColors.info),
           AppSpacing.gapHorizontalSM,
           Text('Status Bayar: ', style: textTheme.bodySmall),
           Expanded(
@@ -2533,16 +2844,20 @@ class _DeliveryPageState extends State<DeliveryPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : DropdownButton<String>(
+                : ModernDropdown<String>(
                     value: currentStatus,
-                    isDense: true,
-                    underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: '1', child: Text('Sudah Dibayar')),
-                      DropdownMenuItem(value: '2', child: Text('Valid')),
-                      DropdownMenuItem(value: '3', child: Text('Tidak Valid')),
-                      DropdownMenuItem(value: '4', child: Text('Menunggu Pembayaran')),
-                    ],
+                    labelText: 'Status Bayar',
+                    hint: 'Pilih status bayar...',
+                    items: const ['1', '2', '3', '4'],
+                    getLabel: (value) {
+                      switch (value) {
+                        case '1': return 'Sudah Dibayar';
+                        case '2': return 'Valid';
+                        case '3': return 'Tidak Valid';
+                        case '4': return 'Menunggu Pembayaran';
+                        default: return 'Pilih status';
+                      }
+                    },
                     onChanged: (value) {
                       if (value != null && value != currentStatus) {
                         _updatePaymentStatus(order['id'], value);
@@ -2558,7 +2873,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
   Future<void> _updatePaymentStatus(int orderId, String newStatus) async {
     setState(() => _isUpdatingPaymentStatus = true);
     try {
-      final result = await PresenceService.updatePaymentStatus(
+      final result = await PresenceService().updatePaymentStatus(
         orderId: orderId,
         paymentStatus: newStatus,
       );
@@ -2653,141 +2968,221 @@ class _DeliveryPageState extends State<DeliveryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () {
-              setState(() {
-                _selectedOrder = null;
-                _imageFile = null;
-                _receiverController.clear();
-              });
-            },
-            child: Card(
-              color: colorScheme.surface,
-              child: Padding(
-                padding: AppSpacing.paddingMD,
-                child: Row(
-                  children: [
-                    Icon(Icons.arrow_back_ios,
-                        size: 16, color: colorScheme.primary),
-                    AppSpacing.gapHorizontalSM,
-                    Text(
-                      'Kembali ke Daftar Pengiriman',
-                      style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold, color: colorScheme.primary),
-                    ),
-                  ],
-                ),
+          // Visual Stepper
+          _buildDeliveryStepper(deliveryStatus),
+          AppSpacing.gapVerticalMD,
+
+          // Card 1: Status & Info Transaksi Utama (Digital Pass Style)
+          Card(
+            color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
               ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            widget.orderFor == '1'
+                                ? 'ORDER #${order['id']}'
+                                : 'RESI PENGIRIMAN',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getDeliveryStatusColor(order['delivery_status']).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: _getDeliveryStatusColor(order['delivery_status']).withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              _getDeliveryStatusText(order['delivery_status']),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: _getDeliveryStatusColor(order['delivery_status']),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.orderFor == '1'
+                                  ? 'Order #${order['id']}'
+                                  : 'Resi: ${order['receipt_no'] ?? '-'}',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          if (widget.orderFor != '1' && order['receipt_no'] != null)
+                            IconButton(
+                              icon: Icon(Icons.copy, size: 18, color: AppColors.info),
+                              tooltip: 'Salin Resi',
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: order['receipt_no'].toString()));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Nomor resi disalin ke clipboard'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildDashedLine(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('Toko', order['store_name'] ?? '-'),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Metode Bayar', order['payment_method'] ?? '-'),
+                      const SizedBox(height: 8),
+                      if (_isAdmin)
+                        _buildAdminPaymentStatusField(order)
+                      else
+                        _buildDetailRow('Status Bayar', _getPaymentStatusText(order['payment_status'])),
+                      if (order['bank_name'] != null) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow(
+                          'Rekening Tujuan',
+                          '${order['bank_name']} - ${order['bank_account_number']} (${order['bank_account_name']})',
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Jasa Kirim', order['delivery_service_name'] ?? '-'),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Tanggal Kirim', order['delivery_date'] ?? '-'),
+                      if (isLocked) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Penerima', order['received_by'] ?? '-'),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           AppSpacing.gapVerticalMD,
 
+          // Card 2: Daftar Produk (Compact Itemized List)
           Card(
             color: colorScheme.surface,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
             child: Padding(
-              padding: AppSpacing.paddingMD,
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Text(
-                          widget.orderFor == '1'
-                              ? 'Order #${order['id']}'
-                              : 'Resi: ${order['receipt_no'] ?? '-'}',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _getDeliveryStatusColor(
-                                  order['delivery_status'])
-                              .withValues(alpha: 0.15),
-                          borderRadius: AppSpacing.borderRadiusSM,
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          _getDeliveryStatusText(order['delivery_status']),
-                          style: textTheme.bodySmall?.copyWith(
-                            color: _getDeliveryStatusColor(
-                                order['delivery_status']),
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: const Icon(Icons.inventory_2_outlined, color: Colors.blue, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Rincian Produk',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
                   ),
-                  Divider(
-                      height: 24,
-                      color: colorScheme.onSurface.withValues(alpha: 0.1)),
-                  _buildDetailRow('Toko', order['store_name'] ?? '-'),
-                  if (widget.orderFor == '3')
-                    _buildDetailRow(
-                        'Online Provider', order['provider_name'] ?? '-')
-                  else ...[
-                    _buildDetailRow(
-                        'Metode Bayar', order['payment_method'] ?? '-'),
-                    if (_isAdmin)
-                      _buildAdminPaymentStatusField(order)
-                    else
-                      _buildDetailRow('Status Bayar',
-                          _getPaymentStatusText(order['payment_status'])),
-                    if (order['bank_name'] != null)
-                      _buildDetailRow(
-                        'Rekening Tujuan',
-                        '${order['bank_name']} - ${order['bank_account_number']} (${order['bank_account_name']})',
-                      ),
-                  ],
-                  _buildDetailRow(
-                      'Jasa Kirim', order['delivery_service_name'] ?? '-'),
-                  _buildDetailRow(
-                      'Tanggal Kirim', order['delivery_date'] ?? '-'),
-                  if (isLocked)
-                    _buildDetailRow('Penerima', order['received_by'] ?? '-'),
-                  AppSpacing.gapVerticalMD,
-                  Text(
-                    'Detail Produk:',
-                    style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold, color: colorScheme.primary),
-                  ),
-                  AppSpacing.gapVerticalSM,
-                  if (order['items'] != null &&
-                      (order['items'] as List).isNotEmpty)
-                    ListView.builder(
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  if (order['items'] != null && (order['items'] as List).isNotEmpty)
+                    ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: (order['items'] as List).length,
+                      separatorBuilder: (context, index) => Divider(height: 16, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
                       itemBuilder: (context, index) {
                         final item = order['items'][index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                          child: Row(
-                            children: [
-                              Icon(Icons.circle,
-                                  size: 6, color: colorScheme.primary),
-                              AppSpacing.gapHorizontalSM,
-                              Expanded(
-                                child: Text(
-                                  '${item['product_name']} x ${item['quantity']} ${item['product_unit'] ?? ''}',
-                                  style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant),
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: Text(
+                                '${item['quantity']} ${item['product_unit'] ?? 'pcs'}',
+                                style: textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                item['product_name'] ?? '-',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     )
                   else
-                    Text('Tidak ada rincian produk.',
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Tidak ada rincian produk.',
                         style: textTheme.bodySmall?.copyWith(
-                            color: AppColors.onSurfaceVariant)),
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   if (_isAdmin && !isLocked) ...[
                     AppSpacing.gapVerticalMD,
                     _buildAdminProductEditSection(order),
@@ -2798,30 +3193,36 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ),
           AppSpacing.gapVerticalMD,
 
+          // Card 3: Foto Bukti Pembayaran (jika ada)
           if (order['image_payment_url'] != null) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Icon(Icons.payment, color: colorScheme.primary, size: 18),
-                        AppSpacing.gapHorizontalSM,
+                        const SizedBox(width: 8),
                         Text(
-                          'Foto Bukti Pembayaran',
+                          'Resi',
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalSM,
+                    const SizedBox(height: 12),
                     ClipRRect(
-                      borderRadius: AppSpacing.borderRadiusMD,
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -2838,8 +3239,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.close,
-                                        color: colorScheme.onSurface, size: 30),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -2857,19 +3257,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  height: 100,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  height: 120,
+                                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                                   alignment: Alignment.center,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image,
-                                          color: AppColors.error, size: 36),
-                                      AppSpacing.gapVerticalSM,
+                                      const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                                      const SizedBox(height: 8),
                                       Text(
-                                        'Gagal memuat gambar',
-                                        style: textTheme.bodySmall?.copyWith(
-                                            color: AppColors.onSurfaceVariant),
+                                        'Gagal memuat bukti pembayaran',
+                                        style: textTheme.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -2878,14 +3276,19 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: colorScheme.onSurface.withValues(alpha: 0.54),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                              child: Text(
-                                'Klik untuk memperbesar gambar',
-                                style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
+                              color: Colors.black.withValues(alpha: 0.6),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Ketuk untuk memperbesar gambar',
+                                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -2899,32 +3302,36 @@ class _DeliveryPageState extends State<DeliveryPage> {
             AppSpacing.gapVerticalMD,
           ],
 
-          if (widget.orderFor == '3') _buildStickerPrintButton(order),
-
+          // Card 4: Foto Bukti Pengiriman (jika ada)
           if (order['image_delivery_url'] != null) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Icon(Icons.photo, color: colorScheme.primary, size: 18),
-                        AppSpacing.gapHorizontalSM,
+                        const SizedBox(width: 8),
                         Text(
                           'Foto Bukti Pengiriman',
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalSM,
+                    const SizedBox(height: 12),
                     ClipRRect(
-                      borderRadius: AppSpacing.borderRadiusMD,
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         onTap: () {
                           showDialog(
@@ -2941,8 +3348,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.close,
-                                        color: colorScheme.onSurface, size: 30),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
@@ -2960,19 +3366,17 @@ class _DeliveryPageState extends State<DeliveryPage> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  height: 100,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                                  height: 120,
+                                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                                   alignment: Alignment.center,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image,
-                                          color: AppColors.error, size: 36),
-                                      AppSpacing.gapVerticalSM,
+                                      const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                                      const SizedBox(height: 8),
                                       Text(
-                                        'Gagal memuat gambar',
-                                        style: textTheme.bodySmall?.copyWith(
-                                            color: AppColors.onSurfaceVariant),
+                                        'Gagal memuat bukti pengiriman',
+                                        style: textTheme.bodySmall,
                                       ),
                                     ],
                                   ),
@@ -2981,14 +3385,19 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             ),
                             Container(
                               width: double.infinity,
-                              color: colorScheme.onSurface.withValues(alpha: 0.54),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                              child: Text(
-                                'Klik untuk memperbesar gambar',
-                                style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
+                              color: Colors.black.withValues(alpha: 0.6),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Ketuk untuk memperbesar gambar',
+                                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -3002,19 +3411,24 @@ class _DeliveryPageState extends State<DeliveryPage> {
             AppSpacing.gapVerticalMD,
           ],
 
+          // Card 5: Form Input Pengiriman / Konfirmasi Siap Kirim
           if (canMarkReadyToShip) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: AppColors.warning.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.inventory_2_outlined,
-                            color: AppColors.warning, size: 20),
-                        AppSpacing.gapHorizontalSM,
+                        Icon(Icons.inventory_2_outlined, color: AppColors.warning, size: 20),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Order Belum Siap Dikirim',
@@ -3026,33 +3440,35 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalXS,
+                    const SizedBox(height: 8),
                     Text(
                       'Tandai order ini sebagai siap dikirim sebelum mengunggah bukti pengiriman.',
                       style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
-                    AppSpacing.gapVerticalMD,
-                    ElevatedButton.icon(
-                      onPressed:
-                          _isLoadingReadyToShip ? null : _markReadyToShip,
-                      icon: _isLoadingReadyToShip
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                color: colorScheme.onPrimary,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Icon(Icons.local_shipping,
-                              color: colorScheme.onPrimary),
-                      label: Text(
-                        _isLoadingReadyToShip
-                            ? 'Memproses...'
-                            : 'Tandai Siap Dikirim',
-                          style: textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
                         ),
+                        onPressed: _isLoadingReadyToShip ? null : _markReadyToShip,
+                        icon: _isLoadingReadyToShip
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(Icons.local_shipping, color: Colors.white),
+                        label: Text(
+                          _isLoadingReadyToShip ? 'Memproses...' : 'Tandai Siap Dikirim',
+                          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -3061,21 +3477,24 @@ class _DeliveryPageState extends State<DeliveryPage> {
           ] else if (canSubmitDelivery) ...[
             Card(
               color: colorScheme.surface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
               child: Padding(
-                padding: AppSpacing.paddingMD,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _selectedStatus == 6
-                          ? 'Laporkan Barang Kembali'
-                          : 'Kirim Bukti Pengiriman',
+                      _selectedStatus == 6 ? 'Laporkan Barang Kembali' : 'Kirim Bukti Pengiriman',
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colorScheme.primary,
                       ),
                     ),
-                    AppSpacing.gapVerticalMD,
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -3091,7 +3510,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                             },
                           ),
                         ),
-                        AppSpacing.gapHorizontalSM,
+                        const SizedBox(width: 12),
                         Expanded(
                           child: ChoiceChip(
                             label: const Center(child: Text('Dikembalikan')),
@@ -3107,7 +3526,7 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         ),
                       ],
                     ),
-                    AppSpacing.gapVerticalMD,
+                    const SizedBox(height: 16),
                     if (_selectedStatus == 3)
                       _buildGoldTextField(
                         labelText: 'Nama Penerima (Opsional)',
@@ -3120,107 +3539,119 @@ class _DeliveryPageState extends State<DeliveryPage> {
                         controller: _notesController,
                         prefixIcon: Icons.notes_outlined,
                       ),
-                    AppSpacing.gapVerticalMD,
-                    if (_imageFile != null) ...[
-                      ClipRRect(
-                        borderRadius: AppSpacing.borderRadiusMD,
-                        child: Image.file(
-                          _imageFile!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+                    const SizedBox(height: 16),
+                    
+                    // Upload Photo Dropzone Style
+                    GestureDetector(
+                      onTap: _takePhoto,
+                      child: Container(
+                        width: double.infinity,
+                        height: _imageFile != null ? 220 : 120,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                            style: BorderStyle.solid,
+                            width: 1.5,
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapVerticalSM,
-                    ],
-                    ElevatedButton.icon(
-                      onPressed: _takePhoto,
-                      icon: Icon(Icons.camera_alt, color: colorScheme.onSurface),
-                      label: Text(
-                        _imageFile == null
-                            ? (_selectedStatus == 6
-                                ? 'Ambil Foto Bukti Retur'
-                                : 'Ambil Foto Bukti Pengiriman')
-                            : 'Ambil Ulang Foto',
-                        style: TextStyle(color: colorScheme.onSurface),
+                        child: _imageFile != null
+                            ? Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      _imageFile!,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                        onPressed: _takePhoto,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo_outlined, color: colorScheme.primary, size: 36),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _selectedStatus == 6 ? 'Ambil Foto Bukti Retur' : 'Ambil Foto Bukti Pengiriman',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Ketuk untuk membuka kamera / galeri',
+                                    style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    AppSpacing.gapVerticalMD,
-                    ElevatedButton(
-                      onPressed: _imageFile == null
-                          ? null
-                          : () {
-                              if (!_isLoadingSubmit) {
-                                _submitDelivery();
-                              }
-                            },
-                      child: _isLoadingSubmit
-                          ? CircularProgressIndicator(color: colorScheme.onPrimary)
-                          : Text(
-                              _selectedStatus == 6
-                                  ? 'Laporkan Barang Kembali'
-                                  : 'Kirim Bukti Pengiriman',
-                              style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold),
-                            ),
+                    const SizedBox(height: 20),
+                    
+                    // Submit Button with Premium Gold Gradient Style
+                    Container(
+                      width: double.infinity,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: _imageFile == null ? null : AppColors.primaryGradient,
+                        color: _imageFile == null ? colorScheme.outlineVariant.withValues(alpha: 0.3) : null,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: _imageFile == null ? null : [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _imageFile == null
+                              ? null
+                              : () {
+                                  if (!_isLoadingSubmit) {
+                                    _submitDelivery();
+                                  }
+                                },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Center(
+                            child: _isLoadingSubmit
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : Text(
+                                    _selectedStatus == 6 ? 'Laporkan Barang Kembali' : 'Kirim Bukti Pengiriman',
+                                    style: textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: _imageFile == null ? colorScheme.onSurfaceVariant : Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ] else ...[
-            Builder(builder: (context) {
-              final isStatusTwo = deliveryStatus == 2;
-              final isStatusSix = deliveryStatus == 6;
-              Color cardColor = const Color(0xFF1F2E35);
-              if (isStatusTwo) {
-                cardColor = const Color(0xFF142B1A);
-              } else if (isStatusSix) {
-                cardColor = const Color(0xFF2C1919);
-              }
-
-              IconData icon = Icons.local_shipping;
-              Color iconColor = colorScheme.primary;
-              Color textColor = colorScheme.primary;
-              String statusText = 'Orderan ini sudah dikirim.';
-
-              if (isStatusTwo) {
-                icon = Icons.check_circle;
-                iconColor = AppColors.success;
-                textColor = AppColors.success;
-                statusText = 'Orderan ini sudah divalidasi oleh admin dan tidak dapat diubah lagi.';
-              } else if (isStatusSix) {
-                icon = Icons.assignment_return;
-                iconColor = Colors.redAccent;
-                textColor = Colors.white;
-                statusText = 'Orderan ini dikembalikan.';
-              }
-
-              return Card(
-                color: cardColor,
-                child: Padding(
-                  padding: AppSpacing.paddingMD,
-                  child: Row(
-                    children: [
-                      Icon(
-                        icon,
-                        color: iconColor,
-                      ),
-                      AppSpacing.gapHorizontalSM,
-                      Expanded(
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            color: textColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
           ],
         ],
       ),
@@ -3302,14 +3733,23 @@ class _DeliveryPageState extends State<DeliveryPage> {
                 ),
                 AppSpacing.gapVerticalSM,
                 OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: _isPrintingSticker
                       ? null
                       : () => _printSticker(order),
                   icon: _isPrintingSticker
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: colorScheme.primary,
+                            strokeWidth: 2,
+                          ),
                         )
                       : Icon(
                           thermalReady ? Icons.print : Icons.receipt_outlined,

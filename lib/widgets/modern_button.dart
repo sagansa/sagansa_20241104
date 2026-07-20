@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 
+/// Varian tombol yang konsisten dengan tema Champagne / Obsidian Gold.
+/// - [filled]   : tombol utama (bg charcoal + text gold di light,
+///                bg gold + text charcoal di dark) via colorScheme.
+/// - [outlined] : border + teks mengikuti outlinedButtonTheme.
+/// - [text]     : teks mengikuti textButtonTheme.
+enum ModernButtonVariant { filled, outlined, text }
+
 class ModernButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -8,6 +15,9 @@ class ModernButton extends StatelessWidget {
   final IconData? icon;
   final Color? backgroundColor;
   final Color? foregroundColor;
+  final ModernButtonVariant variant;
+  final bool fullWidth;
+  final double? height;
 
   const ModernButton({
     super.key,
@@ -17,48 +27,95 @@ class ModernButton extends StatelessWidget {
     this.icon,
     this.backgroundColor,
     this.foregroundColor,
+    this.variant = ModernButtonVariant.filled,
+    this.fullWidth = true,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Mengandalkan ElevatedButtonTheme dari ThemeProvider agar tombol
-    // selalu mengikuti tema aktif (light/dark) secara konsisten.
-    return ElevatedButton(
-      onPressed: onPressed == null
-          ? null
-          : () {
-              if (!isLoading) {
-                onPressed!();
-              }
-            },
-      style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 48),
-        padding: AppSpacing.paddingVerticalMD,
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-        textStyle: foregroundColor != null
-            ? TextStyle(color: foregroundColor)
-            : null,
-      ),
-      child: isLoading
-          ? SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: foregroundColor ?? Theme.of(context).colorScheme.onPrimary,
-                strokeWidth: 2.5,
-              ),
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon),
-                  AppSpacing.gapHorizontalSM,
-                ],
-                Text(text),
-              ],
+    final colorScheme = Theme.of(context).colorScheme;
+    // Warna teks efektif: selalu diambil dari foreground tombol (bukan
+    // textTheme) agar tidak terjadi charcoal-on-charcoal. Di light:
+    // gold; di dark: charcoal (onPrimary). Bila override diberikan,
+    // gunakan itu.
+    final resolvedForeground =
+        foregroundColor ?? colorScheme.onPrimary;
+
+    final Widget content = isLoading
+        ? SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              color: resolvedForeground,
+              strokeWidth: 2.5,
             ),
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: resolvedForeground),
+                AppSpacing.gapHorizontalSM,
+              ],
+              Text(
+                text,
+                style: TextStyle(color: resolvedForeground),
+              ),
+            ],
+          );
+
+    final baseStyle = ButtonStyle(
+      minimumSize: WidgetStateProperty.all(
+        Size(fullWidth ? double.infinity : 0, height ?? 48),
+      ),
+      padding: WidgetStateProperty.all(AppSpacing.paddingVerticalMD),
+      backgroundColor: backgroundColor != null
+          ? WidgetStateProperty.all(backgroundColor)
+          : null,
+      foregroundColor:
+          WidgetStateProperty.all(resolvedForeground),
+      textStyle: WidgetStateProperty.all(
+        TextStyle(color: resolvedForeground),
+      ),
     );
+
+    switch (variant) {
+      case ModernButtonVariant.outlined:
+        return OutlinedButton(
+          onPressed: onPressed == null
+              ? null
+              : () {
+                  if (!isLoading) onPressed!();
+                },
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: resolvedForeground),
+          ).merge(baseStyle),
+          child: content,
+        );
+      case ModernButtonVariant.text:
+        return TextButton(
+          onPressed: onPressed == null
+              ? null
+              : () {
+                  if (!isLoading) onPressed!();
+                },
+          style: baseStyle,
+          child: content,
+        );
+      case ModernButtonVariant.filled:
+        return ElevatedButton(
+          onPressed: onPressed == null
+              ? null
+              : () {
+                  if (!isLoading) onPressed!();
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: backgroundColor ?? colorScheme.primary,
+          ).merge(baseStyle),
+          child: content,
+        );
+    }
   }
 }

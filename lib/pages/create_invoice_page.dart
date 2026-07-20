@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
-import '../widgets/supplier_picker_modal.dart';
 import '../widgets/supplier_payment_info_card.dart';
+import '../widgets/supplier_picker_modal.dart';
 
 class CreateInvoicePage extends StatefulWidget {
   final int requestId;
@@ -64,7 +65,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       for (final id in ids) {
         final req = await _procurementService.getRequestDetail(id);
         grouped[id] = req.detailRequests
-            .where((i) => i.status == '4' || i.status == '2')
+            .where((i) => i.statusEnum.isApproved)
             .toList();
       }
       if (mounted) {

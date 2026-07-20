@@ -322,7 +322,7 @@ class _RequestNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final approved = req.detailRequests.any((i) => i.status == '4');
+    final approved = req.detailRequests.any((i) => i.statusEnum.isPartiallyApproved);
     return InkWell(
       onTap: onTap,
       borderRadius: AppSpacing.borderRadiusSM,

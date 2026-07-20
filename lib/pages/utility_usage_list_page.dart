@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+
+import '../../theme/app_colors.dart';
 import '../models/utility_usage_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/utility_usage_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
-import '../widgets/status_badge.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/modern_dropdown.dart';
+import '../widgets/status_badge.dart';
 import 'utility_usage_detail_page.dart';
 import 'utility_usage_form_page.dart';
 
@@ -245,34 +248,26 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Row 1: Store dropdown
-          DropdownButtonFormField<int>(
+          ModernDropdown<int?>(
             value: _selectedStoreId,
-            isExpanded: true,
-            hint: Row(
-              children: [
-                Icon(Icons.store_rounded, size: 20, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Semua Toko', overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-            decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-            items: _stores.map((s) {
-              final sid = s['id'] is int ? s['id'] : int.tryParse(s['id']?.toString() ?? '');
-              return DropdownMenuItem<int>(
-                value: sid,
-                child: Text(s['nickname']?.toString() ?? 'Toko #${s['id']}', overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
+            labelText: 'Toko',
+            hint: 'Semua Toko',
+            prefixIcon: Icon(Icons.store_rounded, size: 20, color: AppColors.info),
+            items: [null, ..._stores.map((s) => s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()))],
+            getLabel: (v) {
+              if (v == null) return 'Semua Toko';
+              final s = _stores.firstWhere((e) => e['id'] == v || e['id'].toString() == v.toString(), orElse: () => {});
+              return s['nickname']?.toString() ?? 'Toko #$v';
+            },
             onChanged: (val) {
               setState(() {
                 _selectedStoreId = val;
-                // Reset dependent filters
                 if (val != null && _selectedCategory != null) {
                   final validCats = _filteredCategories.map((c) => c['id'] as int).toList();
                   if (!validCats.contains(_selectedCategory)) _selectedCategory = null;
                 }
                 if (val != null && _selectedUtilityId != null) {
-                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] : int.tryParse(u['id']?.toString() ?? '')).whereType<int>().toList();
+                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString())).toList();
                   if (!validUtils.contains(_selectedUtilityId)) _selectedUtilityId = null;
                 }
               });
@@ -281,29 +276,23 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
           ),
           const SizedBox(height: 10),
 
-          // Row 2: Category dropdown (dependent on Store)
-          DropdownButtonFormField<int>(
+          // Row 2: Category dropdown
+          ModernDropdown<int?>(
             value: _selectedCategory,
-            isExpanded: true,
-            hint: Row(
-              children: [
-                Icon(Icons.category_rounded, size: 20, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Semua Jenis', overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-            decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-            items: _filteredCategories.map((c) {
-              return DropdownMenuItem<int>(
-                value: c['id'] as int,
-                child: Text(c['label'] as String, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
+            labelText: 'Jenis Utility',
+            hint: 'Semua Jenis',
+            prefixIcon: Icon(Icons.category_rounded, size: 20, color: AppColors.info),
+            items: [null, ..._filteredCategories.map((c) => c['id'] as int)],
+            getLabel: (v) {
+              if (v == null) return 'Semua Jenis';
+              final c = _filteredCategories.firstWhere((e) => e['id'] == v, orElse: () => {});
+              return c['label']?.toString() ?? 'Jenis #$v';
+            },
             onChanged: (val) {
               setState(() {
                 _selectedCategory = val;
                 if (val != null && _selectedUtilityId != null) {
-                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] : int.tryParse(u['id']?.toString() ?? '')).whereType<int>().toList();
+                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString())).toList();
                   if (!validUtils.contains(_selectedUtilityId)) _selectedUtilityId = null;
                 }
               });
@@ -312,35 +301,24 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
           ),
           const SizedBox(height: 10),
 
-          // Row 3: Utility dropdown (dependent on Store & Category)
-          DropdownButtonFormField<int>(
+          // Row 3: Utility dropdown
+          ModernDropdown<int?>(
             value: _selectedUtilityId,
-            isExpanded: true,
-            hint: Row(
-              children: [
-                Icon(Icons.electrical_services_rounded, size: 20, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Semua Utility', overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-            decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-            items: _filteredUtilities.map((u) {
-              final uid = u['id'] is int ? u['id'] : int.tryParse(u['id']?.toString() ?? '');
-              return DropdownMenuItem<int>(
-                value: uid,
-                child: Text(
-                  u['utility_name']?.toString() ?? 'Utility #${u['id']}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
-            onChanged: (_selectedStoreId == null && _selectedCategory == null)
-                ? null
-                : (val) {
-                    setState(() => _selectedUtilityId = val);
-                    _fetch();
-                  },
+            labelText: 'Utility',
+            hint: 'Semua Utility',
+            prefixIcon: Icon(Icons.electrical_services_rounded, size: 20, color: AppColors.info),
+            items: [null, ..._filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString()))],
+            getLabel: (v) {
+              if (v == null) return 'Semua Utility';
+              final u = _filteredUtilities.firstWhere((e) => e['id'] == v || e['id'].toString() == v.toString(), orElse: () => {});
+              return u['name']?.toString() ?? 'Utility #$v';
+            },
+            onChanged: (val) {
+              setState(() => _selectedUtilityId = val);
+              _fetch();
+            },
           ),
+
           if (_hasActiveFilters) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -496,7 +474,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                       children: [
                         Icon(Icons.speed_rounded,
                             size: 13,
-                            color: colorScheme.onSurfaceVariant),
+                            color: AppColors.info),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           resultText,
@@ -508,7 +486,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                           const SizedBox(width: AppSpacing.sm),
                           Icon(Icons.calendar_today_rounded,
                               size: 13,
-                              color: colorScheme.onSurfaceVariant),
+                              color: AppColors.info),
                           const SizedBox(width: AppSpacing.xs),
                           Expanded(
                             child: Text(
@@ -527,7 +505,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                         children: [
                           Icon(Icons.store_rounded,
                               size: 11,
-                              color: colorScheme.onSurfaceVariant),
+                              color: AppColors.info),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             item.storeNickname!,
@@ -545,7 +523,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
               ),
               const SizedBox(width: AppSpacing.sm),
               Icon(Icons.chevron_right_rounded,
-                  color: colorScheme.onSurfaceVariant),
+                  color: AppColors.info),
             ],
           ),
         ),

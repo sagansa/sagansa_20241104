@@ -1,13 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../models/utility_usage_model.dart';
-import '../services/utility_usage_service.dart';
-import '../services/presence_service.dart';
 import '../services/image_upload_service.dart';
-import '../theme/app_spacing.dart';
+import '../services/presence_service.dart';
+import '../services/utility_usage_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
+import '../widgets/modern_dropdown.dart';
 
 class UtilityUsageFormPage extends StatefulWidget {
   final UtilityUsageModel? usage;
@@ -99,7 +102,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
             utilities.where((ut) => ut['id'] == u.utilityId).firstOrNull;
       } else {
         try {
-          final presence = await PresenceService.getUserPresence();
+          final presence = await PresenceService().getUserPresence();
           final presenceData = presence['data'] as Map<String, dynamic>?;
           final today = presenceData?['today'] as Map<String, dynamic>?;
           final clockInStoreId = today?['store_id'];
@@ -406,26 +409,15 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
               color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
-          child: DropdownButtonFormField<Map<String, dynamic>>(
+          child: ModernDropdown<Map<String, dynamic>>(
             value: _selectedStore,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            ),
-            hint: Text(
-              'Pilih toko',
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-            items: _stores.map((s) {
-              return DropdownMenuItem<Map<String, dynamic>>(
-                value: s,
-                child: Text(
-                  s['nickname']?.toString() ?? 'Toko #${s['id']}',
-                ),
-              );
-            }).toList(),
+            labelText: 'Toko',
+            hint: 'Pilih toko...',
+            isRequired: true,
+            prefixIcon: const Icon(Icons.storefront, size: 20),
+            items: _stores,
+            getLabel: (s) => s['nickname']?.toString() ?? 'Toko #${s['id']}',
+            getSubtitle: (s) => s['address']?.toString() ?? '',
             onChanged: (val) => _onStoreChanged(val),
             validator: (v) => v == null ? 'Toko wajib dipilih' : null,
           ),
@@ -588,7 +580,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
                     color: colorScheme.primaryContainer.withValues(alpha: 0.5),
                     borderRadius: AppSpacing.borderRadiusSM,
                   ),
-                  child: Icon(catIcon, size: 22, color: colorScheme.primary),
+                  child: Icon(catIcon, size: 22, color: AppColors.info),
                 ),
                 AppSpacing.gapHorizontalSM,
                 Expanded(
@@ -625,7 +617,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
               child: Row(
                 children: [
                   Icon(Icons.history_rounded,
-                      size: 14, color: colorScheme.onSurfaceVariant),
+                      size: 14, color: AppColors.info),
                   AppSpacing.gapHorizontalXS,
                   Text(
                     'Lalu: ${_formatNumber(prevReading)} $unit',
@@ -730,7 +722,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
         child: Icon(
           hasPhoto ? Icons.check_circle_rounded : Icons.camera_alt_rounded,
           size: 22,
-          color: hasPhoto ? AppColors.success : colorScheme.onSurfaceVariant,
+          color: hasPhoto ? AppColors.success : AppColors.info,
         ),
       ),
     );
@@ -788,7 +780,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
       child: Column(
         children: [
           Icon(Icons.electrical_services_rounded,
-              size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+              size: 48, color: AppColors.info),
           AppSpacing.gapVerticalSM,
           Text(
             'Tidak ada utility terdaftar',
@@ -825,31 +817,16 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
           ),
           child: Column(
             children: [
-              DropdownButtonFormField<Map<String, dynamic>>(
+              ModernDropdown<Map<String, dynamic>>(
                 value: _selectedUtility,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                ),
-                hint: Text(
-                  _selectedStore == null
-                      ? 'Pilih toko dulu'
-                      : 'Pilih utility',
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
-                items: _filteredUtilities.map((u) {
-                  return DropdownMenuItem<Map<String, dynamic>>(
-                    value: u,
-                    child: Text(
-                      '${u['utility_name'] ?? 'Utility #${u['id']}'}${u['unit'] != null ? ' (${u['unit']})' : ''}',
-                    ),
-                  );
-                }).toList(),
-                onChanged: _selectedStore == null
-                    ? null
-                    : (val) => setState(() => _selectedUtility = val),
+                labelText: 'Utility',
+                hint: _selectedStore == null ? 'Pilih toko dulu' : 'Pilih utility...',
+                isRequired: true,
+                enabled: _selectedStore != null,
+                prefixIcon: const Icon(Icons.electrical_services, size: 20),
+                items: _filteredUtilities,
+                getLabel: (u) => '${u['utility_name'] ?? 'Utility #${u['id']}'}${u['unit'] != null ? ' (${u['unit']})' : ''}',
+                onChanged: (val) => setState(() => _selectedUtility = val),
                 validator: (v) => v == null ? 'Utility wajib dipilih' : null,
               ),
             ],
@@ -902,7 +879,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
   Widget _buildSectionHeader(String title, IconData icon, ColorScheme colorScheme) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: colorScheme.primary),
+        Icon(icon, size: 18, color: AppColors.info),
         AppSpacing.gapHorizontalXS,
         Text(
           title.toUpperCase(),

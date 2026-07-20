@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/applicant_detail_model.dart';
+
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_dropdown.dart';
 import 'admin_profile_detail_page.dart';
 
 class AdminProfileListPage extends StatefulWidget {
@@ -150,29 +151,24 @@ class _AdminProfileListPageState extends State<AdminProfileListPage> {
                 ),
               ),
             ),
-            child: DropdownButtonFormField<String?>(
+            child: ModernDropdown<String?>(
               value: _statusFilter,
-              decoration: InputDecoration(
-                labelText: 'Filter Status',
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: const OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem<String?>(value: null, child: Text('Semua')),
-                DropdownMenuItem<String?>(value: 'draft', child: Text('Draft')),
-                DropdownMenuItem<String?>(
-                    value: 'submitted', child: Text('Submitted')),
-                DropdownMenuItem<String?>(
-                    value: 'accepted', child: Text('Diterima')),
-                DropdownMenuItem<String?>(
-                    value: 'reviewed', child: Text('Direview')),
-                DropdownMenuItem<String?>(
-                    value: 'rejected', child: Text('Ditolak')),
-              ],
-              onChanged: (value) {
-                setState(() => _statusFilter = value);
+              labelText: 'Filter Status',
+              hint: 'Semua Status',
+              prefixIcon: const Icon(Icons.filter_alt_outlined, size: 20),
+              items: const [null, 'draft', 'submitted', 'accepted', 'reviewed', 'rejected'],
+              getLabel: (v) {
+                switch (v) {
+                  case 'draft': return 'Draft';
+                  case 'submitted': return 'Submitted';
+                  case 'accepted': return 'Diterima';
+                  case 'reviewed': return 'Direview';
+                  case 'rejected': return 'Ditolak';
+                  default: return 'Semua Status';
+                }
+              },
+              onChanged: (v) {
+                setState(() => _statusFilter = v);
                 _loadData(reset: true);
               },
             ),
@@ -280,7 +276,7 @@ class _AdminProfileListPageState extends State<AdminProfileListPage> {
                     size: 18,
                     color: locked
                         ? colorScheme.error
-                        : colorScheme.onSurfaceVariant,
+                        : AppColors.info,
                   ),
                 ],
               ),

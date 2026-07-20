@@ -1,57 +1,40 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sales_dashboard_model.dart';
-import '../utils/constants.dart';
+import 'api_client.dart';
 
 class SalesDashboardService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.tokenKey);
-  }
+  final ApiClient _api = ApiClient();
 
-  Map<String, String> _headers(String? token) => {
-        'Accept': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
+  static const _endpoint = 'sales-dashboard';
 
-  Uri _buildUri(SalesView view, SalesPeriode periode,
-      {int? page, int? perPage, ProductSort? sort, int? compareYear}) {
-    final qp = <String, String>{
+  Map<String, String> _qp(SalesView view, SalesPeriode periode,
+      {int? page, int? perPage, ProductSort? sort, int? compareYear, String? metric}) {
+    return {
       'periode': periode.apiValue,
       'view': view.name,
       if (page != null) 'page': '$page',
       if (perPage != null) 'per_page': '$perPage',
       if (sort != null) 'sort': sort.name,
       if (compareYear != null) 'compare_year': '$compareYear',
+      if (metric != null) 'metric': metric,
     };
-    return Uri.parse(ApiConstants.salesDashboard).replace(queryParameters: qp);
   }
 
   Future<SalesSummary> getSummary(SalesPeriode periode) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final res = await http.get(
-        _buildUri(SalesView.summary, periode), headers: _headers(token));
-    final body = _parse(res);
-    return SalesSummary.fromJson((body['data'] as Map<String, dynamic>?) ?? {});
+    final data = await _api.get(_endpoint,
+        queryParams: _qp(SalesView.summary, periode));
+    return SalesSummary.fromJson((data as Map<String, dynamic>?) ?? {});
   }
 
-  Future<List<SalesTrendPoint>> getTrend(SalesPeriode periode, {int? compareYear}) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final res = await http.get(
-        _buildUri(SalesView.trend, periode, compareYear: compareYear),
-        headers: _headers(token));
-    final body = _parse(res);
-    final data = (body['data'] as Map<String, dynamic>?) ?? {};
-    final points = (data['points'] as List<dynamic>?)
+  Future<List<SalesTrendPoint>> getTrend(SalesPeriode periode,
+      {int? compareYear, String metric = 'omzet'}) async {
+    final data = await _api.get(_endpoint,
+        queryParams: _qp(SalesView.trend, periode,
+            compareYear: compareYear, metric: metric));
+    final map = (data as Map<String, dynamic>?) ?? {};
+    return (map['points'] as List<dynamic>?)
             ?.map((e) => SalesTrendPoint.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
-    return points;
   }
 
   Future<({List<SalesProductItem> items, SalesProductMeta meta})> getProducts(
@@ -60,53 +43,27 @@ class SalesDashboardService {
     int perPage = 50,
     ProductSort sort = ProductSort.qty,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final res = await http.get(
-        _buildUri(SalesView.products, periode,
-            page: page, perPage: perPage, sort: sort),
-        headers: _headers(token));
-    final body = _parse(res);
-    final data = (body['data'] as Map<String, dynamic>?) ?? {};
-    final items = ((data['items'] as List<dynamic>?) ?? const [])
+    final data = await _api.get(_endpoint,
+        queryParams: _qp(SalesView.products, periode,
+            page: page, perPage: perPage, sort: sort));
+    final map = (data as Map<String, dynamic>?) ?? {};
+    final items = ((map['items'] as List<dynamic>?) ?? const [])
         .map((e) => SalesProductItem.fromJson(e as Map<String, dynamic>))
         .toList();
     final meta = SalesProductMeta.fromJson(
-        (data['meta'] as Map<String, dynamic>?) ?? const {});
+        (map['meta'] as Map<String, dynamic>?) ?? const {});
     return (items: items, meta: meta);
   }
 
   Future<({List<SalesChannelItem> items, int totalOmzet})> getChannels(
       SalesPeriode periode) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final res = await http.get(_buildUri(SalesView.channels, periode),
-        headers: _headers(token));
-    final body = _parse(res);
-    final data = (body['data'] as Map<String, dynamic>?) ?? {};
-    final items = ((data['items'] as List<dynamic>?) ?? const [])
+    final data = await _api.get(_endpoint,
+        queryParams: _qp(SalesView.channels, periode));
+    final map = (data as Map<String, dynamic>?) ?? {};
+    final items = ((map['items'] as List<dynamic>?) ?? const [])
         .map((e) => SalesChannelItem.fromJson(e as Map<String, dynamic>))
         .toList();
-    final total = (data['total_omzet'] as num? ?? 0).toInt();
+    final total = (map['total_omzet'] as num? ?? 0).toInt();
     return (items: items, totalOmzet: total);
-  }
-
-  Map<String, dynamic> _parse(http.Response res) {
-    if (res.statusCode == 200) {
-      final body = json.decode(res.body) as Map<String, dynamic>;
-      if (body['success'] == true) return body;
-      throw Exception(body['message'] ?? 'Gagal memuat data dashboard.');
-    } else if (res.statusCode == 403) {
-      throw Exception('Anda tidak punya akses ke fitur ini.');
-    } else if (res.statusCode == 401) {
-      throw Exception('Sesi berakhir, silakan login kembali.');
-    } else if (res.statusCode == 422) {
-      final body = json.decode(res.body) as Map<String, dynamic>;
-      throw Exception(body['message'] ?? 'Parameter tidak valid.');
-    } else {
-      throw Exception('Gagal memuat data dashboard (${res.statusCode}).');
-    }
   }
 }

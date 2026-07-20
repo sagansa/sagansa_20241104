@@ -19,7 +19,7 @@ class PresenceStatusCard extends StatelessWidget {
       child: Padding(
         padding: AppSpacing.paddingMD,
         child: FutureBuilder<Map<String, dynamic>>(
-          future: PresenceService.getUserPresence(),
+          future: PresenceService().getUserPresence(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());

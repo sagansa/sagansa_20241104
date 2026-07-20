@@ -124,7 +124,7 @@ class DetectionDatabase {
     final db = await database;
 
     String whereClause = 'user_id = ?';
-    List<dynamic> whereArgs = [userId];
+    final List<dynamic> whereArgs = [userId];
 
     if (startDate != null) {
       whereClause += ' AND timestamp >= ?';
@@ -225,7 +225,7 @@ class DetectionDatabase {
     final db = await database;
 
     String whereClause = 'user_id = ?';
-    List<dynamic> whereArgs = [userId];
+    final List<dynamic> whereArgs = [userId];
 
     if (startDate != null) {
       whereClause += ' AND timestamp >= ?';

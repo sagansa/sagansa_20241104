@@ -3,7 +3,7 @@ import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
-import '../../utils/constants.dart';
+import '../widgets/supplier_picker_modal.dart';
 
 class EditInvoicePage extends StatefulWidget {
   final InvoicePurchase invoice;
@@ -77,7 +77,12 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     List<dynamic> suppliers;
     try {
       final list = await supplierService.getSuppliers();
-      suppliers = list.map((s) => {'id': s.id, 'name': s.name}).toList();
+      suppliers = list.map((s) => {
+        'id': s.id,
+        'name': s.name,
+        'address': s.address,
+        'no_telp': s.noTelp,
+      }).toList();
     } catch (_) {
       suppliers = [];
     }
@@ -90,69 +95,17 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       return;
     }
 
-    final result = await _showSupplierSearchDialog(suppliers);
+    final result = await SupplierPickerModal.show(
+      context: context,
+      suppliers: suppliers,
+      selectedSupplierId: _selectedSupplierId,
+    );
     if (result != null) {
       setState(() {
         _selectedSupplierId = result['id'];
         _selectedSupplierName = result['name'];
       });
     }
-  }
-
-  Future<Map<String, dynamic>?> _showSupplierSearchDialog(List<dynamic> suppliers) async {
-    String query = '';
-    return showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final filtered = suppliers.where((s) {
-              if (query.isEmpty) return true;
-              return (s['name'] ?? '').toString().toLowerCase().contains(query.toLowerCase());
-            }).toList();
-
-            return Dialog(
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xxl + AppSpacing.xl,
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: AppSpacing.paddingSM,
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Cari supplier...',
-                        prefixIcon: Icon(Icons.search),
-                        isDense: true,
-                      ),
-                      onChanged: (v) => setDialogState(() => query = v),
-                      autofocus: true,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(child: Text('Tidak ada supplier'))
-                        : ListView.separated(
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (_, i) => ListTile(
-                              title: Text(filtered[i]['name'] ?? ''),
-                              onTap: () => Navigator.pop(ctx, {
-                                'id': filtered[i]['id'],
-                                'name': filtered[i]['name'],
-                              }),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _submit() async {

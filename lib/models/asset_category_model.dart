@@ -26,14 +26,14 @@ class AssetCategoryModel {
           .toList();
     }
     return AssetCategoryModel(
-      id: json['id'],
-      name: json['name'] ?? '',
-      description: json['description'],
+      id: json['id'] as int,
+      name: (json['name'] ?? '') as String,
+      description: json['description'] as String?,
       frequencyDays: json['frequency_days'] is int
-          ? json['frequency_days']
+          ? json['frequency_days'] as int
           : int.tryParse(json['frequency_days']?.toString() ?? '30') ?? 30,
       checklistItems: items,
-      isActive: json['is_active'] ?? true,
+      isActive: (json['is_active'] ?? true) as bool,
     );
   }
 

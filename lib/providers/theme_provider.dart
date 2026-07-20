@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../theme/app_colors.dart';
-import '../theme/app_typography.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const String _themeKey = 'theme_mode';
@@ -51,12 +53,29 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       _isInitialized = true;
+      updateSystemOverlayStyle();
       notifyListeners();
     } catch (e) {
       debugPrint('Error initializing theme: $e');
       _isInitialized = true;
+      updateSystemOverlayStyle();
       notifyListeners();
     }
+  }
+
+  /// Synchronize system UI status bar overlay style (transparent status bar, proper contrast for iOS/Android)
+  void updateSystemOverlayStyle() {
+    final isDark = isDarkMode;
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
   }
 
   @override
@@ -65,6 +84,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
     // Only notify if in system mode so consumers using isDarkMode update
     if (_themeMode == ThemeMode.system) {
+      updateSystemOverlayStyle();
       notifyListeners();
     }
   }
@@ -74,6 +94,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (_themeMode == mode) return;
 
     _themeMode = mode;
+    updateSystemOverlayStyle();
     notifyListeners();
 
     try {
@@ -141,6 +162,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         foregroundColor: AppColors.onSurface,
         elevation: AppElevation.level1,
         shadowColor: AppColors.shadow.withValues(alpha: 0.1),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleTextStyle: AppTypography.titleLarge.copyWith(
           color: AppColors.onSurface,
           fontWeight: FontWeight.w600,
@@ -177,7 +199,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          foregroundColor: AppColors.gold,
           elevation: AppElevation.level1,
           padding:
               AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
@@ -192,7 +214,9 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.outline),
+          side: BorderSide(
+            color: AppColors.primary.withValues(alpha: 0.5),
+          ),
           padding:
               AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
           shape: RoundedRectangleBorder(
@@ -280,7 +304,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
       // Floating action button theme
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
+        foregroundColor: AppColors.gold,
         elevation: AppElevation.level3,
         shape: CircleBorder(),
       ),
@@ -356,6 +380,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         foregroundColor: AppColors.darkOnSurface,
         elevation: AppElevation.level1,
         shadowColor: AppColors.shadow.withValues(alpha: 0.3),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         titleTextStyle: AppTypography.titleLarge.copyWith(
           color: AppColors.darkOnSurface,
           fontWeight: FontWeight.w600,
@@ -396,6 +421,35 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
           elevation: AppElevation.level1,
           padding:
               AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppSpacing.borderRadiusMD,
+          ),
+          textStyle: AppTypography.buttonMedium,
+        ),
+      ),
+
+      // Outlined button theme (dark) - charcoal text/border
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.darkOnSurface,
+          side: BorderSide(
+            color: AppColors.darkOnSurface.withValues(alpha: 0.5),
+          ),
+          padding:
+              AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppSpacing.borderRadiusMD,
+          ),
+          textStyle: AppTypography.buttonMedium,
+        ),
+      ),
+
+      // Text button theme (dark)
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.darkPrimary,
+          padding:
+              AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalMD,
           shape: RoundedRectangleBorder(
             borderRadius: AppSpacing.borderRadiusMD,
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class MenuCard extends StatelessWidget {
@@ -27,7 +28,7 @@ class MenuCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: colorScheme.primary),
+              Icon(icon, size: 48, color: AppColors.info),
               AppSpacing.gapVerticalSM,
               Text(
                 title,

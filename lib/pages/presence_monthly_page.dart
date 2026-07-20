@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_dropdown.dart';
 
 /// Rekap presensi untuk satu periode cut-off gaji bulanan (mis. "Juni 2026"
 /// = presensi 26 Mei – 25 Jun).
@@ -213,7 +214,7 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.primary),
+                    const Icon(Icons.info_outline, color: AppColors.info),
                     AppSpacing.gapHorizontalSM,
                     const Expanded(
                       child: Text(
@@ -259,7 +260,7 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.filter_list, size: 20, color: colorScheme.primary),
+              Icon(Icons.filter_list, size: 20, color: AppColors.info),
               AppSpacing.gapHorizontalSM,
               Text('Filter',
                   style: theme.textTheme.titleSmall
@@ -271,42 +272,39 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             ],
           ),
           AppSpacing.gapVerticalSM,
-          DropdownButtonFormField<int?>(
+          ModernDropdown<int?>(
             value: _selectedUserId,
-            decoration: InputDecoration(
-              labelText: 'Karyawan',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM),
-            ),
-            items: [
-              const DropdownMenuItem<int?>(
-                  value: null, child: Text('Semua Karyawan')),
-              ..._employees.map((emp) => DropdownMenuItem<int?>(
-                    value: _toInt(emp['id']),
-                    child: Text(emp['name']?.toString() ?? '-',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  )),
-            ],
+            labelText: 'Karyawan',
+            hint: 'Semua Karyawan',
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
+            items: [null, ..._employees.map((e) => _toInt(e['id'])).whereType<int>()],
+            getLabel: (v) {
+              if (v == null) return 'Semua Karyawan';
+              final emp = _employees.firstWhere((e) => _toInt(e['id']) == v, orElse: () => {});
+              return emp['name']?.toString() ?? '-';
+            },
             onChanged: (v) {
               setState(() => _selectedUserId = v);
               _loadData();
             },
           ),
           AppSpacing.gapVerticalSM,
-          DropdownButtonFormField<String>(
+          ModernDropdown<String>(
             value: _selectedPeriod,
-            decoration: InputDecoration(
-              labelText: 'Periode (cut-off gaji)',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM),
-            ),
-            items: _buildPeriodItems(),
+            labelText: 'Periode (cut-off gaji)',
+            hint: 'Pilih periode...',
+            prefixIcon: const Icon(Icons.calendar_month, size: 20),
+            items: List.generate(12, (i) {
+              final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+              return '${d.year}-${d.month.toString().padLeft(2, '0')}';
+            }),
+            getLabel: (v) {
+              final parts = v.split('-');
+              final year = int.tryParse(parts[0]) ?? DateTime.now().year;
+              final month = int.tryParse(parts[1]) ?? DateTime.now().month;
+              final d = DateTime(year, month, 1);
+              return DateFormat('MMMM yyyy', 'id_ID').format(d);
+            },
             onChanged: (v) {
               if (v == null) return;
               setState(() => _selectedPeriod = v);

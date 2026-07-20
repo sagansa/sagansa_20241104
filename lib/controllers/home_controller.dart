@@ -41,7 +41,7 @@ class HomeController {
 
   Future<Map<String, dynamic>> loadPresenceData() async {
     try {
-      final data = await PresenceService.getUserPresence();
+      final data = await PresenceService().getUserPresence();
       developer.log('Raw presence data from service: ${json.encode(data)}', name: 'HomeController');
       return data;
     } catch (e) {

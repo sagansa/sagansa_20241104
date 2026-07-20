@@ -1,6 +1,6 @@
+import 'detection_result.dart';
 import 'location_data.dart';
 import 'validation_result.dart';
-import 'detection_result.dart';
 
 /// Log entry untuk audit trail deteksi GPS palsu
 class DetectionLog {

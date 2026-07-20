@@ -1,10 +1,13 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../services/salary_service.dart';
+import '../widgets/modern_dropdown.dart';
 import 'salary_detail_page.dart';
 
 class SalaryPage extends StatefulWidget {
@@ -189,20 +192,21 @@ class _SalaryPageState extends State<SalaryPage> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<int>(
+                ModernDropdown<int>(
                   value: selectedMonth,
-                  decoration: const InputDecoration(labelText: 'Bulan'),
-                  items: List.generate(
-                      12, (i) => DropdownMenuItem(value: i + 1, child: Text(months[i]))),
+                  labelText: 'Bulan',
+                  hint: 'Pilih bulan...',
+                  items: List.generate(12, (i) => i + 1),
+                  getLabel: (i) => months[i - 1],
                   onChanged: (v) => setDialogState(() => selectedMonth = v!),
                 ),
                 AppSpacing.gapVerticalSM,
-                DropdownButtonFormField<int>(
+                ModernDropdown<int>(
                   value: selectedYear,
-                  decoration: const InputDecoration(labelText: 'Tahun'),
-                  items: List.generate(7, (i) => 2024 + i)
-                      .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
-                      .toList(),
+                  labelText: 'Tahun',
+                  hint: 'Pilih tahun...',
+                  items: List.generate(7, (i) => 2024 + i),
+                  getLabel: (y) => '$y',
                   onChanged: (v) => setDialogState(() => selectedYear = v!),
                 ),
               ],
@@ -308,11 +312,14 @@ class _SalaryPageState extends State<SalaryPage> {
   }
 
   Color _getStatusColor(String status, ColorScheme colorScheme) {
+    final bool isDark = colorScheme.brightness == Brightness.dark;
     switch (status) {
       case 'draft':
-        return colorScheme.outline;
+        return isDark
+            ? AppColors.darkOnSurfaceVariant
+            : colorScheme.outline;
       case 'paid':
-        return AppColors.success;
+        return isDark ? AppColors.success : AppColors.success;
       case 'pending':
         return AppColors.warning;
       case 'processing':
@@ -378,7 +385,7 @@ class _SalaryPageState extends State<SalaryPage> {
                   child: Row(
                     children: [
                       Icon(Icons.person_outline,
-                          size: 18, color: colorScheme.primary),
+                          size: 18, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Expanded(
                         child: Text(
@@ -442,7 +449,9 @@ class _SalaryPageState extends State<SalaryPage> {
                     currencyFormatter.format(salary['amount']),
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                      color: colorScheme.brightness == Brightness.dark
+                          ? colorScheme.onSurface
+                          : AppColors.primary,
                     ),
                   ),
                   if (paymentDate != null)
@@ -513,7 +522,7 @@ class _SalaryPageState extends State<SalaryPage> {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.primary),
+                    const Icon(Icons.info_outline, color: AppColors.info),
                     AppSpacing.gapHorizontalSM,
                     Expanded(
                       child: Text(
@@ -565,7 +574,7 @@ class _SalaryPageState extends State<SalaryPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.filter_list, size: 20, color: colorScheme.primary),
+              Icon(Icons.filter_list, size: 20, color: AppColors.info),
               AppSpacing.gapHorizontalSM,
               Text('Filter',
                   style: theme.textTheme.titleSmall
@@ -581,65 +590,64 @@ class _SalaryPageState extends State<SalaryPage> {
             ],
           ),
           AppSpacing.gapVerticalSM,
-          DropdownButtonFormField<int?>(
+          ModernDropdown<int?>(
             value: _selectedUserId,
-            decoration: InputDecoration(
-              labelText: 'Karyawan',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM),
-            ),
-            items: [
-              const DropdownMenuItem<int?>(value: null, child: Text('Semua')),
-              ..._employees.map((emp) => DropdownMenuItem<int?>(
-                    value: emp['id'],
-                    child: Text(emp['name'] ?? '-',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  )),
-            ],
+            labelText: 'Karyawan',
+            hint: 'Semua Karyawan',
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
+            items: [null, ..._employees.map((emp) => emp['id'] as int)],
+            getLabel: (v) {
+              if (v == null) return 'Semua Karyawan';
+              final emp = _employees.firstWhere((e) => e['id'] == v, orElse: () => {});
+              return emp['name']?.toString() ?? '-';
+            },
             onChanged: (value) {
               setState(() => _selectedUserId = value);
               _loadData();
             },
           ),
           AppSpacing.gapVerticalSM,
-          DropdownButtonFormField<String?>(
+          ModernDropdown<String?>(
             value: _selectedPeriod,
-            decoration: InputDecoration(
-              labelText: 'Periode',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM),
-            ),
-            items: _buildPeriodItems(),
+            labelText: 'Periode',
+            hint: 'Semua Periode',
+            prefixIcon: const Icon(Icons.calendar_month, size: 20),
+            items: [
+              null,
+              ...List.generate(12, (i) {
+                final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+                return '${d.year}-${d.month.toString().padLeft(2, '0')}';
+              }),
+            ],
+            getLabel: (v) {
+              if (v == null) return 'Semua Periode';
+              final parts = v.split('-');
+              final year = int.tryParse(parts[0]) ?? DateTime.now().year;
+              final month = int.tryParse(parts[1]) ?? DateTime.now().month;
+              final d = DateTime(year, month, 1);
+              return DateFormat('MMMM yyyy', 'id_ID').format(d);
+            },
             onChanged: (value) {
               setState(() => _selectedPeriod = value);
               _loadData();
             },
           ),
           AppSpacing.gapVerticalSM,
-          DropdownButtonFormField<String?>(
+          ModernDropdown<String?>(
             value: _selectedStatus,
-            decoration: InputDecoration(
-              labelText: 'Status',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM),
-            ),
-            items: const [
-              DropdownMenuItem<String?>(value: null, child: Text('Semua')),
-              DropdownMenuItem<String?>(value: 'draft', child: Text('Draft')),
-              DropdownMenuItem<String?>(
-                  value: 'processing', child: Text('Diproses')),
-              DropdownMenuItem<String?>(
-                  value: 'paid', child: Text('Dibayarkan')),
-            ],
+            labelText: 'Status',
+            hint: 'Semua Status',
+            items: const [null, 'draft', 'pending', 'approved', 'rejected', 'paid'],
+            getLabel: (v) {
+              switch (v) {
+                case 'draft': return 'Draft';
+                case 'pending': return 'Menunggu Persetujuan';
+                case 'approved': return 'Disetujui';
+                case 'rejected': return 'Ditolak';
+                case 'paid': return 'Dibayar';
+                default: return 'Semua Status';
+              }
+            },
             onChanged: (value) {
               setState(() => _selectedStatus = value);
               _loadData();

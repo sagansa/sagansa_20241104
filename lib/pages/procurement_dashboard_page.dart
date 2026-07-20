@@ -1,14 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import 'create_procurement_page.dart';
-import 'procurement_detail_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../../widgets/add_fab.dart';
 import '../../widgets/modern_bottom_nav.dart';
+import 'create_procurement_page.dart';
+import 'procurement_detail_page.dart';
 
 class ProcurementDashboardPage extends StatefulWidget {
   const ProcurementDashboardPage({super.key});
@@ -118,12 +120,12 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
   List<RequestPurchase> _getFilteredRequests(int tabIndex) {
     switch (tabIndex) {
       case 1: // Pending Approval
-        return _requests.where((r) => r.detailRequests.any((item) => item.status == '1')).toList();
+        return _requests.where((r) => r.detailRequests.any((item) => item.statusEnum.isPending)).toList();
       case 2: // Approved
-        return _requests.where((r) => r.detailRequests.any((item) => item.status == '4') && 
-                                      !r.detailRequests.any((item) => item.status == '1')).toList();
+        return _requests.where((r) => r.detailRequests.any((item) => item.statusEnum.isPartiallyApproved) && 
+                                      !r.detailRequests.any((item) => item.statusEnum.isPending)).toList();
       case 3: // Done
-        return _requests.where((r) => r.detailRequests.isNotEmpty && r.detailRequests.every((item) => item.status == '2')).toList();
+        return _requests.where((r) => r.detailRequests.isNotEmpty && r.detailRequests.every((item) => item.statusEnum.isDone)).toList();
       case 4: // Kosong / Tanpa Item
         return _requests.where((r) => r.detailRequests.isEmpty).toList();
       default: // Semua
@@ -202,7 +204,7 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
                             Icon(
                               Icons.shopping_cart_outlined,
                               size: 48,
-                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              color: AppColors.info,
                             ),
                             AppSpacing.gapVerticalMD,
                             Text(

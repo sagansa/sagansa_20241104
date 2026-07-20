@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sagansa/widgets/skeleton_loading.dart';
 import 'package:sagansa/providers/theme_provider.dart';
+import 'package:sagansa/widgets/skeleton_loading.dart';
 
 void main() {
   group('SkeletonLoading Widget Tests', () {

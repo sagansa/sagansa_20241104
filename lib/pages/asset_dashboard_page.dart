@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../controllers/asset_controller.dart';
+import 'package:provider/provider.dart';
+
 import '../models/asset_issue_model.dart';
 import '../models/asset_model.dart';
+import '../providers/asset_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
@@ -9,8 +11,8 @@ import '../widgets/modern_bottom_nav.dart';
 import 'asset_check_form_page.dart';
 import 'asset_detail_page.dart';
 import 'asset_from_product_page.dart';
-import 'asset_list_page.dart';
 import 'asset_issue_page.dart';
+import 'asset_list_page.dart';
 
 /// Dashboard modul Manajemen Aset: ringkasan (dueToday/overdue/dueWeek/
 /// completion/openIssues) + daftar aset yang jatuh tempo hari ini + akses
@@ -23,7 +25,6 @@ class AssetDashboardPage extends StatefulWidget {
 }
 
 class _AssetDashboardPageState extends State<AssetDashboardPage> {
-  late AssetController _controller;
   Map<String, dynamic>? _summary;
   List<AssetModel> _dueToday = [];
   List<AssetIssueModel> _openIssues = [];
@@ -33,7 +34,6 @@ class _AssetDashboardPageState extends State<AssetDashboardPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AssetController(context);
     _loadData();
   }
 
@@ -44,9 +44,9 @@ class _AssetDashboardPageState extends State<AssetDashboardPage> {
       _errorMessage = null;
     });
     try {
-      final summary = await _controller.loadDashboardSummary();
-      final due = await _controller.loadAssets(due: 'today');
-      final issues = await _controller.loadIssues(status: 1);
+      final summary = await context.read<AssetProvider>().loadDashboardSummary();
+      final due = await context.read<AssetProvider>().loadAssets(due: 'today');
+      final issues = await context.read<AssetProvider>().loadIssues(status: 1);
       if (!mounted) return;
       setState(() {
         _summary = summary;
@@ -123,66 +123,43 @@ class _AssetDashboardPageState extends State<AssetDashboardPage> {
 
   Widget _buildSummaryGrid(ThemeData theme, ColorScheme colorScheme) {
     final data = _summary ?? {};
-    return Column(
-      children: [
-        // Baris 1: Due Today + Overdue
-        IntrinsicHeight(
-          child: Row(
-            children: [
-              Expanded(
-                child: _StatTile(
-                  icon: Icons.event_available,
-                  value: data['due_today'] ?? 0,
-                  label: 'Jatuh Tempo Hari Ini',
-                  color: AppColors.warning,
-                  theme: theme,
-                  colorScheme: colorScheme,
-                ),
-              ),
-              AppSpacing.gapHorizontalXS,
-              Expanded(
-                child: _StatTile(
-                  icon: Icons.warning_amber,
-                  value: data['overdue'] ?? 0,
-                  label: 'Terlambat',
-                  color: AppColors.error,
-                  theme: theme,
-                  colorScheme: colorScheme,
-                ),
-              ),
-            ],
+    return IntrinsicHeight(
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatTile(
+              icon: Icons.event_available,
+              value: data['due_today'] ?? 0,
+              label: 'Hari Ini',
+              color: AppColors.warning,
+              theme: theme,
+              colorScheme: colorScheme,
+            ),
           ),
-        ),
-        AppSpacing.gapVerticalXS,
-        // Baris 2: This Week + Open Issues
-        IntrinsicHeight(
-          child: Row(
-            children: [
-              Expanded(
-                child: _StatTile(
-                  icon: Icons.date_range,
-                  value: data['due_this_week'] ?? 0,
-                  label: 'Minggu Ini',
-                  color: AppColors.info,
-                  theme: theme,
-                  colorScheme: colorScheme,
-                ),
-              ),
-              AppSpacing.gapHorizontalXS,
-              Expanded(
-                child: _StatTile(
-                  icon: Icons.report_problem_outlined,
-                  value: data['open_issues'] ?? 0,
-                  label: 'Issue Terbuka',
-                  color: AppColors.secondary,
-                  theme: theme,
-                  colorScheme: colorScheme,
-                ),
-              ),
-            ],
+          AppSpacing.gapHorizontalXS,
+          Expanded(
+            child: _StatTile(
+              icon: Icons.warning_amber,
+              value: data['overdue'] ?? 0,
+              label: 'Terlambat',
+              color: AppColors.error,
+              theme: theme,
+              colorScheme: colorScheme,
+            ),
           ),
-        ),
-      ],
+          AppSpacing.gapHorizontalXS,
+          Expanded(
+            child: _StatTile(
+              icon: Icons.date_range,
+              value: data['due_this_week'] ?? 0,
+              label: 'Minggu Ini',
+              color: AppColors.info,
+              theme: theme,
+              colorScheme: colorScheme,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -631,7 +608,7 @@ class _EmptyHint extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: colorScheme.onSurfaceVariant.withValues(alpha:0.5)),
+          Icon(icon, color: AppColors.info),
           AppSpacing.gapVerticalSM,
           Text(
             text,
@@ -654,6 +631,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Bungkus dengan SingleChildScrollView agar konten yang lebih tinggi dari
+    // area body (mis. saat bottom nav menyita ruang) tidak overflow.
     return Center(
       child: Padding(
         padding: AppSpacing.paddingXL,

@@ -1,72 +1,29 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/asset_category_model.dart';
 import '../models/asset_model.dart';
-import '../utils/constants.dart';
+import 'api_client.dart';
 import 'image_upload_service.dart';
 
 /// Service HTTP untuk modul Asset (CRUD aset + kategori + dashboard summary).
-/// Mengikuti pola StorageStockService: token via SharedPreferences, response
-/// envelope {success, data, message}, lempar Exception berbahasa Indonesia.
+/// Menggunakan ApiClient singleton untuk otorisasi & parsing response envelope.
 class AssetService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.tokenKey);
-  }
-
-  Map<String, String> _authHeaders(String? token) => {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
+  final ApiClient _api = ApiClient();
 
   // ---- Kategori --------------------------------------------------------
 
   Future<List<AssetCategoryModel>> getCategories() async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse(ApiConstants.assetCategories),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        final List data = json['data'] ?? [];
-        return data
-            .map((e) => AssetCategoryModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      throw Exception(json['message'] ?? 'Gagal memuat kategori aset.');
-    }
-    throw Exception('Gagal memuat kategori aset: ${response.statusCode}');
+    final data = await _api.get('asset-categories') as List;
+    return data
+        .map((e) => AssetCategoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ---- Produk ber-flag aset -------------------------------------------
 
   /// Daftar produk yang ditandai sebagai aset (untuk product-picker).
   Future<List<Map<String, dynamic>>> getAssetProducts() async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse(ApiConstants.assetProducts),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        final List data = json['data'] ?? [];
-        return data.cast<Map<String, dynamic>>();
-      }
-      throw Exception(json['message'] ?? 'Gagal memuat daftar produk aset.');
-    }
-    throw Exception(
-        'Gagal memuat daftar produk aset: ${response.statusCode}');
+    final data = await _api.get('asset-products') as List;
+    return data.cast<Map<String, dynamic>>();
   }
 
   // ---- Aset ------------------------------------------------------------
@@ -80,9 +37,6 @@ class AssetService {
     String? due, // 'today' | 'overdue' | 'week'
     String? search,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
     final query = <String, String>{'per_page': '1000'};
     if (storeId != null) query['store_id'] = storeId.toString();
     if (categoryId != null) query['asset_category_id'] = categoryId.toString();
@@ -92,20 +46,10 @@ class AssetService {
     if (due != null) query['due'] = due;
     if (search != null && search.isNotEmpty) query['search'] = search;
 
-    final uri = Uri.parse(ApiConstants.assets).replace(queryParameters: query);
-    final response = await http.get(uri, headers: _authHeaders(token));
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        final List data = json['data'] ?? [];
-        return data
-            .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      throw Exception(json['message'] ?? 'Gagal memuat daftar aset.');
-    }
-    throw Exception('Gagal memuat daftar aset: ${response.statusCode}');
+    final data = await _api.get('assets', queryParams: query) as List;
+    return data
+        .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Map<String, dynamic>> getAssetsPaged({
@@ -119,9 +63,6 @@ class AssetService {
     String? due,
     String? search,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
     final query = <String, String>{
       'page': page.toString(),
       'per_page': perPage.toString(),
@@ -134,88 +75,36 @@ class AssetService {
     if (due != null) query['due'] = due;
     if (search != null && search.isNotEmpty) query['search'] = search;
 
-    final uri = Uri.parse(ApiConstants.assets).replace(queryParameters: query);
-    final response = await http.get(uri, headers: _authHeaders(token));
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        final List data = json['data'] ?? [];
-        final meta = json['pagination'] ?? {};
-        final hasMore =
-            (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
-        return {
-          'data': data
-              .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          'has_more': hasMore,
-        };
-      }
-      throw Exception(json['message'] ?? 'Gagal memuat daftar aset.');
-    }
-    throw Exception('Gagal memuat daftar aset: ${response.statusCode}');
+    final json = await _api.getRaw('assets', queryParams: query);
+    final List data = json['data'] ?? [];
+    final meta = json['pagination'] ?? {};
+    final hasMore =
+        (meta['current_page'] ?? 1) < (meta['last_page'] ?? 1);
+    return {
+      'data': data
+          .map((e) => AssetModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      'has_more': hasMore,
+    };
   }
 
   Future<AssetModel> getAsset(int id) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse('${ApiConstants.assets}/$id'),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        return AssetModel.fromJson(json['data']);
-      }
-      throw Exception(json['message'] ?? 'Data aset tidak ditemukan.');
-    }
-    if (response.statusCode == 404) {
-      throw Exception('Aset tidak ditemukan.');
-    }
-    throw Exception('Gagal memuat detail aset: ${response.statusCode}');
+    final data = await _api.get('assets/$id');
+    return AssetModel.fromJson(data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> getDashboardSummary() async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.get(
-      Uri.parse(ApiConstants.assetDashboard),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        return json['data'] as Map<String, dynamic>;
-      }
-      throw Exception(json['message'] ?? 'Gagal memuat ringkasan dashboard.');
-    }
-    throw Exception('Gagal memuat ringkasan dashboard: ${response.statusCode}');
+    final data = await _api.get('assets/dashboard');
+    return data as Map<String, dynamic>;
   }
 
   /// Ambil store_id dari presence hari ini untuk user login. Dipakai sebagai
   /// default filter awal di Flutter (khususnya untuk staff yang hanya bisa
   /// check aset di store presence-nya). Null bila belum check-in.
   Future<int?> getCurrentStoreId() async {
-    final token = await _getToken();
-    if (token == null) return null;
-
     try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.assetCurrentStore),
-        headers: _authHeaders(token),
-      );
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        if (json['success'] == true) {
-          return json['data']?['store_id'] as int?;
-        }
-      }
-      return null;
+      final data = await _api.get('assets/current-store');
+      return (data as Map<String, dynamic>?)?['store_id'] as int?;
     } catch (_) {
       return null;
     }
@@ -229,29 +118,11 @@ class AssetService {
     required int storeId,
     required int qty,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.post(
-      Uri.parse(ApiConstants.assetFromProduct),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'product_id': productId,
-        'store_id': storeId,
-        'qty': qty,
-      }),
-    );
-
-    final json = jsonDecode(response.body);
-    if ((response.statusCode == 200 || response.statusCode == 201) &&
-        json['success'] == true) {
-      return;
-    }
-    throw Exception(json['message'] ?? 'Gagal membuat aset dari produk.');
+    await _api.post('assets/from-product', body: {
+      'product_id': productId,
+      'store_id': storeId,
+      'qty': qty,
+    });
   }
 
   /// Catat aset manual (multipart karena ada field photo opsional).
@@ -269,42 +140,25 @@ class AssetService {
     String? notes,
     File? photo,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse(ApiConstants.assets),
-    );
-    request.headers.addAll({
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    });
-    request.fields['name'] = name;
-    if (code != null && code.isNotEmpty) request.fields['code'] = code;
-    request.fields['asset_category_id'] = assetCategoryId.toString();
-    request.fields['store_id'] = storeId.toString();
-    if (productId != null) request.fields['product_id'] = productId.toString();
-    if (condition != null) request.fields['condition'] = condition.toString();
-    if (status != null) request.fields['status'] = status.toString();
-    if (purchaseDate != null) request.fields['purchase_date'] = purchaseDate;
-    if (nextCheckAt != null) request.fields['next_check_at'] = nextCheckAt;
-    if (notes != null) request.fields['notes'] = notes;
+    final fields = <String, String>{
+      'name': name,
+      'asset_category_id': assetCategoryId.toString(),
+      'store_id': storeId.toString(),
+    };
+    if (code != null && code.isNotEmpty) fields['code'] = code;
+    if (productId != null) fields['product_id'] = productId.toString();
+    if (condition != null) fields['condition'] = condition.toString();
+    if (status != null) fields['status'] = status.toString();
+    if (purchaseDate != null) fields['purchase_date'] = purchaseDate;
+    if (nextCheckAt != null) fields['next_check_at'] = nextCheckAt;
+    if (notes != null) fields['notes'] = notes;
     if (photo != null) {
       final path = await ImageUploadService.upload(photo, directory: 'images/Asset');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
-      request.fields['photo'] = path;
+      fields['photo'] = path;
     }
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-    final json = jsonDecode(response.body);
-
-    if ((response.statusCode == 200 || response.statusCode == 201) &&
-        json['success'] == true) {
-      return;
-    }
-    throw Exception(json['message'] ?? 'Gagal menyimpan aset.');
+    await _api.multipart(method: 'POST', path: 'assets', fields: fields);
   }
 
   Future<void> updateAsset(
@@ -321,56 +175,29 @@ class AssetService {
     String? notes,
     File? photo,
   }) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiConstants.assets}/$id'),
-    );
-    request.headers.addAll({
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    });
-    if (name != null) request.fields['name'] = name;
-    if (code != null) request.fields['code'] = code;
+    final fields = <String, String>{};
+    if (name != null) fields['name'] = name;
+    if (code != null) fields['code'] = code;
     if (assetCategoryId != null) {
-      request.fields['asset_category_id'] = assetCategoryId.toString();
+      fields['asset_category_id'] = assetCategoryId.toString();
     }
-    if (storeId != null) request.fields['store_id'] = storeId.toString();
-    if (productId != null) request.fields['product_id'] = productId.toString();
-    if (condition != null) request.fields['condition'] = condition.toString();
-    if (status != null) request.fields['status'] = status.toString();
-    if (purchaseDate != null) request.fields['purchase_date'] = purchaseDate;
-    if (nextCheckAt != null) request.fields['next_check_at'] = nextCheckAt;
-    if (notes != null) request.fields['notes'] = notes;
+    if (storeId != null) fields['store_id'] = storeId.toString();
+    if (productId != null) fields['product_id'] = productId.toString();
+    if (condition != null) fields['condition'] = condition.toString();
+    if (status != null) fields['status'] = status.toString();
+    if (purchaseDate != null) fields['purchase_date'] = purchaseDate;
+    if (nextCheckAt != null) fields['next_check_at'] = nextCheckAt;
+    if (notes != null) fields['notes'] = notes;
     if (photo != null) {
       final path = await ImageUploadService.upload(photo, directory: 'images/Asset');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
-      request.fields['photo'] = path;
+      fields['photo'] = path;
     }
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-    final json = jsonDecode(response.body);
-
-    if (response.statusCode == 200 && json['success'] == true) {
-      return;
-    }
-    throw Exception(json['message'] ?? 'Gagal memperbarui aset.');
+    await _api.multipart(method: 'POST', path: 'assets/$id', fields: fields);
   }
 
   Future<void> deleteAsset(int id) async {
-    final token = await _getToken();
-    if (token == null) throw Exception('Tidak ada token autentikasi.');
-
-    final response = await http.delete(
-      Uri.parse('${ApiConstants.assets}/$id'),
-      headers: _authHeaders(token),
-    );
-
-    final json = jsonDecode(response.body);
-    if (response.statusCode == 200 && json['success'] == true) return;
-    throw Exception(json['message'] ?? 'Gagal menghapus aset.');
+    await _api.delete('assets/$id');
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 /// Thumbnail 56×56 yang reusable untuk kartu list.
@@ -70,7 +71,7 @@ class ListThumbnail extends StatelessWidget {
       child: Icon(
         placeholderIcon,
         size: size * 0.5,
-        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+        color: AppColors.info,
       ),
     );
   }

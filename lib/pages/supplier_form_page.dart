@@ -1,13 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../utils/image_utils.dart';
+
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
+import '../utils/image_utils.dart';
+import '../widgets/modern_dropdown.dart';
 
 class SupplierFormPage extends StatefulWidget {
   final SupplierModel? supplier;
@@ -882,44 +885,16 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
                         fontSize: 14)),
               ],
             )
-          : DropdownButtonFormField<T>(
-              initialValue: value,
-              isExpanded: true,
-              hint: Row(
-                children: [
-                  Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(hint,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 14)),
-                  ),
-                ],
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem<T>(
-                  value: item,
-                  child: Row(
-                    children: [
-                      Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(itemLabel(item),
-                            overflow: TextOverflow.ellipsis, maxLines: 1),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+          : ModernDropdown<T>(
+              value: value,
+              labelText: label,
+              hint: hint,
+              isRequired: isRequired,
+              prefixIcon: Icon(icon, size: 20, color: AppColors.info),
+              items: items,
+              getLabel: itemLabel,
               onChanged: onChanged,
-              validator: isRequired
-                  ? (v) => v == null ? '$label wajib dipilih' : null
-                  : null,
+              validator: isRequired ? (v) => v == null ? '$label wajib dipilih' : null : null,
             ),
     );
   }

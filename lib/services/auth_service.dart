@@ -1,51 +1,39 @@
-import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../utils/constants.dart';
+import 'api_client.dart';
 import 'location_tracking_service.dart';
 
 class AuthService {
   static const List<String> allowedRoles = ['admin', 'staff', 'supervisor', 'storage-staff'];
 
+  final ApiClient _api = ApiClient();
+
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.login),
-        headers: ApiConstants.headers(null),
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      );
+      final userData = await _api.post('login', body: {
+        'email': email,
+        'password': password,
+      });
 
-      final responseData = json.decode(response.body);
+      final userRoles = List<String>.from(userData['user']['roles']);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        final userData = responseData['data'];
-        final userRoles = List<String>.from(userData['user']['roles']);
+      final hasAllowedRole =
+          userRoles.any((role) => allowedRoles.contains(role));
 
-        final hasAllowedRole =
-            userRoles.any((role) => allowedRoles.contains(role));
-
-        if (hasAllowedRole) {
-          await _saveUserData(userData);
-          // Mulai pelacakan lokasi: daftar FCM token + periodic ~2 jam.
-          // Fire-and-forget; kegagalan tidak boleh memblok login.
-          LocationTrackingService.instance.onLogin();
-          return {'success': true, 'message': 'Login successful'};
-        } else {
-          return {
-            'success': false,
-            'message': 'Anda tidak memiliki akses ke aplikasi ini'
-          };
-        }
+      if (hasAllowedRole) {
+        await _saveUserData(userData);
+        LocationTrackingService.instance.onLogin();
+        return {'success': true, 'message': 'Login successful'};
+      } else {
+        return {
+          'success': false,
+          'message': 'Anda tidak memiliki akses ke aplikasi ini'
+        };
       }
-
-      return {
-        'success': false,
-        'message': responseData['message'] ?? 'Login gagal'
-      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -105,18 +93,6 @@ class AuthService {
     }
 
     return false;
-  }
-
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tokenType = prefs.getString('token_type');
-    final accessToken = prefs.getString('token');
-
-    if (tokenType != null && accessToken != null) {
-      return '$tokenType $accessToken';
-    }
-
-    return null;
   }
 
   Future<void> logout() async {

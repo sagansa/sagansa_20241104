@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/transfer_stock_model.dart';
+
 import '../models/store_model.dart';
-import '../services/transfer_stock_service.dart';
+import '../models/transfer_stock_model.dart';
 import '../services/store_service.dart';
+import '../services/transfer_stock_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_dropdown.dart';
 
 class CreateTransferStockPage extends StatefulWidget {
   const CreateTransferStockPage({super.key});
@@ -244,41 +246,35 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                           child: ListView(
                             padding: AppSpacing.paddingMD,
                             children: [
-                              DropdownButtonFormField<StoreModel>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Toko Asal',
-                                  prefixIcon: Icon(Icons.storefront),
-                                ),
-                                initialValue: _selectedFromStore,
+                              ModernDropdown<StoreModel>(
+                                labelText: 'Toko Asal',
+                                hint: 'Pilih toko asal...',
+                                prefixIcon: const Icon(Icons.storefront, size: 20),
+                                value: _selectedFromStore,
                                 items: _stores
                                     .where((s) =>
                                         _selectedToStore == null ||
                                         s.id != _selectedToStore!.id)
-                                    .map((s) => DropdownMenuItem(
-                                          value: s,
-                                          child: Text(s.nickname),
-                                        ))
                                     .toList(),
+                                getLabel: (s) => s.nickname,
+                                getSubtitle: (s) => '',
                                 onChanged: (val) {
                                   setState(() => _selectedFromStore = val);
                                 },
                               ),
                               AppSpacing.gapVerticalMD,
-                              DropdownButtonFormField<StoreModel>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Toko Tujuan',
-                                  prefixIcon: Icon(Icons.store),
-                                ),
-                                initialValue: _selectedToStore,
+                              ModernDropdown<StoreModel>(
+                                labelText: 'Toko Tujuan',
+                                hint: 'Pilih toko tujuan...',
+                                prefixIcon: const Icon(Icons.store, size: 20),
+                                value: _selectedToStore,
                                 items: _stores
                                     .where((s) =>
                                         _selectedFromStore == null ||
                                         s.id != _selectedFromStore!.id)
-                                    .map((s) => DropdownMenuItem(
-                                          value: s,
-                                          child: Text(s.nickname),
-                                        ))
                                     .toList(),
+                                getLabel: (s) => s.nickname,
+                                getSubtitle: (s) => '',
                                 onChanged: (val) {
                                   setState(() => _selectedToStore = val);
                                 },
@@ -297,42 +293,49 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                 ),
                               ),
                               AppSpacing.gapVerticalMD,
-                              DropdownButtonFormField<int>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Pengirim',
-                                  prefixIcon: Icon(Icons.person_outline),
-                                ),
-                                value: _selectedSender?['id'],
+                              ModernDropdown<int>(
+                                labelText: 'Pengirim',
+                                hint: 'Pilih pengirim...',
+                                prefixIcon: const Icon(Icons.person_outline, size: 20),
+                                value: _selectedSender?['id'] is int
+                                    ? _selectedSender!['id']
+                                    : int.tryParse(_selectedSender?['id']?.toString() ?? ''),
                                 items: _users
-                                    .map<DropdownMenuItem<int>>((u) => DropdownMenuItem<int>(
-                                          value: u['id'] is int ? u['id'] : int.parse(u['id'].toString()),
-                                          child: Text(u['name'] ?? ''),
-                                        ))
+                                    .map<int>((u) => u['id'] is int
+                                        ? u['id']
+                                        : int.parse(u['id'].toString()))
                                     .toList(),
+                                getLabel: (val) {
+                                  final u = _users.firstWhere((e) => e['id'] == val, orElse: () => {});
+                                  return u['name']?.toString() ?? '';
+                                },
                                 onChanged: (val) {
                                   if (val == null) return;
                                   setState(() => _selectedSender =
-                                      _users.firstWhere(
-                                          (u) => u['id'] == val));
+                                      _users.firstWhere((u) => u['id'] == val));
                                 },
                               ),
                               AppSpacing.gapVerticalMD,
-                              DropdownButtonFormField<int>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Penerima',
-                                  prefixIcon: Icon(Icons.person),
-                                ),
-                                value: _selectedReceiver?['id'],
+                              ModernDropdown<int>(
+                                labelText: 'Penerima',
+                                hint: 'Pilih penerima...',
+                                prefixIcon: const Icon(Icons.person, size: 20),
+                                value: _selectedReceiver?['id'] is int
+                                    ? _selectedReceiver!['id']
+                                    : int.tryParse(_selectedReceiver?['id']?.toString() ?? ''),
                                 items: _users
-                                    .map<DropdownMenuItem<int>>((u) => DropdownMenuItem<int>(
-                                          value: u['id'] is int ? u['id'] : int.parse(u['id'].toString()),
-                                          child: Text(u['name'] ?? ''),
-                                        ))
+                                    .map<int>((u) => u['id'] is int
+                                        ? u['id']
+                                        : int.parse(u['id'].toString()))
                                     .toList(),
+                                getLabel: (val) {
+                                  final u = _users.firstWhere((e) => e['id'] == val, orElse: () => {});
+                                  return u['name']?.toString() ?? '';
+                                },
                                 onChanged: (val) {
+                                  if (val == null) return;
                                   setState(() => _selectedReceiver =
-                                      _users.firstWhere(
-                                          (u) => u['id'] == val));
+                                      _users.firstWhere((u) => u['id'] == val));
                                 },
                               ),
                               AppSpacing.gapVerticalMD,
@@ -389,39 +392,26 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                           children: [
                                             Expanded(
                                               flex: 3,
-                                              child: DropdownButtonFormField<int>(
-                                                decoration: const InputDecoration(
-                                                  labelText: 'Produk',
-                                                  isDense: true,
-                                                ),
-                                                initialValue: item['product_id'],
-                                                items: _products
-                                                    .map((p) =>
-                                                        DropdownMenuItem(
-                                                          value: p.id,
-                                                          child: Text(
-                                                              p.name,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis),
-                                                        ))
-                                                    .toList(),
+                                              child: ModernDropdown<int>(
+                                                labelText: 'Produk',
+                                                hint: 'Pilih produk...',
+                                                value: item['product_id'] as int?,
+                                                items: _products.map((p) => p.id).toList(),
+                                                getLabel: (val) {
+                                                  final p = _products.firstWhere((e) => e.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
+                                                  return p.name;
+                                                },
+                                                getSubtitle: (val) {
+                                                  final p = _products.firstWhere((e) => e.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
+                                                  return p.unitName;
+                                                },
                                                 onChanged: (val) {
-                                                  final product =
-                                                      _products.firstWhere(
-                                                    (p) => p.id == val,
-                                                    orElse: () =>
-                                                        TransferStockProduct(
-                                                            id: 0,
-                                                            name: '',
-                                                            unitName: ''),
-                                                  );
+                                                  if (val == null) return;
+                                                  final product = _products.firstWhere((p) => p.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
                                                   setState(() {
                                                     item['product_id'] = val;
-                                                    item['productName'] =
-                                                        product.name;
-                                                    item['unitName'] =
-                                                        product.unitName;
+                                                    item['productName'] = product.name;
+                                                    item['unitName'] = product.unitName;
                                                   });
                                                 },
                                               ),

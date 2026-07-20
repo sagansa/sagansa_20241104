@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../theme/app_colors.dart';
 import '../models/utility_usage_model.dart';
-import '../services/utility_usage_service.dart';
 import '../services/presence_service.dart';
+import '../services/utility_usage_service.dart';
 import '../theme/app_spacing.dart';
-import '../widgets/status_badge.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/status_badge.dart';
 import 'utility_usage_form_page.dart';
 
 class UtilityUsageDetailPage extends StatefulWidget {
@@ -40,7 +42,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
   }
 
   Future<void> _checkClockIn() async {
-    final clockedIn = await PresenceService.isClockedIn();
+    final clockedIn = await PresenceService().isClockedIn();
     if (!mounted) return;
     setState(() => _isClockedIn = clockedIn);
   }
@@ -340,7 +342,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
+                Icon(icon, size: 18, color: AppColors.info),
                 const SizedBox(width: AppSpacing.sectionGap),
                 Flexible(
                   child: Column(
@@ -369,7 +371,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.sm),
                   Icon(Icons.copy_rounded,
-                      size: 14, color: colorScheme.onSurfaceVariant),
+                      size: 14, color: AppColors.info),
                 ],
               ],
             ),

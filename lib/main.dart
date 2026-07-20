@@ -1,21 +1,28 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../pages/login_page.dart';
-import '../pages/home_page.dart';
-import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 // ignore: depend_on_referenced_packages
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'providers/theme_provider.dart';
-import 'providers/printer_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_localizations/syncfusion_localizations.dart';
+
+import '../pages/home_page.dart';
+import '../pages/login_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/fuel_service_payment_provider.dart';
+import 'providers/home_dashboard_provider.dart';
+import 'providers/printer_provider.dart';
+import 'providers/theme_provider.dart';
+import 'services/asset_service.dart';
+import 'services/inventory_anomaly_service.dart';
 import 'services/location_tracking_service.dart';
+import 'services/procurement_service.dart';
+import 'services/sales_dashboard_service.dart';
 import 'theme/app_colors.dart';
 
 // Custom error widget to show instead of the default red screen
@@ -146,12 +153,8 @@ void main() {
     // Tahan splash native sampai kita lepas secara eksplisit (1 detik).
     FlutterNativeSplash.preserve(widgetsBinding: WidgetsFlutterBinding.ensureInitialized());
 
-    // Set up global error handling
-    ErrorWidget.builder = (FlutterErrorDetails details) {
-      return CustomErrorWidget(errorDetails: details);
-    };
-
-    // Set up global error handling
+    // Set up global error handler untuk menampilkan CustomErrorWidget
+    // alih-alih red screen default di release build.
     ErrorWidget.builder = (FlutterErrorDetails details) {
       return CustomErrorWidget(errorDetails: details);
     };
@@ -226,6 +229,14 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
         ChangeNotifierProvider<FuelServicePaymentProvider>.value(
             value: _fuelServicePaymentProvider),
+        ChangeNotifierProvider<HomeDashboardProvider>(
+          create: (_) => HomeDashboardProvider(
+            procurementService: ProcurementService(),
+            assetService: AssetService(),
+            salesDashboardService: SalesDashboardService(),
+            anomalyService: InventoryAnomalyService(),
+          ),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import 'package:intl/intl.dart';
 
 class LoanPage extends StatefulWidget {
   const LoanPage({super.key});
@@ -106,7 +107,7 @@ class _LoanPageState extends State<LoanPage> {
                           Icon(
                             Icons.payments_outlined,
                             size: 48,
-                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            color: AppColors.info,
                           ),
                           AppSpacing.gapVerticalMD,
                           Text(

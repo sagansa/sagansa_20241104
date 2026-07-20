@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+
 import '../services/image_service.dart';
+import '../theme/app_colors.dart';
 
 class PresenceModel {
   final String store;

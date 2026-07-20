@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:sagansa/pages/login_page.dart';
 import 'package:sagansa/providers/auth_provider.dart';
 import 'package:sagansa/providers/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('LoginPage Widget Tests', () {
@@ -11,6 +12,7 @@ void main() {
     late ThemeProvider mockThemeProvider;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       mockAuthProvider = AuthProvider();
       mockThemeProvider = ThemeProvider();
     });
@@ -35,7 +37,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check if login form elements are present
-      expect(find.text('Login'), findsOneWidget);
+      expect(find.text('Login'), findsAtLeastNWidgets(1));
       expect(find.byKey(const Key('email_field')), findsOneWidget);
       expect(find.byKey(const Key('password_field')), findsOneWidget);
       expect(find.text('Lupa Password?'), findsOneWidget);
@@ -71,7 +73,7 @@ void main() {
           find.byKey(const Key('password_field')), 'wrongpassword');
 
       // Tap login button
-      await tester.tap(find.text('Login'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
       await tester.pump();
 
       // Wait for login attempt to complete
@@ -79,7 +81,7 @@ void main() {
 
       // Check if error message appears (this will depend on the actual API response)
       // For now, we just verify the form is still present
-      expect(find.text('Login'), findsOneWidget);
+      expect(find.text('Login'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('should toggle password visibility',

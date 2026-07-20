@@ -1,11 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
 import '../services/closing_store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/modern_dropdown.dart';
+import 'create_payment_receipt_page.dart';
 
 class DailySalaryListPage extends StatefulWidget {
   const DailySalaryListPage({super.key});
@@ -235,20 +239,25 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
       return;
     }
 
-    // TODO: CreatePaymentReceiptPage sekarang hanya untuk invoice procurement.
-    // Pembayaran daily salary perlu halaman terpisah atau langsung call
-    // ClosingStoreService.createPaymentReceipt dengan payment_for=2.
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-            'Pembayaran gaji harian dipindah ke halaman terpisah (coming soon).'),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreatePaymentReceiptPage(
+          dailySalaries:
+              selectedSalaries.map((s) => s as Map<String, dynamic>).toList(),
+        ),
       ),
     );
+
     setState(() {
       _isSelectionMode = false;
       _selectedIds.clear();
     });
+
+    if (result == true && mounted) {
+      await _loadData();
+    }
   }
 
   void _toggleSelectionMode() {
@@ -441,28 +450,17 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
           ),
           AppSpacing.gapVerticalSM,
           // Row 1: Employee
-          DropdownButtonFormField<int?>(
+          ModernDropdown<int?>(
             value: _selectedUserId,
-            decoration: InputDecoration(
-              labelText: 'Karyawan',
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                borderRadius: AppSpacing.borderRadiusSM,
-              ),
-            ),
-            items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('Semua'),
-              ),
-              ..._employees.map((emp) => DropdownMenuItem<int?>(
-                    value: emp['id'],
-                    child: Text(emp['name'] ?? '-',
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  )),
-            ],
+            labelText: 'Karyawan',
+            hint: 'Semua Karyawan',
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
+            items: [null, ..._employees.map((emp) => emp['id'] as int)],
+            getLabel: (v) {
+              if (v == null) return 'Semua Karyawan';
+              final emp = _employees.firstWhere((e) => e['id'] == v, orElse: () => {});
+              return emp['name']?.toString() ?? '-';
+            },
             onChanged: (value) {
               setState(() => _selectedUserId = value);
               _applyFilters();
@@ -473,28 +471,12 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String?>(
+                child: ModernDropdown<String?>(
                   value: _selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSM,
-                    ),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Semua'),
-                    ),
-                    ..._statusOptions.entries.map((entry) =>
-                        DropdownMenuItem<String?>(
-                          value: entry.key,
-                          child: Text(entry.value),
-                        )),
-                  ],
+                  labelText: 'Status',
+                  hint: 'Semua Status',
+                  items: [null, ..._statusOptions.keys],
+                  getLabel: (v) => v == null ? 'Semua Status' : (_statusOptions[v] ?? v),
                   onChanged: (value) {
                     setState(() => _selectedStatus = value);
                     _applyFilters();
@@ -503,28 +485,12 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
               ),
               AppSpacing.gapHorizontalSM,
               Expanded(
-                child: DropdownButtonFormField<int?>(
+                child: ModernDropdown<int?>(
                   value: _selectedPaymentType,
-                  decoration: InputDecoration(
-                    labelText: 'Pembayaran',
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSM,
-                    ),
-                  ),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('Semua'),
-                    ),
-                    ..._paymentTypeOptions.entries.map((entry) =>
-                        DropdownMenuItem<int?>(
-                          value: entry.key,
-                          child: Text(entry.value),
-                        )),
-                  ],
+                  labelText: 'Pembayaran',
+                  hint: 'Semua',
+                  items: [null, ..._paymentTypeOptions.keys],
+                  getLabel: (v) => v == null ? 'Semua Pembayaran' : (_paymentTypeOptions[v] ?? 'Tipe #$v'),
                   onChanged: (value) {
                     setState(() => _selectedPaymentType = value);
                     _applyFilters();
@@ -662,7 +628,7 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
           statusColor = AppColors.onSurfaceVariant;
         }
 
-        String paymentTypeText =
+        final String paymentTypeText =
             paymentType == 1 || paymentType == '1' ? 'Transfer' : 'Tunai';
 
         final isSelected = _selectedIds.contains(salaryId);

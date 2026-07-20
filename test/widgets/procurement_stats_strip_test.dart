@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sagansa/widgets/procurement_stats_strip.dart';
 import 'package:sagansa/providers/theme_provider.dart';
+import 'package:sagansa/widgets/procurement_stats_strip.dart';
 
 void main() {
   group('ProcurementStatsStrip', () {

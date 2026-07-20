@@ -44,7 +44,7 @@ class TransferStockModel {
   });
 
   factory TransferStockModel.fromJson(Map<String, dynamic> json) {
-    var detailsList = json['product_transfer_stocks'] as List? ?? [];
+    final detailsList = json['product_transfer_stocks'] as List? ?? [];
     return TransferStockModel(
       id: json['id'],
       date: json['date'] ?? '',

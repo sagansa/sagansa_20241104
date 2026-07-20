@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../../theme/app_colors.dart';
 import '../models/applicant_detail_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
+import '../utils/error_utils.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -80,7 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorUtils.sanitize(e);
         _isLoading = false;
       });
     }
@@ -216,7 +219,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Row(
                     children: [
                       Icon(Icons.lock_outline,
-                          size: 18, color: colorScheme.onSurfaceVariant),
+                          size: 18, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Expanded(
                         child: Text(

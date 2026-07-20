@@ -6,7 +6,6 @@ import '../services/closing_store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
-import 'create_payment_receipt_page.dart';
 
 class DailySalaryListPage extends StatefulWidget {
   const DailySalaryListPage({super.key});
@@ -236,22 +235,20 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
       return;
     }
 
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CreatePaymentReceiptPage(
-          dailySalaries: selectedSalaries,
-        ),
+    // TODO: CreatePaymentReceiptPage sekarang hanya untuk invoice procurement.
+    // Pembayaran daily salary perlu halaman terpisah atau langsung call
+    // ClosingStoreService.createPaymentReceipt dengan payment_for=2.
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Pembayaran gaji harian dipindah ke halaman terpisah (coming soon).'),
       ),
     );
-
-    if (result == true) {
-      setState(() {
-        _isSelectionMode = false;
-        _selectedIds.clear();
-      });
-      _loadData();
-    }
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
   }
 
   void _toggleSelectionMode() {
@@ -422,7 +419,7 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.filter_list, size: 20, color: colorScheme.primary),
+              Icon(Icons.filter_list, size: 20, color: AppColors.info),
               AppSpacing.gapHorizontalSM,
               Text(
                 'Filter',
@@ -725,7 +722,7 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
                   AppSpacing.gapVerticalSM,
                   Row(
                     children: [
-                      Icon(Icons.store, size: 16, color: colorScheme.primary),
+                      Icon(Icons.store, size: 16, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Text(storeName, style: textTheme.bodySmall),
                       if (shiftStoreName.isNotEmpty) ...[
@@ -737,7 +734,7 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
                   AppSpacing.gapVerticalXS,
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 14, color: colorScheme.primary),
+                      Icon(Icons.calendar_today, size: 14, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Text(date, style: textTheme.bodySmall),
                     ],
@@ -745,7 +742,7 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
                   AppSpacing.gapVerticalXS,
                   Row(
                     children: [
-                      Icon(Icons.payment, size: 14, color: colorScheme.primary),
+                      Icon(Icons.payment, size: 14, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Text(paymentTypeText, style: textTheme.bodySmall),
                     ],

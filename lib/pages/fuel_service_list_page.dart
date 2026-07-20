@@ -6,13 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
 import '../services/closing_store_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/format_utils.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/fuel_service_payment_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/list_thumbnail.dart';
+import '../providers/fuel_service_payment_provider.dart';
 import 'fuel_service_form_page.dart';
 
 class FuelServiceListPage extends StatefulWidget {
@@ -38,6 +42,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
   String? _errorMessage;
   List<Map<String, dynamic>> _services = [];
   bool _isAdmin = false;
+  bool _paymentMode = false;
 
   @override
   void initState() {
@@ -143,8 +148,18 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bensin & Servis'),
+        title: Text(_paymentMode ? 'Pilih untuk Bayar Transfer' : 'Bensin & Servis'),
         actions: [
+          IconButton(
+            icon: Icon(_paymentMode ? Icons.close : Icons.payment),
+            tooltip: _paymentMode ? 'Batal' : 'Bayar Transfer',
+            onPressed: () {
+              setState(() => _paymentMode = !_paymentMode);
+              if (!_paymentMode) {
+                context.read<FuelServicePaymentProvider>().clearSelection();
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetch,
@@ -211,6 +226,9 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                         final creatorName = fs['created_by']?['name'] ?? 'Staff';
                         final statusStr = fs['status'] == 2 ? 'Lunas / Terhubung' : 'Pending';
                         final isPaid = fs['status'] == 2;
+                        final paymentTypeId = fs['payment_type_id'];
+                        final canPayTransfer =
+                            _paymentMode && !isPaid && paymentTypeId == 1;
                         final imageUrl = ImageService.buildUrl(fs['image']?.toString());
 
                         return Card(
@@ -220,6 +238,25 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (canPayTransfer)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 14),
+                                    child: Checkbox(
+                                      value: context
+                                          .read<FuelServicePaymentProvider>()
+                                          .isSelected(fs['id'] as int),
+                                      onChanged: (v) {
+                                        final amount =
+                                            double.tryParse(fs['amount'].toString()) ?? 0;
+                                        context
+                                            .read<FuelServicePaymentProvider>()
+                                            .toggleSelection(
+                                              fs['id'] as int,
+                                              amount: amount.round(),
+                                            );
+                                      },
+                                    ),
+                                  ),
                                 ListThumbnail(
                                   imageUrl: imageUrl,
                                   placeholderIcon: Icons.local_gas_station_outlined,
@@ -321,14 +358,17 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       floatingActionButton: AddFab(
         onPressed: _openFuelServiceForm,
       ),
-      bottomNavigationBar: ModernBottomNav(
-        currentIndex: 3,
-        onTap: (index) {
-          if (index != 3) {
-            Navigator.pop(context);
-          }
-        },
-      ),
+      bottomNavigationBar: _paymentMode &&
+              context.watch<FuelServicePaymentProvider>().selectedCount > 0
+          ? _buildPaymentActionBar()
+          : ModernBottomNav(
+              currentIndex: 3,
+              onTap: (index) {
+                if (index != 3) {
+                  Navigator.pop(context);
+                }
+              },
+            ),
     );
   }
 
@@ -376,6 +416,61 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     } catch (_) {
       if (mounted) await Share.share(url);
     }
+  }
+
+  Widget _buildPaymentActionBar() {
+    final provider = context.read<FuelServicePaymentProvider>();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${provider.selectedCount} item terpilih',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  FormatUtils.formatCurrency(provider.totalAmount),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final success = await FuelServicePaymentBottomSheet.show(context);
+              if (success == true) {
+                setState(() => _paymentMode = false);
+                _fetch();
+              }
+            },
+            icon: const Icon(Icons.payment),
+            label: const Text('Bayar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.gold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

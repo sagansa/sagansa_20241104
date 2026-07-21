@@ -317,7 +317,9 @@ class _DeliveryPageState extends State<DeliveryPage> {
     if (_selectedOrder == null) return;
 
     final receiptNo = _selectedOrder!['receipt_no']?.toString();
-    if (receiptNo == null || receiptNo.isEmpty) {
+    // Skip receipt validation for direct orders (orderFor == '1')
+    // Backend handles validation for direct orders
+    if (widget.orderFor != '1' && (receiptNo == null || receiptNo.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Nomor resi tidak tersedia pada order ini.',
@@ -365,8 +367,13 @@ class _DeliveryPageState extends State<DeliveryPage> {
     });
 
     try {
+      // For direct orders, use order ID if receipt_no is not available
+      final receiptOrId = (receiptNo != null && receiptNo.isNotEmpty)
+          ? receiptNo
+          : _selectedOrder!['id']?.toString() ?? '';
+
       final result = await PresenceService().updateDeliveryStatus(
-        receiptNo: receiptNo,
+        receiptNo: receiptOrId,
         imageFile: _imageFile,
         receivedBy: _selectedStatus == 6 ? null : _receiverController.text.trim(),
         deliveryStatus: _selectedStatus,

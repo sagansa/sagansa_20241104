@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'approval_action_buttons.dart';
 import '../models/leave_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -256,39 +257,16 @@ class LeaveDetailBottomSheet extends StatelessWidget {
 
           // Admin Action Buttons (if pending)
           if (isAdmin && leave.status == 1) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      if (onReject != null) onReject!();
-                    },
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Tolak'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.error,
-                      side: BorderSide(color: colorScheme.error),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      if (onApprove != null) onApprove!();
-                    },
-                    icon: const Icon(Icons.check_rounded, size: 18),
-                    label: const Text('Setujui'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
+            ApprovalActionButtons(
+              onApprove: () {
+                Navigator.pop(context);
+                if (onApprove != null) onApprove!();
+              },
+              onReject: () {
+                Navigator.pop(context);
+                if (onReject != null) onReject!();
+              },
+              height: 42,
             ),
           ] else ...[
             SizedBox(

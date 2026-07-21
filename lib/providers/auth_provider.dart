@@ -202,6 +202,16 @@ class AuthProvider with ChangeNotifier {
     return userRoles.any((role) => rolesToCheck.contains(role));
   }
 
+  /// Roles user saat ini (untuk gating UI).
+  List<String> get roles {
+    if (_userData == null) return const [];
+    return List<String>.from(_userData!['roles'] ?? []);
+  }
+
+  /// Convenience getters untuk role-based UI gating.
+  bool get isAdmin => hasAnyRole(const ['admin', 'super_admin']);
+  bool get isStorageStaff => roles.contains('storage-staff');
+
   // --- Home data (absorbed from HomeController) ---
 
   Map<String, String>? _cachedUserInfo;

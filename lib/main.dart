@@ -20,9 +20,14 @@ import 'providers/printer_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/asset_service.dart';
 import 'services/inventory_anomaly_service.dart';
+import 'services/leave_service.dart';
 import 'services/location_tracking_service.dart';
+import 'services/presence_service.dart';
 import 'services/procurement_service.dart';
+import 'services/salary_service.dart';
 import 'services/sales_dashboard_service.dart';
+import 'services/storage_stock_service.dart';
+import 'services/user_service.dart';
 import 'theme/app_colors.dart';
 
 // Custom error widget to show instead of the default red screen
@@ -235,6 +240,11 @@ class _MyAppState extends State<MyApp> {
             assetService: AssetService(),
             salesDashboardService: SalesDashboardService(),
             anomalyService: InventoryAnomalyService(),
+            storageService: StorageStockService(),
+            presenceService: PresenceService(),
+            userService: UserService(),
+            leaveService: LeaveService(),
+            salaryService: SalaryService(),
           ),
         ),
       ],

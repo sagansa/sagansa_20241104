@@ -147,7 +147,7 @@ class CalendarPageState extends State<CalendarPage> {
           endTime: DateTime.parse(date).add(const Duration(hours: 1)),
           subject: 'Closing: $storeName',
           notes: 'Rp ${amount.toString()}',
-          color: AppColors.primary,
+          color: const Color(0xFF8E24AA),
           isAllDay: false,
           resourceIds: ['closing'],
         ));
@@ -165,7 +165,7 @@ class CalendarPageState extends State<CalendarPage> {
           endTime: DateTime.parse(date).add(const Duration(hours: 1)),
           subject: 'Stok: $storeName',
           notes: 'Laporan stok gudang',
-          color: AppColors.warning,
+          color: const Color(0xFF009688),
           isAllDay: false,
           resourceIds: ['stock'],
         ));
@@ -261,7 +261,7 @@ class CalendarPageState extends State<CalendarPage> {
               monthViewSettings: MonthViewSettings(
                 appointmentDisplayMode: MonthAppointmentDisplayMode.indicator,
                 showAgenda: true,
-                agendaViewHeight: 200,
+                agendaViewHeight: 220,
                 numberOfWeeksInView: 6,
                 agendaStyle: AgendaStyle(
                   backgroundColor: colorScheme.surface,
@@ -279,6 +279,50 @@ class CalendarPageState extends State<CalendarPage> {
                   ),
                 ),
               ),
+              appointmentBuilder: (context, calendarAppointmentDetails) {
+                final appointment = calendarAppointmentDetails.appointments.first as Appointment;
+                final color = appointment.color;
+                final isDark = theme.brightness == Brightness.dark;
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? color.withValues(alpha: 0.2)
+                        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          appointment.subject,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
               timeSlotViewSettings: TimeSlotViewSettings(
                 startHour: 0,
                 endHour: 24,
@@ -349,7 +393,7 @@ class CalendarPageState extends State<CalendarPage> {
             const SizedBox(width: 8),
             _buildFilterChip(
               label: 'Closing',
-              color: AppColors.primary,
+              color: const Color(0xFF8E24AA),
               selected: _showClosing,
               onToggle: (value) {
                 setState(() => _showClosing = value);
@@ -359,7 +403,7 @@ class CalendarPageState extends State<CalendarPage> {
             const SizedBox(width: 8),
             _buildFilterChip(
               label: 'Stok',
-              color: AppColors.warning,
+              color: const Color(0xFF009688),
               selected: _showStock,
               onToggle: (value) {
                 setState(() => _showStock = value);

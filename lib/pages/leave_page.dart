@@ -8,10 +8,12 @@ import '../models/leave_model.dart';
 import '../services/leave_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/approval_action_buttons.dart';
 import '../widgets/leave_detail_bottom_sheet.dart';
 import '../widgets/leave_stats_header.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_fab.dart';
+import '../utils/snackbar_utils.dart';
 import 'leave_form_page.dart';
 
 class LeavePage extends StatefulWidget {
@@ -185,50 +187,20 @@ class LeavePageState extends State<LeavePage> {
   }
 
   Future<void> _approveLeave(LeaveModel leave) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Setujui Cuti'),
-        content: Text('Setujui cuti dari ${leave.createdBy.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
-            child: const Text('Setujui'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
     try {
       setState(() => _isLoading = true);
       await _leaveService.approveLeave(leave.id);
       await _loadLeaves();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuti berhasil disetujui'),
-            backgroundColor: AppColors.success,
-          ),
+        SnackbarUtils.success(
+          context,
+          'Cuti ${leave.createdBy.name} berhasil disetujui',
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        final cs = Theme.of(context).colorScheme;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', ''),
-                style: const TextStyle(color: Colors.white)),
-            backgroundColor: cs.error,
-          ),
-        );
+        SnackbarUtils.error(context, e);
       }
     }
   }
@@ -243,12 +215,12 @@ class LeavePageState extends State<LeavePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tolak cuti dari ${leave.createdBy.name}?'),
+            Text('Tolak pengajuan cuti dari ${leave.createdBy.name}?'),
             const SizedBox(height: 16),
             TextField(
               controller: notesController,
               decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
+                labelText: 'Catatan penolakan (opsional)',
                 border: OutlineInputBorder(),
               ),
               maxLines: 2,
@@ -263,7 +235,8 @@ class LeavePageState extends State<LeavePage> {
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Tolak'),
           ),
         ],
@@ -280,26 +253,15 @@ class LeavePageState extends State<LeavePage> {
       );
       await _loadLeaves();
       if (mounted) {
-        final cs = Theme.of(context).colorScheme;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Cuti berhasil ditolak',
-                style: TextStyle(color: Colors.white)),
-            backgroundColor: cs.error,
-          ),
+        SnackbarUtils.error(
+          context,
+          'Pengajuan cuti ${leave.createdBy.name} ditolak',
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        final cs = Theme.of(context).colorScheme;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', ''),
-                style: const TextStyle(color: Colors.white)),
-            backgroundColor: cs.error,
-          ),
-        );
+        SnackbarUtils.error(context, e);
       }
     }
   }
@@ -349,8 +311,6 @@ class LeavePageState extends State<LeavePage> {
               _loadLeaves();
             },
           ),
-          // Quick Status Filter Chips
-          _buildFilterChips(),
           // Main list content
           Expanded(
             child: _isLoading
@@ -383,65 +343,6 @@ class LeavePageState extends State<LeavePage> {
         },
         icon: Icons.event_busy,
         tooltip: 'Tambah Cuti',
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    final cs = Theme.of(context).colorScheme;
-
-    final chips = [
-      {'key': null, 'label': 'Semua'},
-      {'key': '1', 'label': 'Pending'},
-      {'key': '2', 'label': 'Disetujui'},
-      {'key': '3', 'label': 'Ditolak'},
-    ];
-
-    return Container(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.2),
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: chips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final chip = chips[index];
-          final key = chip['key'];
-          final isSelected = _selectedStatus == key;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() => _selectedStatus = key);
-              _loadLeaves();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? cs.primary
-                    : cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected
-                      ? cs.primary
-                      : cs.outlineVariant.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  chip['label']!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -665,39 +566,10 @@ class LeavePageState extends State<LeavePage> {
                 const SizedBox(height: 12),
                 const Divider(height: 1),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 34,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _rejectLeave(leave),
-                          icon: const Icon(Icons.close_rounded, size: 16),
-                          label: const Text('Tolak', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.error,
-                            side: BorderSide(color: colorScheme.error),
-                            padding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SizedBox(
-                        height: 34,
-                        child: FilledButton.icon(
-                          onPressed: () => _approveLeave(leave),
-                          icon: const Icon(Icons.check_rounded, size: 16),
-                          label: const Text('Setujui', style: TextStyle(fontSize: 12)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            padding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                ApprovalActionButtons(
+                  onApprove: () => _approveLeave(leave),
+                  onReject: () => _rejectLeave(leave),
+                  height: 36,
                 ),
               ],
             ],

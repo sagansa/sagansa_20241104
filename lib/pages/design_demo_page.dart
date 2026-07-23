@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/detail_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/error_state.dart';
+import '../widgets/filter_chip_row.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_text_field.dart';
+import '../widgets/search_text_field.dart';
+import '../widgets/section_card.dart';
 import '../widgets/skeleton_loading.dart';
+import '../widgets/status_badge.dart';
 import '../widgets/theme_toggle_button.dart';
 
 class DesignDemoPage extends StatefulWidget {
@@ -52,6 +59,19 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
             _buildLoadingSection(),
             AppSpacing.gapVerticalXL,
             _buildListSection(),
+            AppSpacing.gapVerticalXL,
+            // Design System Foundation components (WS-DS1 to WS-DS7).
+            _buildStatusBadgeSection(),
+            AppSpacing.gapVerticalXL,
+            _buildEmptyAndErrorStateSection(),
+            AppSpacing.gapVerticalXL,
+            _buildDetailRowSection(),
+            AppSpacing.gapVerticalXL,
+            _buildSectionCardDemo(),
+            AppSpacing.gapVerticalXL,
+            _buildFilterChipRowSection(),
+            AppSpacing.gapVerticalXL,
+            _buildSearchTextFieldSection(),
           ],
         ),
       ),
@@ -355,5 +375,148 @@ class _DesignDemoPageState extends State<DesignDemoPage> {
         }
       });
     }
+  }
+
+  // ===========================================================================
+  // Design System Foundation Sections (WS-DS1 to WS-DS7)
+  // ===========================================================================
+
+  Widget _buildStatusBadgeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('StatusBadge',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        AppSpacing.gapVerticalSM,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            const StatusBadge(label: 'Success', type: StatusType.success),
+            const StatusBadge(label: 'Warning', type: StatusType.warning),
+            const StatusBadge(label: 'Error', type: StatusType.error),
+            const StatusBadge(label: 'Info', type: StatusType.info),
+            const StatusBadge(label: 'Neutral', type: StatusType.neutral),
+            const StatusBadge(label: 'Outline Success',
+                type: StatusType.success, style: StatusBadgeStyle.outline),
+            const StatusBadge(label: 'Outline Error',
+                type: StatusType.error, style: StatusBadgeStyle.outline),
+            const StatusBadge(label: 'Medium Success',
+                type: StatusType.success, size: BadgeSize.medium),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyAndErrorStateSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('EmptyState & ErrorState',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        AppSpacing.gapVerticalSM,
+        SizedBox(
+          height: 250,
+          child: Row(
+            children: [
+              Expanded(
+                child: EmptyState(
+                  icon: Icons.inbox_outlined,
+                  title: 'Tidak ada data',
+                  subtitle: 'Coba tarik ke bawah',
+                ),
+              ),
+              Expanded(
+                child: ErrorState(
+                  message: 'Gagal memuat',
+                  onRetry: () {},
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRowSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('DetailRow & IconDetailRow',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        AppSpacing.gapVerticalSM,
+        SectionCard(
+          child: Column(
+            children: [
+              DetailRow(label: 'Store', value: 'Toko A', valueBold: true),
+              DetailRow(label: 'Date', value: '2026-07-22'),
+              DetailRow(label: 'Amount', value: 'Rp 150.000'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionCardDemo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('SectionCard',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        AppSpacing.gapVerticalSM,
+        SectionCard(
+          title: 'Transaction Details',
+          icon: Icons.receipt_long,
+          actions: [
+            IconButton(onPressed: () {}, icon: const Icon(Icons.edit, size: 18)),
+          ],
+          child: const Text('Card body content goes here.'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChipRowSection() {
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        String selected = 'Semua';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('FilterChipRow',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            AppSpacing.gapVerticalSM,
+            FilterChipRow<String>(
+              options: const ['Semua', 'Pending', 'Lunas', 'Transfer'],
+              selected: selected,
+              onSelected: (val) => setLocalState(() => selected = val ?? 'Semua'),
+              getLabel: (s) => s,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchTextFieldSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('SearchTextField',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        AppSpacing.gapVerticalSM,
+        SearchTextField(
+          controller: _textController,
+          hintText: 'Cari nomor resi / nama...',
+          suffixWidget: IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.qr_code_scanner, size: 20),
+          ),
+        ),
+      ],
+    );
   }
 }

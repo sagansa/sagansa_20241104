@@ -4,6 +4,10 @@ import '../theme/app_spacing.dart';
 
 class EmptyState extends StatelessWidget {
   final IconData icon;
+
+  /// Warna icon. Default [AppColors.info] (biru) untuk empty state netral.
+  /// [ErrorState] akan pass [AppColors.error] (merah).
+  final Color? iconColor;
   final String title;
   final String? subtitle;
   final Widget? action;
@@ -11,6 +15,7 @@ class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
     required this.icon,
+    this.iconColor,
     required this.title,
     this.subtitle,
     this.action,
@@ -30,7 +35,7 @@ class EmptyState extends StatelessWidget {
             Icon(
               icon,
               size: 64,
-              color: AppColors.info,
+              color: iconColor ?? AppColors.info,
             ),
             AppSpacing.gapVerticalMD,
             Text(

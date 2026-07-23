@@ -6,16 +6,23 @@ enum StatusType { success, warning, error, info, neutral }
 
 enum BadgeSize { small, medium }
 
+/// Style variant untuk StatusBadge.
+/// - [filled]: background tinted (default, paling umum).
+/// - [outline]: border-only, transparent background.
+enum StatusBadgeStyle { filled, outline }
+
 class StatusBadge extends StatelessWidget {
   final String label;
   final StatusType type;
   final BadgeSize size;
+  final StatusBadgeStyle style;
 
   const StatusBadge({
     super.key,
     required this.label,
     this.type = StatusType.neutral,
     this.size = BadgeSize.small,
+    this.style = StatusBadgeStyle.filled,
   });
 
   Color _textColor(BuildContext context) {
@@ -48,6 +55,11 @@ class StatusBadge extends StatelessWidget {
     }
   }
 
+  Color _borderColor(BuildContext context) {
+    // Outline style pakai warna text dengan alpha.
+    return _textColor(context).withValues(alpha: 0.4);
+  }
+
   EdgeInsets _padding() {
     switch (size) {
       case BadgeSize.small:
@@ -60,11 +72,16 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isOutline = style == StatusBadgeStyle.outline;
+
     return Container(
       padding: _padding(),
       decoration: BoxDecoration(
-        color: _bgColor(context),
+        color: isOutline ? Colors.transparent : _bgColor(context),
         borderRadius: AppSpacing.borderRadiusXL,
+        border: isOutline
+            ? Border.all(color: _borderColor(context), width: 1)
+            : null,
       ),
       child: Text(
         label,

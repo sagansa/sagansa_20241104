@@ -1,0 +1,111 @@
+import '../widgets/status_badge.dart';
+
+class StatusMappers {
+  /// Delivery status (1=pending, 2=valid, 3=delivered, 4=ready, 5=fix, 6=returned)
+  static StatusType deliveryStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.info,
+        6 => StatusType.error,
+        _ => StatusType.warning,
+      };
+
+  static String deliveryLabel(int? code) => switch (code) {
+        1 => 'Belum Dikirim',
+        2 => 'Valid (Terkunci)',
+        3 => 'Sudah Dikirim',
+        4 => 'Siap Dikirim',
+        5 => 'Perbaiki',
+        6 => 'Dikembalikan',
+        _ => 'Tidak Diketahui',
+      };
+
+  /// Payment status (1=paid, 2=valid, 3=invalid, 4=pending)
+  static StatusType paymentStatus(String? code) => switch (code) {
+        '1' => StatusType.warning,
+        '2' => StatusType.success,
+        '3' => StatusType.error,
+        _ => StatusType.neutral,
+      };
+
+  static String paymentLabel(String? code) => switch (code) {
+        '1' => 'Sudah Dibayar',
+        '2' => 'Valid',
+        '3' => 'Tidak Valid',
+        '4' => 'Menunggu Pembayaran',
+        _ => '-',
+      };
+
+  /// Payment proof status (1=pending, 2=approved, 3=rejected)
+  static StatusType paymentProofStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.error,
+        _ => StatusType.warning,
+      };
+
+  static String paymentProofLabel(int? code) => switch (code) {
+        1 => 'Belum Disetujui',
+        2 => 'Disetujui',
+        3 => 'Ditolak',
+        _ => 'Tidak Diketahui',
+      };
+
+  /// Procurement status (1=pending, 2=approved, 3=rejected, 4=completed)
+  static StatusType procurementStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.error,
+        4 => StatusType.info,
+        _ => StatusType.warning,
+      };
+
+  static String procurementLabel(int? code) => switch (code) {
+        1 => 'Pending',
+        2 => 'Disetujui',
+        3 => 'Ditolak',
+        4 => 'Selesai',
+        _ => 'Tidak Diketahui',
+      };
+
+  /// Leave status (1=pending, 2=approved, 3=rejected)
+  static StatusType leaveStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.error,
+        _ => StatusType.warning,
+      };
+
+  static String leaveLabel(int? code) => switch (code) {
+        1 => 'Pending',
+        2 => 'Disetujui',
+        3 => 'Ditolak',
+        _ => 'Tidak Diketahui',
+      };
+
+  /// Daily salary status (1=unpaid, 2=paid, 3=ready, 4=fix)
+  static StatusType dailySalaryStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.info,
+        4 => StatusType.error,
+        _ => StatusType.warning,
+      };
+
+  static String dailySalaryLabel(int? code) => switch (code) {
+        1 => 'Belum Dibayar',
+        2 => 'Sudah Dibayar',
+        3 => 'Siap Dibayar',
+        4 => 'Perbaiki',
+        _ => 'Tidak Diketahui',
+      };
+
+  /// Hygiene status (1=pending, 2=approved, 3=rejected)
+  static StatusType hygieneStatus(int? code) => switch (code) {
+        2 => StatusType.success,
+        3 => StatusType.error,
+        _ => StatusType.warning,
+      };
+
+  static String hygieneLabel(int? code) => switch (code) {
+        1 => 'Pending',
+        2 => 'Disetujui',
+        3 => 'Ditolak',
+        _ => 'Tidak Diketahui',
+      };
+}

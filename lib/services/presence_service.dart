@@ -215,9 +215,16 @@ class PresenceService {
 
   /// Kept on raw http because callers inspect `success` in the full response
   /// body, which ApiClient._handleResponse strips to just `data`.
+  /// Update status pengiriman sales order.
+  ///
+  /// [receiptNo] wajib untuk online order (for=3). [orderId] wajib untuk
+  /// direct order (for=1). Salah satu harus diisi.
+  /// [imageFiles] mendukung multi-upload; backend menyimpan sebagai JSON array
+  /// path di kolom image_delivery.
   Future<Map<String, dynamic>> updateDeliveryStatus({
-    required String receiptNo,
-    File? imageFile,
+    String? receiptNo,
+    int? orderId,
+    List<File> imageFiles = const [],
     String? receivedBy,
     int? deliveryStatus,
     String? notes,
@@ -225,25 +232,33 @@ class PresenceService {
     final uri = Uri.parse(ApiConstants.updateDeliveryStatus);
 
     try {
-      final request = http.MultipartRequest('POST', uri)
-        ..headers.addAll(await _getAuthHeaders())
-        ..fields.addAll({
-          'receipt_no': receiptNo,
-          if (receivedBy != null && receivedBy.isNotEmpty)
-            'received_by': receivedBy,
-          if (deliveryStatus != null)
-            'delivery_status': deliveryStatus.toString(),
-          if (notes != null && notes.isNotEmpty) 'notes': notes,
-        });
+      final fields = <String, String>{
+        if (receiptNo != null && receiptNo.isNotEmpty) 'receipt_no': receiptNo,
+        if (orderId != null) 'order_id': orderId.toString(),
+        if (receivedBy != null && receivedBy.isNotEmpty)
+          'received_by': receivedBy,
+        if (deliveryStatus != null)
+          'delivery_status': deliveryStatus.toString(),
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      };
 
-      if (imageFile != null) {
+      // Upload tiap foto, kumpulkan path-nya, lalu kirim sebagai array
+      // field berulang: image_delivery[0], image_delivery[1], dst.
+      // Laravel akan terima sebagai array.
+      for (var i = 0; i < imageFiles.length; i++) {
         final path = await ImageUploadService.upload(
-          imageFile,
+          imageFiles[i],
           directory: 'images/Delivery',
         );
-        if (path == null) throw Exception('Gagal upload bukti pengiriman.');
-        request.fields['image_delivery'] = path;
+        if (path == null) {
+          throw Exception('Gagal upload bukti pengiriman ke-${i + 1}.');
+        }
+        fields['image_delivery[$i]'] = path;
       }
+
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(await _getAuthHeaders())
+        ..fields.addAll(fields);
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();

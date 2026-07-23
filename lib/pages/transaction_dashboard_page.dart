@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/enums/order_mode.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/dashboard_scaffold.dart';
@@ -91,7 +92,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                const DeliveryPage(orderFor: '3'),
+                                const DeliveryPage(orderMode: OrderMode.online),
                           ),
                         );
                       },
@@ -137,7 +138,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                const DeliveryPage(orderFor: '1'),
+                                const DeliveryPage(orderMode: OrderMode.direct),
                           ),
                         );
                       },

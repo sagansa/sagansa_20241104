@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/closing_store_service.dart';
+import '../services/fuel_service_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -27,6 +28,7 @@ class ClosingStorePage extends StatefulWidget {
 
 class _ClosingStorePageState extends State<ClosingStorePage> {
   final ClosingStoreService _service = ClosingStoreService();
+  final FuelServiceService _fuelService = FuelServiceService();
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
@@ -945,7 +947,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
                               }).toList(),
                           };
 
-                          final newFs = await _service.createFuelService(
+                          final newFs = await _fuelService.createFuelService(
                               payload,
                               imageFile: selectedImage);
                           setState(() {

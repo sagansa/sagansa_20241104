@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/closing_store_service.dart';
+import '../services/fuel_service_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -18,7 +19,8 @@ class FuelServiceFormPage extends StatefulWidget {
 }
 
 class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
-  final ClosingStoreService _service = ClosingStoreService();
+  final ClosingStoreService _lookupService = ClosingStoreService();
+  final FuelServiceService _service = FuelServiceService();
   final _formKey = GlobalKey<FormState>();
 
   final currencyFormatter = NumberFormat.currency(
@@ -38,6 +40,7 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
   DateTime _selectedDate = DateTime.now();
   int _selectedType = 1; // 1 = Fuel, 2 = Service
   int? _selectedVehicleId;
+  double? _vehicleLastKm; // KM terakhir kendaraan terpilih (untuk validasi).
   int? _selectedSupplierId;
   int _selectedPaymentType = 2; // 2 = Tunai, 1 = Transfer
   
@@ -75,8 +78,8 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
     });
 
     try {
-      final vehiclesData = await _service.getVehicles();
-      final suppliersData = await _service.getSuppliers();
+      final vehiclesData = await _lookupService.getVehicles();
+      final suppliersData = await _lookupService.getSuppliers();
       setState(() {
         _vehicles = vehiclesData;
         _suppliers = suppliersData;
@@ -308,7 +311,25 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             final v = _vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
                             return v['name']?.toString() ?? '';
                           },
-                          onChanged: (val) => setState(() => _selectedVehicleId = val),
+                          onChanged: (val) => setState(() {
+                            _selectedVehicleId = val;
+                            // Set last_km dari kendaraan terpilih untuk validasi KM.
+                            final v = _vehicles.firstWhere(
+                              (e) => e['id'] == val,
+                              orElse: () => {},
+                            );
+                            final lastKm = v['last_km'];
+                            _vehicleLastKm = lastKm is num
+                                ? lastKm.toDouble()
+                                : double.tryParse(lastKm?.toString() ?? '');
+                            // Pre-fill KM dengan last_km bila kosong/0.
+                            if ((_kmController.text.isEmpty ||
+                                    (double.tryParse(_kmController.text) ?? 0) <= 0) &&
+                                _vehicleLastKm != null) {
+                              _kmController.text =
+                                  _vehicleLastKm!.toStringAsFixed(0);
+                            }
+                          }),
                           validator: (val) => val == null ? 'Pilih kendaraan' : null,
                         ),
                         const SizedBox(height: AppSpacing.sectionGap),
@@ -368,11 +389,25 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         // KM Input
                         TextFormField(
                           controller: _kmController,
-                          decoration: const InputDecoration(
-                            labelText: 'KM Kendaraan',
+                          decoration: InputDecoration(
+                            labelText: 'KM Kendaraan *',
                             suffixText: 'km',
+                            helperText: _vehicleLastKm != null
+                                ? 'KM terakhir tercatat: ${_vehicleLastKm!.toStringAsFixed(0)} km'
+                                : null,
                           ),
                           keyboardType: TextInputType.number,
+                          validator: (val) {
+                            final km = double.tryParse(val ?? '') ?? 0;
+                            if (km <= 0) {
+                              return 'KM harus lebih besar dari 0';
+                            }
+                            if (_vehicleLastKm != null && km < _vehicleLastKm!) {
+                              return 'KM tidak boleh lebih kecil dari km terakhir '
+                                  '(${_vehicleLastKm!.toStringAsFixed(0)} km)';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: AppSpacing.sectionGap),
 

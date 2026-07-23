@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/fuel_service_payment_provider.dart';
-import '../services/closing_store_service.dart';
+import '../services/fuel_service_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -30,7 +30,7 @@ class FuelServiceListPage extends StatefulWidget {
 }
 
 class _FuelServiceListPageState extends State<FuelServiceListPage> {
-  final ClosingStoreService _service = ClosingStoreService();
+  final FuelServiceService _service = FuelServiceService();
   final ScrollController _scrollController = ScrollController();
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
@@ -50,9 +50,11 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
   // Filter state (status & fuelService untuk semua role; userFilter admin only).
   // status: 0 = Semua, 1 = Pending, 2 = Lunas
   // fuelService: 0 = Semua, 1 = Fuel, 2 = Service
+  // paymentType: 0 = Semua, 2 = Tunai, 1 = Transfer
   // selectedUserId: null = Semua User, atau id user spesifik (admin only)
   int _statusFilter = 0;
   int _fuelServiceFilter = 0;
+  int _paymentTypeFilter = 0;
   int? _selectedUserId;
   List<Map<String, dynamic>> _userList = [];
   bool _isLoadingUsers = false;
@@ -128,6 +130,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
         createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
         fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+        paymentTypeId: _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
       );
       if (!mounted) return;
       setState(() {
@@ -155,6 +158,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
         createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
         fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+        paymentTypeId: _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
       );
       if (!mounted) return;
       setState(() {
@@ -225,6 +229,22 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
               _fetch();
             },
             options: const ['Semua', 'Pending', 'Lunas'],
+          ),
+          const SizedBox(width: 16),
+          Container(width: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+          const SizedBox(width: 16),
+          // Payment type filter (index 0=Semua, 1=Tunai(2), 2=Transfer(1)).
+          _filterChip(
+            cs: cs,
+            activeIndex: _paymentTypeFilter == 0
+                ? 0
+                : (_paymentTypeFilter == 2 ? 1 : 2),
+            onTap: (i) {
+              final value = i == 0 ? 0 : (i == 1 ? 2 : 1);
+              setState(() => _paymentTypeFilter = value);
+              _fetch();
+            },
+            options: const ['Semua', 'Tunai', 'Transfer'],
           ),
         ],
       ),
@@ -407,10 +427,6 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
               }
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetch,
-          )
         ],
         bottom: _paymentMode
             ? null
@@ -421,56 +437,72 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: AppSpacing.paddingLG,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+          : RefreshIndicator(
+              onRefresh: _fetch,
+              child: _errorMessage != null
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: colorScheme.error),
-                        AppSpacing.gapVerticalMD,
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyLarge,
-                        ),
-                        AppSpacing.gapVerticalLG,
-                        ElevatedButton(
-                          onPressed: _fetch,
-                          child: const Text('Coba Lagi'),
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+                        Padding(
+                          padding: AppSpacing.paddingLG,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+                              AppSpacing.gapVerticalMD,
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: textTheme.bodyLarge,
+                              ),
+                              AppSpacing.gapVerticalLG,
+                              ElevatedButton(
+                                onPressed: _fetch,
+                                child: const Text('Coba Lagi'),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-                )
-              : _services.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.local_gas_station_outlined, size: 64, color: colorScheme.outline),
-                          AppSpacing.gapVerticalMD,
-                          Text('Belum ada riwayat bensin atau servis.', style: textTheme.bodyLarge),
-                        ],
-                      ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _fetch,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _services.length + (_hasMore ? 1 : 0),
-                        padding: AppSpacing.paddingMD,
-                        itemBuilder: (context, index) {
-                          if (index == _services.length) {
-                            return const Padding(
-                              padding: EdgeInsets.all(AppSpacing.md),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
+                  : _services.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.local_gas_station_outlined, size: 64, color: colorScheme.outline),
+                                AppSpacing.gapVerticalMD,
+                                Text('Belum ada riwayat bensin atau servis.', style: textTheme.bodyLarge),
+                                AppSpacing.gapVerticalSM,
+                                Text(
+                                  'Tarik ke bawah untuk menyegarkan',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _services.length + (_hasMore ? 1 : 0),
+                          padding: AppSpacing.paddingMD,
+                          itemBuilder: (context, index) {
+                            if (index == _services.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(AppSpacing.md),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
 
-                          final fs = _services[index];
-                        final type = fs['fuel_service'] == 1 ? 'Fuel' : 'Service';
+                            final fs = _services[index];
+                          final type = fs['fuel_service'] == 1 ? 'Fuel' : 'Service';
                         final isFuel = fs['fuel_service'] == 1;
                         final amount = double.tryParse(fs['amount'].toString()) ?? 0;
                         final date = fs['date'] ?? '';

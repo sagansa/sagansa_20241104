@@ -29,6 +29,7 @@ import 'services/sales_dashboard_service.dart';
 import 'services/storage_stock_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_colors.dart';
+import 'utils/constants.dart';
 
 // Custom error widget to show instead of the default red screen
 class CustomErrorWidget extends StatelessWidget {
@@ -172,7 +173,7 @@ void main() {
 
     // Cek apakah token tersimpan untuk auto login
     final prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
+    final String? token = prefs.getString(AppConstants.tokenKey);
     final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
 
     // Inisialisasi pelacakan lokasi (Firebase + FCM + workmanager) dipindah

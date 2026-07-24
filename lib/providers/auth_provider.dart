@@ -35,7 +35,7 @@ class AuthProvider with ChangeNotifier {
     try {
       debugPrint('Loading token...');
       final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('token') ?? '';
+      _token = prefs.getString(AppConstants.tokenKey) ?? '';
       debugPrint('Token loaded: ${_token.isNotEmpty ? 'exists' : 'empty'}');
 
       // Load user data if token exists
@@ -125,7 +125,7 @@ class AuthProvider with ChangeNotifier {
       _errorMessage = '';
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
+      await prefs.remove(AppConstants.tokenKey);
       await prefs.remove('user');
 
       _setLoading(false);
@@ -153,7 +153,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> updateToken(String newToken) async {
     _token = newToken;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', newToken);
+    await prefs.setString(AppConstants.tokenKey, newToken);
     notifyListeners();
   }
 

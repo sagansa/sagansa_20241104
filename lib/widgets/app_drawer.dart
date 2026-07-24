@@ -9,6 +9,7 @@ import '../pages/home_page.dart';
 import '../pages/printer_settings_page.dart';
 import '../pages/profile_page.dart';
 import '../theme/app_spacing.dart';
+import '../utils/constants.dart';
 import '../utils/error_utils.dart';
 import '../widgets/app_version_text.dart';
 
@@ -166,7 +167,7 @@ class AppDrawer extends StatelessWidget {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user');
-      await prefs.remove('token');
+      await prefs.remove(AppConstants.tokenKey);
       if (context.mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,

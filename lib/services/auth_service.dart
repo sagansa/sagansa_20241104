@@ -45,7 +45,7 @@ class AuthService {
     // Simpan token
     final token = data['access_token'];
     if (token != null) {
-      await prefs.setString('token', token.toString());
+      await prefs.setString(AppConstants.tokenKey, token.toString());
       await prefs.setString('token_type', data['token_type'] ?? 'Bearer');
       debugPrint('Token tersimpan: $token');
     }
@@ -100,7 +100,7 @@ class AuthService {
     await LocationTrackingService.instance.onLogout();
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    await prefs.remove(AppConstants.tokenKey);
     await prefs.remove('token_type');
     await prefs.remove('user');
     await prefs.remove(AppConstants.loginDataKey);

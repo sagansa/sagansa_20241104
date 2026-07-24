@@ -704,40 +704,113 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
             const SizedBox(height: 8),
             const Divider(height: 1),
             const SizedBox(height: 8),
-            ...inv.detailInvoices.take(3).map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.productName,
-                            style: const TextStyle(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+            // Header row untuk tabel item
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Produk',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
                     ),
                   ),
                 ),
-            if (inv.detailInvoices.length > 3)
-              Text(
-                '+${inv.detailInvoices.length - 3} produk lainnya',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.secondary,
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    'Qty',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    'Subtotal',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...inv.detailInvoices.map(
+                  (item) {
+                    final unitPrice = item.unitPrice;
+                    final priceStr = unitPrice
+                        .toStringAsFixed(0)
+                        .replaceAllMapped(
+                            RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                    final subtotalStr = item.subtotalInvoice
+                        .toStringAsFixed(0)
+                        .replaceAllMapped(
+                            RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.productName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 70,
+                                child: Text(
+                                  '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 100,
+                                child: Text(
+                                  'Rp $subtotalStr',
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Rp $priceStr /${item.unitName}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
           ],
         ],
       ),

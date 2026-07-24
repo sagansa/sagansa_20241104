@@ -435,6 +435,37 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                                                   ),
                                                 ),
+                                                if (_isAdmin &&
+                                                    item.lastPurchasePrice != null &&
+                                                    item.lastPurchasePrice!.hasData) ...[
+                                                  const SizedBox(height: 4),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.info.withValues(alpha: 0.08),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      () {
+                                                        final lp = item.lastPurchasePrice!;
+                                                        final priceStr = lp.unitPrice
+                                                            .toStringAsFixed(0)
+                                                            .replaceAllMapped(
+                                                                RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                                                                (m) => '${m.group(1)}.');
+                                                        final supplier = lp.supplierName != null
+                                                            ? ' • ${lp.supplierName}'
+                                                            : '';
+                                                        return 'Harga beli terakhir: Rp $priceStr/$item.unitName$supplier';
+                                                      }(),
+                                                      style: theme.textTheme.labelSmall?.copyWith(
+                                                        color: AppColors.info,
+                                                        fontStyle: FontStyle.italic,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                           ),

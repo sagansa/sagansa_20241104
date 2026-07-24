@@ -96,6 +96,10 @@ class DetailInvoiceItem {
   final String productName;
   final String unitName;
 
+  /// Harga beli terakhir (lintas supplier) — hanya diisi untuk admin.
+  /// Null bila tidak ada riwayat atau user bukan admin.
+  final LastPurchasePrice? lastPurchasePrice;
+
   DetailInvoiceItem({
     required this.id,
     required this.invoicePurchaseId,
@@ -106,6 +110,7 @@ class DetailInvoiceItem {
     this.status,
     required this.productName,
     required this.unitName,
+    this.lastPurchasePrice,
   });
 
   double get unitPrice {
@@ -148,8 +153,37 @@ class DetailInvoiceItem {
       status: json['status']?.toString(),
       productName: productName,
       unitName: unitName,
+      lastPurchasePrice: LastPurchasePrice.fromJson(
+        json['last_purchase_price'] as Map<String, dynamic>?,
+      ),
     );
   }
+}
+
+/// Harga beli terakhir sebuah product (lintas supplier).
+///
+/// Dipakai admin untuk evaluasi harga di invoice detail.
+class LastPurchasePrice {
+  final int unitPrice;
+  final String? supplierName;
+  final DateTime? date;
+
+  const LastPurchasePrice({
+    required this.unitPrice,
+    this.supplierName,
+    this.date,
+  });
+
+  factory LastPurchasePrice.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const LastPurchasePrice(unitPrice: 0);
+    return LastPurchasePrice(
+      unitPrice: (json['unit_price'] as num?)?.toInt() ?? 0,
+      supplierName: json['supplier_name'] as String?,
+      date: json['date'] != null ? DateTime.tryParse(json['date'].toString()) : null,
+    );
+  }
+
+  bool get hasData => unitPrice > 0;
 }
 
 class InvoicePurchase {

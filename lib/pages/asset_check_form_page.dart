@@ -67,6 +67,8 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
       _errorMessage = null;
     });
     try {
+      final provider = context.read<AssetProvider>();
+
       // Baca role user untuk gate severity.
       final prefs = await SharedPreferences.getInstance();
       final userString = prefs.getString('user');
@@ -76,12 +78,12 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
         _isAdmin = roles.contains('admin');
       }
 
-      final asset = await context.read<AssetProvider>().loadAssetDetail(widget.assetId);
-      final already = await context.read<AssetProvider>().hasCheckedToday(widget.assetId);
+      final asset = await provider.loadAssetDetail(widget.assetId);
+      final already = await provider.hasCheckedToday(widget.assetId);
 
       // Ambil kategori untuk dapat definisi checklist.
       AssetCategoryModel? category;
-      final cats = await context.read<AssetProvider>().loadCategories();
+      final cats = await provider.loadCategories();
       category = cats.isEmpty
           ? null
           : cats.where((c) => c.id == asset.assetCategoryId).firstOrNull ??

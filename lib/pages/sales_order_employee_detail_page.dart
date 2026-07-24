@@ -161,8 +161,10 @@ class _SalesOrderEmployeeDetailPageState
               ...options.map((o) {
                 return RadioListTile<int>(
                   value: o.$1,
+                  // ignore: deprecated_member_use
                   groupValue: _order!.paymentStatus,
                   title: Text(o.$2),
+                  // ignore: deprecated_member_use
                   onChanged: (_) => Navigator.pop(ctx, o.$1),
                   activeColor: o.$3,
                   // tandai pilihan saat ini via value/groupValue

@@ -230,18 +230,6 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
     );
   }
 
-  List<DropdownMenuItem<String>> _buildPeriodItems() {
-    final items = <DropdownMenuItem<String>>[];
-    final now = DateTime.now();
-    final fmt = DateFormat('MMMM yyyy', 'id_ID');
-    for (int i = 0; i < 12; i++) {
-      final d = DateTime(now.year, now.month - i, 1);
-      final value = '${d.year}-${d.month.toString().padLeft(2, '0')}';
-      items.add(DropdownMenuItem<String>(value: value, child: Text(fmt.format(d))));
-    }
-    return items;
-  }
-
   Widget _buildFilterSection() {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);

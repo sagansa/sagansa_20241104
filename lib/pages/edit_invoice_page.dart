@@ -95,6 +95,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       return;
     }
 
+    if (!mounted) return;
     final result = await SupplierPickerModal.show(
       context: context,
       suppliers: suppliers,
@@ -151,10 +152,6 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final textTheme = theme.textTheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Invoice'),
@@ -191,9 +188,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: AppSpacing.sectionGap),
-                      ..._itemStates.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final state = entry.value;
+                      ..._itemStates.map((state) {
                         final detail = state['detailInvoice'] as DetailInvoiceItem;
                         final priceCtrl = state['priceController'] as TextEditingController;
                         final qtyCtrl = state['qtyController'] as TextEditingController;

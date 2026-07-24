@@ -103,56 +103,6 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
     }
   }
 
-  Future<int?> _showSupplierSearchDialog(BuildContext ctx, List<dynamic> suppliers) {
-    return showDialog<int>(
-      context: ctx,
-      builder: (dialogCtx) {
-        String query = '';
-        return StatefulBuilder(
-          builder: (dialogCtx, setDialogState) {
-            final filtered = suppliers.where((s) {
-              if (query.isEmpty) return true;
-              return (s['name'] ?? '').toString().toLowerCase().contains(query.toLowerCase());
-            }).toList();
-
-            return Dialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 80),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: AppSpacing.paddingSM,
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Cari supplier...',
-                        prefixIcon: Icon(Icons.search),
-                        isDense: true,
-                      ),
-                      onChanged: (v) => setDialogState(() => query = v),
-                      autofocus: true,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(child: Text('Tidak ada supplier'))
-                        : ListView.separated(
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (_, i) => ListTile(
-                              title: Text(filtered[i]['name'] ?? ''),
-                              onTap: () => Navigator.pop(dialogCtx, filtered[i]['id']),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 

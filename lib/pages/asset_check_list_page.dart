@@ -186,7 +186,6 @@ class _AssetCheckListPageState extends State<AssetCheckListPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(

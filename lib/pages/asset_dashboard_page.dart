@@ -44,9 +44,10 @@ class _AssetDashboardPageState extends State<AssetDashboardPage> {
       _errorMessage = null;
     });
     try {
-      final summary = await context.read<AssetProvider>().loadDashboardSummary();
-      final due = await context.read<AssetProvider>().loadAssets(due: 'today');
-      final issues = await context.read<AssetProvider>().loadIssues(status: 1);
+      final provider = context.read<AssetProvider>();
+      final summary = await provider.loadDashboardSummary();
+      final due = await provider.loadAssets(due: 'today');
+      final issues = await provider.loadIssues(status: 1);
       if (!mounted) return;
       setState(() {
         _summary = summary;

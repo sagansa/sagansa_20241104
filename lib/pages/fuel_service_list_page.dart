@@ -697,9 +697,13 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/fuel_service_$id.jpg');
       await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles([XFile(file.path)], text: 'Bukti Bensin & Servis');
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'Bukti Bensin & Servis'),
+      );
     } catch (_) {
-      if (mounted) await Share.share(url);
+      if (mounted) {
+        await SharePlus.instance.share(ShareParams(text: url));
+      }
     }
   }
 

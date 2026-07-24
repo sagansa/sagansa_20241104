@@ -13,7 +13,6 @@ class CreateInvoiceFormPage extends StatefulWidget {
 }
 
 class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
-  final _formKey = GlobalKey<FormState>();
   final ProcurementService _procurementService = ProcurementService();
   final SupplierService _supplierService = SupplierService();
 
@@ -153,6 +152,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
     }
 
     String query = '';
+    if (!mounted) return;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) {

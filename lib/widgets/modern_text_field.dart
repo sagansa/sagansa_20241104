@@ -35,8 +35,6 @@ class ModernTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     // Mengandalkan InputDecorationTheme dari ThemeProvider agar input
     // selalu mengikuti tema aktif (light/dark) secara konsisten.
-    final colorScheme = Theme.of(context).colorScheme;
-
     return TextField(
       controller: controller,
       style: Theme.of(context).textTheme.bodyLarge,

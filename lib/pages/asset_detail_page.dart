@@ -56,10 +56,11 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
       _errorMessage = null;
     });
     try {
-      final asset = await context.read<AssetProvider>().loadAssetDetail(widget.assetId);
+      final provider = context.read<AssetProvider>();
+      final asset = await provider.loadAssetDetail(widget.assetId);
       // Fetch eksplisit checks & issues untuk aset ini.
-      final checks = await context.read<AssetProvider>().loadChecks(assetId: widget.assetId);
-      final issues = await context.read<AssetProvider>().loadIssues(assetId: widget.assetId);
+      final checks = await provider.loadChecks(assetId: widget.assetId);
+      final issues = await provider.loadIssues(assetId: widget.assetId);
       if (!mounted) return;
       setState(() {
         _asset = asset;
@@ -88,6 +89,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
   }
 
   Future<void> _confirmDelete() async {
+    final provider = context.read<AssetProvider>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -109,7 +111,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
     if (confirmed != true) return;
 
     try {
-      await context.read<AssetProvider>().deleteAsset(widget.assetId);
+      await provider.deleteAsset(widget.assetId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aset berhasil dihapus.')),

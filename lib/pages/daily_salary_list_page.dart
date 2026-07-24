@@ -287,58 +287,8 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
     });
   }
 
-  Future<void> _bulkUpdateStatus(int status) async {
-    if (_selectedIds.isEmpty) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: Text('Ubah status ${_selectedIds.length} data menjadi "${_statusOptions[status.toString()]}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ya, Ubah'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      setState(() => _isLoading = true);
-      await _service.bulkUpdateDailySalaryStatus(_selectedIds.toList(), status);
-      setState(() {
-        _isSelectionMode = false;
-        _selectedIds.clear();
-      });
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Status berhasil diubah.')),
-        );
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final textTheme = theme.textTheme;
-
     return Scaffold(
       appBar: AppBar(
         title: _isSelectionMode

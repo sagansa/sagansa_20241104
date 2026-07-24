@@ -280,7 +280,9 @@ class _SummaryTabState extends State<_SummaryTab> {
                       title: const Text('Tidak ada'),
                       leading: Radio<int?>(
                         value: null,
+                        // ignore: deprecated_member_use
                         groupValue: _compareYear,
+                        // ignore: deprecated_member_use
                         onChanged: (v) {
                           Navigator.pop(ctx);
                           _changeCompareYear(v);
@@ -291,7 +293,9 @@ class _SummaryTabState extends State<_SummaryTab> {
                           title: Text('$y'),
                           leading: Radio<int?>(
                             value: y,
+                            // ignore: deprecated_member_use
                             groupValue: _compareYear,
+                            // ignore: deprecated_member_use
                             onChanged: (v) {
                               Navigator.pop(ctx);
                               _changeCompareYear(v);

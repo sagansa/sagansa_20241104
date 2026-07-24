@@ -58,6 +58,7 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
       _errorMessage = null;
     });
     try {
+      final provider = context.read<AssetProvider>();
       // Baca role user.
       final prefs = await SharedPreferences.getInstance();
       final userString = prefs.getString('user');
@@ -68,10 +69,10 @@ class _AssetFromProductPageState extends State<AssetFromProductPage> {
       }
 
       final storeService = StoreService();
-      final presenceStoreId = await context.read<AssetProvider>().loadCurrentStoreId();
+      final presenceStoreId = await provider.loadCurrentStoreId();
       final results = await Future.wait<dynamic>([
         storeService.getStores(),
-        context.read<AssetProvider>().loadAssetProducts(),
+        provider.loadAssetProducts(),
       ]);
       if (!mounted) return;
       final stores = results[0] as List<StoreModel>;

@@ -147,6 +147,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       return;
     }
 
+    if (!mounted) return;
     final result = await SupplierPickerModal.show(
       context: context,
       suppliers: suppliers,

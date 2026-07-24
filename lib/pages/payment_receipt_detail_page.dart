@@ -83,12 +83,16 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/payment_receipt_${widget.receiptId}.jpg');
       await file.writeAsBytes(response.bodyBytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Bukti Pembayaran Sagansa #${widget.receiptId}',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Bukti Pembayaran Sagansa #${widget.receiptId}',
+        ),
       );
     } catch (_) {
-      if (mounted) await Share.share(url);
+      if (mounted) {
+        await SharePlus.instance.share(ShareParams(text: url));
+      }
     }
   }
 

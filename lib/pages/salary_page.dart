@@ -233,6 +233,8 @@ class _SalaryPageState extends State<SalaryPage> {
                         } catch (e) {
                           if (ctx.mounted) {
                             setDialogState(() => _isGenerating = false);
+                          }
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                   content: Text(
@@ -540,22 +542,6 @@ class _SalaryPageState extends State<SalaryPage> {
         ),
       ),
     );
-  }
-
-  /// Generate list bulan untuk dropdown periode (12 bulan terakhir + "Semua").
-  List<DropdownMenuItem<String?>> _buildPeriodItems() {
-    final items = <DropdownMenuItem<String?>>[
-      const DropdownMenuItem<String?>(value: null, child: Text('Semua')),
-    ];
-    final now = DateTime.now();
-    final fmt = DateFormat('MMMM yyyy', 'id_ID');
-    for (int i = 0; i < 12; i++) {
-      final d = DateTime(now.year, now.month - i, 1);
-      final value =
-          '${d.year}-${d.month.toString().padLeft(2, '0')}'; // YYYY-MM
-      items.add(DropdownMenuItem<String?>(value: value, child: Text(fmt.format(d))));
-    }
-    return items;
   }
 
   Widget _buildFilterSection(ColorScheme colorScheme, TextTheme textTheme) {

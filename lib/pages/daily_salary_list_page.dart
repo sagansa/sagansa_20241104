@@ -7,8 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/closing_store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
-import '../widgets/modern_dropdown.dart';
 import 'create_payment_receipt_page.dart';
 
 class DailySalaryListPage extends StatefulWidget {
@@ -170,10 +171,6 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
     }
   }
 
-  void _applyFilters() {
-    _loadData();
-  }
-
   void _clearFilters() {
     setState(() {
       _selectedUserId = null;
@@ -185,36 +182,61 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
     _loadData();
   }
 
-  String _getDateRangeText() {
-    if (_selectedDateFrom == null && _selectedDateTo == null) {
-      return 'Semua Tanggal';
-    }
-    final from = _selectedDateFrom != null
-        ? DateFormat('dd/MM/yyyy').format(_selectedDateFrom!)
-        : '...';
-    final to = _selectedDateTo != null
-        ? DateFormat('dd/MM/yyyy').format(_selectedDateTo!)
-        : '...';
-    return '$from - $to';
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedUserId != null) count++;
+    if (_selectedStatus != null) count++;
+    if (_selectedPaymentType != null) count++;
+    if (_selectedDateFrom != null || _selectedDateTo != null) count++;
+    return count;
   }
 
-  void _showDateRangeDialog() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _selectedDateFrom != null && _selectedDateTo != null
-          ? DateTimeRange(start: _selectedDateFrom!, end: _selectedDateTo!)
-          : null,
+  void _openFilterSheet() {
+    final employees = _employees;
+    FilterBottomSheet.show(
+      context,
+      fields: [
+        if (_isAdmin)
+          DropdownFilterField<int>(
+            label: 'Karyawan',
+            value: _selectedUserId,
+            options: employees.map((e) => (
+              e['id'] as int,
+              e['name']?.toString() ?? 'Karyawan #${e['id']}',
+            )).toList(),
+          ),
+        DropdownFilterField<String>(
+          label: 'Status',
+          value: _selectedStatus,
+          options: _statusOptions.entries.map((e) => (e.key, e.value)).toList(),
+        ),
+        DropdownFilterField<int>(
+          label: 'Pembayaran',
+          value: _selectedPaymentType,
+          options: _paymentTypeOptions.entries.map((e) => (e.key, e.value)).toList(),
+        ),
+        DateRangeFilterField(
+          label: 'Rentang Tanggal',
+          value: _selectedDateFrom != null && _selectedDateTo != null
+              ? (_selectedDateFrom!, _selectedDateTo!)
+              : null,
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedUserId = values['Karyawan'] as int?;
+          _selectedStatus = values['Status'] as String?;
+          _selectedPaymentType = values['Pembayaran'] as int?;
+          final dateRange = values['Rentang Tanggal'] as (DateTime, DateTime)?;
+          _selectedDateFrom = dateRange?.$1;
+          _selectedDateTo = dateRange?.$2;
+        });
+        _loadData();
+      },
+      onReset: () {
+        _clearFilters();
+      },
     );
-
-    if (picked != null) {
-      setState(() {
-        _selectedDateFrom = picked.start;
-        _selectedDateTo = picked.end;
-      });
-      _applyFilters();
-    }
   }
 
   Future<void> _navigateToPaymentReceipt() async {
@@ -330,12 +352,15 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
           ),
+          if (_isAdmin && !_isSelectionMode)
+            FilterAppBarAction(
+              activeCount: _activeFilterCount,
+              onTap: _openFilterSheet,
+            ),
         ],
       ),
       body: Column(
         children: [
-          // Filters for admin only
-          if (_isAdmin) _buildFilterSection(),
           // Content
           Expanded(
             child: _isLoading
@@ -355,133 +380,6 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
             Navigator.pop(context);
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildFilterSection() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: AppSpacing.paddingMD,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.filter_list, size: 20, color: AppColors.info),
-              AppSpacing.gapHorizontalSM,
-              Text(
-                'Filter',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              if (_selectedUserId != null ||
-                  _selectedStatus != null ||
-                  _selectedPaymentType != null ||
-                  _selectedDateFrom != null ||
-                  _selectedDateTo != null)
-                TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text('Hapus Filter'),
-                ),
-            ],
-          ),
-          AppSpacing.gapVerticalSM,
-          // Row 1: Employee
-          ModernDropdown<int?>(
-            value: _selectedUserId,
-            labelText: 'Karyawan',
-            hint: 'Semua Karyawan',
-            prefixIcon: const Icon(Icons.person_outline, size: 20),
-            items: [null, ..._employees.map((emp) => emp['id'] as int)],
-            getLabel: (v) {
-              if (v == null) return 'Semua Karyawan';
-              final emp = _employees.firstWhere((e) => e['id'] == v, orElse: () => {});
-              return emp['name']?.toString() ?? '-';
-            },
-            onChanged: (value) {
-              setState(() => _selectedUserId = value);
-              _applyFilters();
-            },
-          ),
-          AppSpacing.gapVerticalSM,
-          // Row 2: Status + Payment Type
-          Row(
-            children: [
-              Expanded(
-                child: ModernDropdown<String?>(
-                  value: _selectedStatus,
-                  labelText: 'Status',
-                  hint: 'Semua Status',
-                  items: [null, ..._statusOptions.keys],
-                  getLabel: (v) => v == null ? 'Semua Status' : (_statusOptions[v] ?? v),
-                  onChanged: (value) {
-                    setState(() => _selectedStatus = value);
-                    _applyFilters();
-                  },
-                ),
-              ),
-              AppSpacing.gapHorizontalSM,
-              Expanded(
-                child: ModernDropdown<int?>(
-                  value: _selectedPaymentType,
-                  labelText: 'Pembayaran',
-                  hint: 'Semua',
-                  items: [null, ..._paymentTypeOptions.keys],
-                  getLabel: (v) => v == null ? 'Semua Pembayaran' : (_paymentTypeOptions[v] ?? 'Tipe #$v'),
-                  onChanged: (value) {
-                    setState(() => _selectedPaymentType = value);
-                    _applyFilters();
-                  },
-                ),
-              ),
-            ],
-          ),
-          AppSpacing.gapVerticalSM,
-          // Date Range Button
-          InkWell(
-            onTap: () => _showDateRangeDialog(),
-            child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Filter Tanggal',
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusSM,
-                ),
-                suffixIcon: (_selectedDateFrom != null || _selectedDateTo != null)
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          setState(() {
-                            _selectedDateFrom = null;
-                            _selectedDateTo = null;
-                          });
-                          _applyFilters();
-                        },
-                      )
-                    : const Icon(Icons.date_range, size: 18),
-              ),
-              child: Text(
-                _getDateRangeText(),
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

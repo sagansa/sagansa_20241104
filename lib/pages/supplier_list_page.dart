@@ -9,7 +9,10 @@ import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/search_app_bar_action.dart';
 import '../widgets/status_badge.dart';
 import 'supplier_detail_page.dart';
 import 'supplier_form_page.dart';
@@ -23,7 +26,6 @@ class SupplierListPage extends StatefulWidget {
 
 class _SupplierListPageState extends State<SupplierListPage> {
   final SupplierService _service = SupplierService();
-  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   List<SupplierModel> _suppliers = [];
@@ -32,23 +34,21 @@ class _SupplierListPageState extends State<SupplierListPage> {
   bool _hasMore = true;
   bool _hasSearched = false;
   bool _canManage = false;
+  bool _searchVisible = false;
   String? _errorMessage;
   int? _selectedStatus;
   int _page = 1;
-
-  static const int _minSearchLength = 3;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadUser();
-    _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -67,23 +67,9 @@ class _SupplierListPageState extends State<SupplierListPage> {
     _canManage = context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor']);
   }
 
-  void _onSearchChanged() {
-    if (!mounted) return;
-    final query = _searchController.text.trim();
-    if (query.length >= _minSearchLength) {
-      _fetchSuppliers();
-    } else {
-      setState(() {
-        _suppliers = [];
-        _hasSearched = false;
-        _errorMessage = null;
-      });
-    }
-  }
-
   Future<void> _fetchSuppliers() async {
-    final query = _searchController.text.trim();
-    if (query.length < _minSearchLength && _selectedStatus == null) {
+    final query = _searchQuery;
+    if (query.isEmpty && _selectedStatus == null) {
       setState(() {
         _suppliers = [];
         _hasSearched = false;
@@ -128,7 +114,7 @@ class _SupplierListPageState extends State<SupplierListPage> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final query = _searchController.text.trim();
+      final query = _searchQuery;
       final result = await _service.getSuppliersPaged(
         page: _page + 1,
         search: query.isEmpty ? null : query,
@@ -185,26 +171,77 @@ class _SupplierListPageState extends State<SupplierListPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Supplier')),
-      floatingActionButton: _canManage
-          ? AddFab(onPressed: () => _openForm())
-          : null,
-      body: Column(
-        children: [
-          _buildSearchAndFilter(colorScheme, textTheme),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                    ? _buildError(colorScheme, textTheme)
-                    : !_hasSearched
-                        ? _buildPromptSearch(colorScheme)
-                        : _suppliers.isEmpty
-                            ? _buildEmpty(colorScheme)
-                            : _buildList(colorScheme, textTheme),
+      appBar: AppBar(
+        title: _searchVisible ? null : const Text('Supplier'),
+        bottom: _searchVisible
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama, bank, no rekening...',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded),
+                              onPressed: () {
+                                setState(() {
+                                  _searchQuery = '';
+                                  _hasSearched = false;
+                                  _suppliers = [];
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest,
+                    ),
+                    onChanged: (v) {
+                      setState(() => _searchQuery = v);
+                      if (v.length >= 3 || v.isEmpty) {
+                        _fetchSuppliers();
+                      }
+                    },
+                  ),
+                ),
+              )
+            : null,
+        actions: [
+          if (!_searchVisible)
+            SearchAppBarAction(
+              isSearchActive: false,
+              onTap: () => setState(() => _searchVisible = true),
+            ),
+          if (_searchVisible)
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => setState(() {
+                _searchVisible = false;
+                _searchQuery = '';
+                _hasSearched = false;
+                _suppliers = [];
+              }),
+            ),
+          FilterAppBarAction(
+            activeCount: _activeFilterCount,
+            onTap: _openFilterSheet,
           ),
         ],
       ),
+      floatingActionButton: _canManage
+          ? AddFab(onPressed: () => _openForm())
+          : null,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? _buildError(colorScheme, textTheme)
+              : !_hasSearched
+                  ? _buildPromptSearch(colorScheme)
+                  : _suppliers.isEmpty
+                      ? _buildEmpty(colorScheme)
+                      : _buildList(colorScheme, textTheme),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {
@@ -216,103 +253,40 @@ class _SupplierListPageState extends State<SupplierListPage> {
     );
   }
 
-  Widget _buildSearchAndFilter(
-      ColorScheme colorScheme, TextTheme textTheme) {
-    final filterOptions = [
-      {'label': 'Semua', 'value': null},
-      {'label': 'Belum Diperiksa', 'value': 1},
-      {'label': 'Valid', 'value': 2},
-      {'label': 'Blacklist', 'value': 3},
-    ];
-
-    final query = _searchController.text.trim();
-    final charsLeft = _minSearchLength - query.length;
-
-    return Container(
-      color: colorScheme.surface,
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.md + AppSpacing.xs,
-        AppSpacing.sm + AppSpacing.xs,
-        AppSpacing.md + AppSpacing.xs,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _searchController,
-            onSubmitted: (_) => _fetchSuppliers(),
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'Cari nama, bank, no rekening...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: query.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear_rounded),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : null,
-              filled: true,
-              fillColor: colorScheme.surfaceContainerHighest,
-            ),
-          ),
-          if (query.isNotEmpty && query.length < _minSearchLength)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm, left: AppSpacing.xs),
-              child: Text(
-                'Ketik $charsLeft huruf lagi untuk mencari...',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          AppSpacing.gapVerticalSM,
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: filterOptions.map((opt) {
-                final isSelected = _selectedStatus == opt['value'];
-                return Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.sm),
-                  child: FilterChip(
-                    label: Text(opt['label'] as String),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(
-                          () => _selectedStatus = opt['value'] as int?);
-                      _fetchSuppliers();
-                    },
-                    selectedColor: colorScheme.primaryContainer,
-                    labelStyle: textTheme.labelMedium?.copyWith(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    checkmarkColor: colorScheme.primary,
-                    side: BorderSide(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.outlineVariant,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          AppSpacing.gapVerticalSM,
-        ],
-      ),
+  int get _activeFilterCount => _selectedStatus != null ? 1 : 0;
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter Status',
+      fields: [
+        DropdownFilterField<int?>(
+          label: 'Status',
+          value: _selectedStatus,
+          options: const [
+            (null, 'Semua'),
+            (1, 'Belum Diperiksa'),
+            (2, 'Valid'),
+            (3, 'Blacklist'),
+          ],
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedStatus = values['Status'] as int?;
+        });
+        _fetchSuppliers();
+      },
+      onReset: () {
+        setState(() => _selectedStatus = null);
+        _fetchSuppliers();
+      },
     );
   }
 
   Widget _buildPromptSearch(ColorScheme colorScheme) {
     return EmptyState(
       icon: Icons.search_rounded,
-      title: 'Ketik minimal $_minSearchLength huruf\nuntuk mencari supplier.',
+      title: 'Cari supplier menggunakan ikon search\ndi pojok kanan atas.',
     );
   }
 

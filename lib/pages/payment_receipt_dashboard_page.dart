@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/procurement_model.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/procurement_service.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
-import '../../utils/format_utils.dart';
-import '../../widgets/add_fab.dart';
-import '../../widgets/modern_bottom_nav.dart';
-import '../../widgets/payment_receipt_card.dart';
+import '../models/procurement_model.dart';
+import '../providers/auth_provider.dart';
+import '../services/procurement_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../utils/format_utils.dart';
+import '../widgets/add_fab.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/payment_receipt_card.dart';
+import '../widgets/search_app_bar_action.dart';
 import 'invoice_selection_page.dart';
 import 'payment_receipt_detail_page.dart';
 
@@ -36,6 +39,9 @@ class _PaymentReceiptDashboardPageState
   // Filter states: '0' = All, '1' = Fuel Service, '2' = Gaji Harian, '3' = Invoice Supplier
   String _selectedPaymentFor = '0';
   String _searchQuery = '';
+
+  // Search toggle
+  bool _searchExpanded = false;
 
   @override
   void initState() {
@@ -104,6 +110,33 @@ class _PaymentReceiptDashboardPageState
     } catch (_) {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  int get _activeFilterCount => _selectedPaymentFor != '0' ? 1 : 0;
+
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter',
+      fields: [
+        DropdownFilterField<String>(
+          label: 'Tipe Pembayaran',
+          value: _selectedPaymentFor,
+          options: const [
+            ('0', 'Semua'),
+            ('3', 'Invoice'),
+            ('2', 'Gaji Harian'),
+            ('1', 'Fuel Service'),
+          ],
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedPaymentFor = values['Tipe Pembayaran'] as String? ?? '0';
+        });
+      },
+      onReset: () => setState(() => _selectedPaymentFor = '0'),
+    );
   }
 
   List<PaymentReceipt> get _filteredReceipts {
@@ -257,48 +290,55 @@ class _PaymentReceiptDashboardPageState
       appBar: AppBar(
         title: const Text('Payment Receipt'),
         elevation: 0,
+        actions: [
+          SearchAppBarAction(
+            isSearchActive: _searchExpanded,
+            onTap: () => setState(() => _searchExpanded = !_searchExpanded),
+          ),
+          FilterAppBarAction(
+            activeCount: _activeFilterCount,
+            onTap: _openFilterSheet,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: InputDecoration(
-                hintText: 'Cari supplier, nomor receipt, catatan...',
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                filled: true,
-                fillColor: isDark
-                    ? theme.cardColor
-                    : AppColors.surfaceVariant.withValues(alpha: 0.6),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
-                  borderSide: BorderSide.none,
+          // Togglable Search Bar
+          if (_searchExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: 'Cari supplier, nomor receipt, catatan...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  filled: true,
+                  fillColor: isDark
+                      ? theme.cardColor
+                      : AppColors.surfaceVariant.withValues(alpha: 0.6),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          // Summary Card
-          if (!_isLoading && _errorMessage == null)
-            _buildSummaryCard(theme, isDark),
 
-          // Category Chips Filter
+          // Filter chips (1 slot inline — ≤1 filter rule)
           _buildFilterChips(theme),
 
-          // Main List View
+          // Main List View (summary card moved inside)
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -350,9 +390,13 @@ class _PaymentReceiptDashboardPageState
                             child: ListView.builder(
                               controller: _scrollController,
                               padding: const EdgeInsets.all(AppSpacing.md),
-                              itemCount: filtered.length + (_loadingMore ? 1 : 0),
+                              itemCount: filtered.length + (_loadingMore ? 1 : 1), // +1 for summary
                               itemBuilder: (context, idx) {
-                                if (idx == filtered.length) {
+                                if (idx == 0) {
+                                  return _buildSummaryCard(theme, isDark);
+                                }
+                                final listIdx = idx - 1;
+                                if (listIdx == filtered.length && _loadingMore) {
                                   return const Padding(
                                     padding: AppSpacing.paddingMD,
                                     child: Center(
@@ -364,7 +408,8 @@ class _PaymentReceiptDashboardPageState
                                     ),
                                   );
                                 }
-                                final receipt = filtered[idx];
+                                if (listIdx >= filtered.length) return const SizedBox.shrink();
+                                final receipt = filtered[listIdx];
                                 return PaymentReceiptCard(
                                   receipt: receipt,
                                   onTap: () {

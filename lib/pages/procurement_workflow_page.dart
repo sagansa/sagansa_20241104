@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import '../models/procurement_model.dart';
 import '../services/procurement_service.dart';
 import '../theme/app_spacing.dart';
-import '../utils/procurement_approval.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/image_preview_dialog.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/procurement_batch_bottom_bar.dart';
 import '../widgets/procurement_entity_card.dart';
 import '../widgets/procurement_graph_view.dart';
 import '../widgets/procurement_stage_tabs.dart';
-import '../widgets/procurement_stats_strip.dart';
-import '../widgets/procurement_subfilter_chips.dart';
+import '../widgets/search_app_bar_action.dart';
 import 'create_invoice_page.dart';
 import 'create_payment_receipt_page.dart';
 import 'create_procurement_page.dart';
@@ -191,30 +191,6 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
   // ============ Helpers (computed) ============
 
   /// Jumlah request yang masih punya item pending admin approval.
-  /// Approval ada di level detail_request (item), bukan invoice.
-  /// Backend set detail_request.status='1' (Process) untuk item yang
-  /// butuh approval (detail tunai + product default transfer).
-  bool _hasPendingItems(RequestPurchase req) {
-    return hasPendingApprovalItems(
-      req.detailRequests.map((d) => d.status).toList(),
-    );
-  }
-
-  /// Count request yang punya item pending approval — dipakai di stats strip.
-  int get _countPendingApproval =>
-      _requests.where((r) => _hasPendingItems(r)).length;
-
-  /// Count request siap invoice (ada item & belum jadi invoice & tidak ada pending).
-  int get _countSiapInvoice =>
-      _requests.where((r) =>
-          r.detailRequests.isNotEmpty &&
-          !_requestToInvoices.containsKey(r.id) &&
-          !_hasPendingItems(r)).length;
-
-  /// Count invoice siap dibayar (belum lunas).
-  int get _countSiapBayar =>
-      _allInvoices.where((inv) => inv.paymentStatus != '2').length;
-
   // ============ Filtering ============
 
   List<RequestPurchase> get _filteredRequests {
@@ -287,6 +263,70 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
     return total;
   }
 
+  // ============ Filter methods ============
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_searchQuery.isNotEmpty) count++;
+    if (_subFilterRequest > 0) count++;
+    if (_subFilterInvoice > 0) count++;
+    return count;
+  }
+
+  List<DropdownFilterField> _buildFilterFields() {
+    if (_activeStage == 0) {
+      return [
+        DropdownFilterField<int>(
+          label: 'Status Request',
+          value: _subFilterRequest,
+          options: const [
+            (0, 'Semua'),
+            (1, 'Siap Invoice'),
+            (2, 'Sudah Jadi Invoice'),
+          ],
+        ),
+      ];
+    } else if (_activeStage == 1) {
+      return [
+        DropdownFilterField<int>(
+          label: 'Status Invoice',
+          value: _subFilterInvoice,
+          options: const [
+            (0, 'Semua'),
+            (1, 'Siap Dibayar'),
+            (2, 'Lunas'),
+          ],
+        ),
+      ];
+    }
+    return [];
+  }
+
+  void _openFilterSheet() {
+    final fields = _buildFilterFields();
+    if (fields.isEmpty) return;
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter ${['Request', 'Invoice', 'Payment'][_activeStage]}',
+      fields: fields,
+      onApply: (values) {
+        setState(() {
+          if (_activeStage == 0) {
+            _subFilterRequest = values['Status Request'] as int? ?? 0;
+          } else if (_activeStage == 1) {
+            _subFilterInvoice = values['Status Invoice'] as int? ?? 0;
+          }
+        });
+      },
+      onReset: () {
+        setState(() {
+          if (_activeStage == 0) _subFilterRequest = 0;
+          if (_activeStage == 1) _subFilterInvoice = 0;
+        });
+      },
+    );
+  }
+
   // ============ Build ============
 
   @override
@@ -295,9 +335,13 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
       appBar: AppBar(
         title: const Text('Procurement'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => setState(() => _searchExpanded = !_searchExpanded),
+          SearchAppBarAction(
+            isSearchActive: _searchExpanded,
+            onTap: () => setState(() => _searchExpanded = !_searchExpanded),
+          ),
+          FilterAppBarAction(
+            activeCount: _activeFilterCount,
+            onTap: _openFilterSheet,
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -337,60 +381,17 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_searchExpanded ? 110 : 64),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_searchExpanded)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: TextField(
-                    controller: _searchController,
-                    autofocus: true,
-                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                    decoration: InputDecoration(
-                      hintText: 'Cari No Request/Invoice/Toko...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      ),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  ),
-                ),
-              ProcurementStatsStrip(
-                pendingApprovalCount: _countPendingApproval,
-                siapInvoiceCount: _countSiapInvoice,
-                siapBayarCount: _countSiapBayar,
-                onChipTap: (i) {
-                  // Approval ada di level item request → tap chip "approval"
-                  // membawa user ke tab Request untuk melihat request dgn item pending.
-                  if (i == 0) {
-                    setState(() {
-                      _activeStage = 0;
-                      _subFilterRequest = 0; // Semua
-                    });
-                  } else if (i == 1) {
-                    setState(() {
-                      _activeStage = 0;
-                      _subFilterRequest = 1; // Siap Invoice
-                    });
-                  } else {
-                    setState(() {
-                      _activeStage = 1;
-                      _subFilterInvoice = 1; // Siap Dibayar
-                    });
-                  }
-                },
-              ),
-            ],
+          preferredSize: const Size.fromHeight(48),
+          child: ProcurementStageTabs(
+            activeStage: _activeStage,
+            requestCount: _filteredRequests.length,
+            invoiceCount: _filteredInvoices.length,
+            paymentCount: _filteredReceipts.length,
+            onTabTap: (i) => setState(() {
+              _activeStage = i;
+              _selectedRequestIds.clear();
+              _selectedInvoiceIds.clear();
+            }),
           ),
         ),
       ),
@@ -417,18 +418,30 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
                   onRefresh: _fetchData,
                   child: Column(
                     children: [
-                      ProcurementStageTabs(
-                        activeStage: _activeStage,
-                        requestCount: _filteredRequests.length,
-                        invoiceCount: _filteredInvoices.length,
-                        paymentCount: _filteredReceipts.length,
-                        onTabTap: (i) => setState(() {
-                          _activeStage = i;
-                          _selectedRequestIds.clear();
-                          _selectedInvoiceIds.clear();
-                        }),
-                      ),
-                      _buildSubFilter(),
+                      if (_searchExpanded)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: TextField(
+                            controller: _searchController,
+                            autofocus: true,
+                            onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                            decoration: InputDecoration(
+                              hintText: 'Cari No Request/Invoice/Toko...',
+                              prefixIcon: const Icon(Icons.search, size: 18),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
                       Expanded(child: _buildActiveList()),
                       if (_buildBottomBar() != null) _buildBottomBar()!,
                     ],
@@ -452,30 +465,6 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         },
       ),
     );
-  }
-
-  Widget _buildSubFilter() {
-    if (_activeStage == 0) {
-      return ProcurementSubfilterChips(
-        options: const ['Semua', 'Siap Invoice', 'Sudah Jadi Invoice'],
-        activeIndex: _subFilterRequest,
-        activeColor: const Color(0xFFFF9800),
-        onChipTap: (i) => setState(() => _subFilterRequest = i),
-      );
-    } else if (_activeStage == 1) {
-      // 3 filter: Semua, Siap Dibayar, Lunas.
-      // Approval ada di level request item (tab Request), bukan invoice.
-      return ProcurementSubfilterChips(
-        options: const ['Semua', 'Siap Dibayar', 'Lunas'],
-        activeIndex: _subFilterInvoice,
-        activeColor: const Color(0xFF2196F3),
-        onChipTap: (i) => setState(() => _subFilterInvoice = i),
-      );
-    } else {
-      // Tab Payment: semua receipt transfer (tunai langsung ke closing store).
-      // Tidak ada sub-filter.
-      return const SizedBox.shrink();
-    }
   }
 
   Widget _buildActiveList() {

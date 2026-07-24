@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_dropdown.dart';
 import 'salary_detail_page.dart';
 
@@ -173,6 +175,63 @@ class _SalaryPageState extends State<SalaryPage> {
       _selectedStatus = null;
     });
     _loadData();
+  }
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedUserId != null) count++;
+    if (_selectedPeriod != null) count++;
+    if (_selectedStatus != null) count++;
+    return count;
+  }
+
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter Gaji',
+      fields: [
+        if (_isAdmin)
+          DropdownFilterField<int>(
+            label: 'Karyawan',
+            value: _selectedUserId,
+            options: _employees.map((e) => (
+              e['id'] as int,
+              e['name']?.toString() ?? 'Karyawan #${e['id']}',
+            )).toList(),
+          ),
+        DropdownFilterField<String>(
+          label: 'Periode',
+          value: _selectedPeriod,
+          options: List.generate(12, (i) {
+            final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+            final period = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+            return (period, DateFormat('MMMM yyyy', 'id_ID').format(d));
+          }),
+        ),
+        DropdownFilterField<String>(
+          label: 'Status',
+          value: _selectedStatus,
+          options: const [
+            ('draft', 'Draft'),
+            ('pending', 'Menunggu Persetujuan'),
+            ('approved', 'Disetujui'),
+            ('rejected', 'Ditolak'),
+            ('paid', 'Dibayar'),
+          ],
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedUserId = values['Karyawan'] as int?;
+          _selectedPeriod = values['Periode'] as String?;
+          _selectedStatus = values['Status'] as String?;
+        });
+        _loadData();
+      },
+      onReset: () {
+        _clearFilters();
+      },
+    );
   }
 
   void _showGenerateDialog() {
@@ -511,13 +570,17 @@ class _SalaryPageState extends State<SalaryPage> {
             onPressed: _loadData,
             tooltip: 'Muat Ulang',
           ),
+          if (_isAdmin && !_isSelectionMode)
+            FilterAppBarAction(
+              activeCount: _activeFilterCount,
+              onTap: _openFilterSheet,
+            ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: Column(
           children: [
-            if (_isAdmin) _buildFilterSection(colorScheme, textTheme),
             if (!_isAdmin)
               Container(
                 padding: AppSpacing.paddingMD,
@@ -540,106 +603,6 @@ class _SalaryPageState extends State<SalaryPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterSection(ColorScheme colorScheme, TextTheme textTheme) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: AppSpacing.paddingMD,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.filter_list, size: 20, color: AppColors.info),
-              AppSpacing.gapHorizontalSM,
-              Text('Filter',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              if (_selectedUserId != null ||
-                  _selectedPeriod != null ||
-                  _selectedStatus != null)
-                TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text('Hapus Filter'),
-                ),
-            ],
-          ),
-          AppSpacing.gapVerticalSM,
-          ModernDropdown<int?>(
-            value: _selectedUserId,
-            labelText: 'Karyawan',
-            hint: 'Semua Karyawan',
-            prefixIcon: const Icon(Icons.person_outline, size: 20),
-            items: [null, ..._employees.map((emp) => emp['id'] as int)],
-            getLabel: (v) {
-              if (v == null) return 'Semua Karyawan';
-              final emp = _employees.firstWhere((e) => e['id'] == v, orElse: () => {});
-              return emp['name']?.toString() ?? '-';
-            },
-            onChanged: (value) {
-              setState(() => _selectedUserId = value);
-              _loadData();
-            },
-          ),
-          AppSpacing.gapVerticalSM,
-          ModernDropdown<String?>(
-            value: _selectedPeriod,
-            labelText: 'Periode',
-            hint: 'Semua Periode',
-            prefixIcon: const Icon(Icons.calendar_month, size: 20),
-            items: [
-              null,
-              ...List.generate(12, (i) {
-                final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
-                return '${d.year}-${d.month.toString().padLeft(2, '0')}';
-              }),
-            ],
-            getLabel: (v) {
-              if (v == null) return 'Semua Periode';
-              final parts = v.split('-');
-              final year = int.tryParse(parts[0]) ?? DateTime.now().year;
-              final month = int.tryParse(parts[1]) ?? DateTime.now().month;
-              final d = DateTime(year, month, 1);
-              return DateFormat('MMMM yyyy', 'id_ID').format(d);
-            },
-            onChanged: (value) {
-              setState(() => _selectedPeriod = value);
-              _loadData();
-            },
-          ),
-          AppSpacing.gapVerticalSM,
-          ModernDropdown<String?>(
-            value: _selectedStatus,
-            labelText: 'Status',
-            hint: 'Semua Status',
-            items: const [null, 'draft', 'pending', 'approved', 'rejected', 'paid'],
-            getLabel: (v) {
-              switch (v) {
-                case 'draft': return 'Draft';
-                case 'pending': return 'Menunggu Persetujuan';
-                case 'approved': return 'Disetujui';
-                case 'rejected': return 'Ditolak';
-                case 'paid': return 'Dibayar';
-                default: return 'Semua Status';
-              }
-            },
-            onChanged: (value) {
-              setState(() => _selectedStatus = value);
-              _loadData();
-            },
-          ),
-        ],
       ),
     );
   }

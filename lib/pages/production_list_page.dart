@@ -6,6 +6,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
 import '../widgets/add_fab.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'production_detail_page.dart';
 import 'production_form_page.dart';
@@ -114,28 +116,68 @@ class _ProductionListPageState extends State<ProductionListPage> {
     if (changed == true) _refresh();
   }
 
-  void _changeStatusFilter(String? s) {
-    if (_statusFilter == s) return;
-    setState(() => _statusFilter = s);
-    _load(reset: true);
+  int get _activeFilterCount {
+    int count = 0;
+    if (_statusFilter != null) count++;
+    if (_appliedFilter != null) count++;
+    return count;
   }
 
-  void _changeAppliedFilter(bool? a) {
-    if (_appliedFilter == a) return;
-    setState(() => _appliedFilter = a);
-    _load(reset: true);
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter',
+      fields: [
+        DropdownFilterField<String?>(
+          label: 'Status',
+          value: _statusFilter,
+          options: const [
+            (null, 'Semua'),
+            ('1', 'Belum diperiksa'),
+            ('2', 'Valid'),
+            ('3', 'Perbaiki'),
+          ],
+        ),
+        DropdownFilterField<bool?>(
+          label: 'Stok',
+          value: _appliedFilter,
+          options: const [
+            (null, 'Semua Stok'),
+            (false, 'Belum diterapkan'),
+            (true, 'Sudah diterapkan'),
+          ],
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _statusFilter = values['Status'] as String?;
+          _appliedFilter = values['Stok'] as bool?;
+        });
+        _load(reset: true);
+      },
+      onReset: () {
+        setState(() {
+          _statusFilter = null;
+          _appliedFilter = null;
+        });
+        _load(reset: true);
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Produksi')),
-      body: Column(
-        children: [
-          _buildFilterRow(),
-          Expanded(child: _buildBody()),
+      appBar: AppBar(
+        title: const Text('Produksi'),
+        actions: [
+          FilterAppBarAction(
+            activeCount: _activeFilterCount,
+            onTap: _openFilterSheet,
+          ),
         ],
       ),
+      body: _buildBody(),
       floatingActionButton: AddFab(onPressed: _openCreate),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
@@ -144,55 +186,6 @@ class _ProductionListPageState extends State<ProductionListPage> {
             Navigator.pop(context);
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildFilterRow() {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: AppSpacing.paddingSM,
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _filterChip('Semua', null, _statusFilter, _changeStatusFilter),
-          _filterChip('Belum diperiksa', '1', _statusFilter, _changeStatusFilter),
-          _filterChip('Valid', '2', _statusFilter, _changeStatusFilter),
-          _filterChip('Perbaiki', '3', _statusFilter, _changeStatusFilter),
-          const SizedBox(width: 8),
-          _filterChip('Semua Stok', null, _appliedFilter?.toString(),
-              (v) => _changeAppliedFilter(null)),
-          _filterChip(
-              'Belum',
-              'false',
-              _appliedFilter == false ? 'false' : null,
-              (_) => _changeAppliedFilter(false)),
-          _filterChip(
-              'Sudah',
-              'true',
-              _appliedFilter == true ? 'true' : null,
-              (_) => _changeAppliedFilter(true)),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterChip(String label, String? value, String? selected, ValueChanged<String?> onTap) {
-    final cs = Theme.of(context).colorScheme;
-    // Untuk statusFilter, selected = statusFilter. Untuk appliedFilter,
-    // mapping diberikan via parameter `selected` (string).
-    final isSelected = _statusFilter == value ||
-        (label.contains('Stok') && _appliedFilter == null && value == null) ||
-        (value == 'false' && _appliedFilter == false) ||
-        (value == 'true' && _appliedFilter == true);
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onTap(value),
-      labelStyle: TextStyle(
-        color: isSelected ? cs.onSecondaryContainer : cs.onSurfaceVariant,
       ),
     );
   }

@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../widgets/modern_dropdown.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 
 /// Rekap presensi untuk satu periode cut-off gaji bulanan (mis. "Juni 2026"
 /// = presensi 26 Mei – 25 Jun).
@@ -119,6 +120,50 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
     _loadData();
   }
 
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedUserId != null) count++;
+    return count;
+  }
+
+  void _openFilterSheet() {
+    final employees = _employees;
+    FilterBottomSheet.show(
+      context,
+      fields: [
+        if (_isAdmin)
+          DropdownFilterField<int>(
+            label: 'Karyawan',
+            value: _selectedUserId,
+            options: employees.map((e) => (
+              _toInt(e['id']),
+              e['name']?.toString() ?? '-',
+            )).toList(),
+          ),
+        DropdownFilterField<String>(
+          label: 'Periode (cut-off gaji)',
+          value: _selectedPeriod,
+          options: List.generate(12, (i) {
+            final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+            final period = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+            final label = DateFormat('MMMM yyyy', 'id_ID').format(d);
+            return (period, label);
+          }),
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedUserId = values['Karyawan'] as int?;
+          _selectedPeriod = values['Periode (cut-off gaji)'] as String? ?? _defaultPeriod();
+        });
+        _loadData();
+      },
+      onReset: () {
+        _clearFilters();
+      },
+    );
+  }
+
   // ---- Status helpers (konsisten dgn PresenceModel.getStatusColor/getStatusText) ----
 
   /// Parse angka dari JSON (bisa int, double, atau String) ke int secara aman.
@@ -201,13 +246,17 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             onPressed: _loadData,
             tooltip: 'Muat Ulang',
           ),
+          if (_isAdmin)
+            FilterAppBarAction(
+              activeCount: _activeFilterCount,
+              onTap: _openFilterSheet,
+            ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: Column(
           children: [
-            if (_isAdmin) _buildFilterSection(),
             if (!_isAdmin)
               Container(
                 padding: AppSpacing.paddingMD,
@@ -226,80 +275,6 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             Expanded(child: _buildBody()),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterSection() {
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final hasFilter = _selectedUserId != null;
-    return Container(
-      padding: AppSpacing.paddingMD,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.filter_list, size: 20, color: AppColors.info),
-              AppSpacing.gapHorizontalSM,
-              Text('Filter',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              if (hasFilter)
-                TextButton(
-                    onPressed: _clearFilters, child: const Text('Hapus Filter')),
-            ],
-          ),
-          AppSpacing.gapVerticalSM,
-          ModernDropdown<int?>(
-            value: _selectedUserId,
-            labelText: 'Karyawan',
-            hint: 'Semua Karyawan',
-            prefixIcon: const Icon(Icons.person_outline, size: 20),
-            items: [null, ..._employees.map((e) => _toInt(e['id'])).whereType<int>()],
-            getLabel: (v) {
-              if (v == null) return 'Semua Karyawan';
-              final emp = _employees.firstWhere((e) => _toInt(e['id']) == v, orElse: () => {});
-              return emp['name']?.toString() ?? '-';
-            },
-            onChanged: (v) {
-              setState(() => _selectedUserId = v);
-              _loadData();
-            },
-          ),
-          AppSpacing.gapVerticalSM,
-          ModernDropdown<String>(
-            value: _selectedPeriod,
-            labelText: 'Periode (cut-off gaji)',
-            hint: 'Pilih periode...',
-            prefixIcon: const Icon(Icons.calendar_month, size: 20),
-            items: List.generate(12, (i) {
-              final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
-              return '${d.year}-${d.month.toString().padLeft(2, '0')}';
-            }),
-            getLabel: (v) {
-              final parts = v.split('-');
-              final year = int.tryParse(parts[0]) ?? DateTime.now().year;
-              final month = int.tryParse(parts[1]) ?? DateTime.now().month;
-              final d = DateTime(year, month, 1);
-              return DateFormat('MMMM yyyy', 'id_ID').format(d);
-            },
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _selectedPeriod = v);
-              _loadData();
-            },
-          ),
-        ],
       ),
     );
   }

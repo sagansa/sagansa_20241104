@@ -8,8 +8,9 @@ import '../services/utility_usage_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
-import '../widgets/modern_dropdown.dart';
 import '../widgets/status_badge.dart';
 import 'utility_usage_detail_page.dart';
 import 'utility_usage_form_page.dart';
@@ -61,6 +62,14 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
       ];
 
   bool get _hasActiveFilters => _selectedStoreId != null || _selectedCategory != null || _selectedUtilityId != null;
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedStoreId != null) count++;
+    if (_selectedCategory != null) count++;
+    if (_selectedUtilityId != null) count++;
+    return count;
+  }
 
   @override
   void initState() {
@@ -167,6 +176,50 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
     _fetch();
   }
 
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter Pemakaian Utility',
+      fields: [
+        DropdownFilterField<int>(
+          label: 'Toko',
+          value: _selectedStoreId,
+          options: _stores.map((s) => (
+            s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()),
+            s['nickname']?.toString() ?? 'Toko #${s['id']}',
+          )).toList(),
+        ),
+        DropdownFilterField<int>(
+          label: 'Jenis Utility',
+          value: _selectedCategory,
+          options: _filteredCategories.map((c) => (
+            c['id'] as int,
+            c['label'] as String,
+          )).toList(),
+        ),
+        DropdownFilterField<int>(
+          label: 'Utility',
+          value: _selectedUtilityId,
+          options: _filteredUtilities.map((u) => (
+            u['id'] is int ? u['id'] as int : int.parse(u['id'].toString()),
+            u['name']?.toString() ?? 'Utility #${u['id']}',
+          )).toList(),
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedStoreId = values['Toko'] as int?;
+          _selectedCategory = values['Jenis Utility'] as int?;
+          _selectedUtilityId = values['Utility'] as int?;
+        });
+        _fetch();
+      },
+      onReset: () {
+        _clearFilters();
+      },
+    );
+  }
+
   StatusType _statusType(int status) {
     switch (status) {
       case 2:
@@ -212,6 +265,10 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
               onPressed: _clearFilters,
               tooltip: 'Hapus Filter',
             ),
+          FilterAppBarAction(
+            activeCount: _activeFilterCount,
+            onTap: _openFilterSheet,
+          ),
         ],
       ),
       floatingActionButton: _canManage
@@ -223,7 +280,6 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
       ),
       body: Column(
         children: [
-          _buildFilters(colorScheme, textTheme),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -238,148 +294,6 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
         ],
       ),
     );
-  }
-
-  Widget _buildFilters(ColorScheme colorScheme, TextTheme textTheme) {
-    return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: Store dropdown
-          ModernDropdown<int?>(
-            value: _selectedStoreId,
-            labelText: 'Toko',
-            hint: 'Semua Toko',
-            prefixIcon: Icon(Icons.store_rounded, size: 20, color: AppColors.info),
-            items: [null, ..._stores.map((s) => s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()))],
-            getLabel: (v) {
-              if (v == null) return 'Semua Toko';
-              final s = _stores.firstWhere((e) => e['id'] == v || e['id'].toString() == v.toString(), orElse: () => {});
-              return s['nickname']?.toString() ?? 'Toko #$v';
-            },
-            onChanged: (val) {
-              setState(() {
-                _selectedStoreId = val;
-                if (val != null && _selectedCategory != null) {
-                  final validCats = _filteredCategories.map((c) => c['id'] as int).toList();
-                  if (!validCats.contains(_selectedCategory)) _selectedCategory = null;
-                }
-                if (val != null && _selectedUtilityId != null) {
-                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString())).toList();
-                  if (!validUtils.contains(_selectedUtilityId)) _selectedUtilityId = null;
-                }
-              });
-              _fetch();
-            },
-          ),
-          const SizedBox(height: 10),
-
-          // Row 2: Category dropdown
-          ModernDropdown<int?>(
-            value: _selectedCategory,
-            labelText: 'Jenis Utility',
-            hint: 'Semua Jenis',
-            prefixIcon: Icon(Icons.category_rounded, size: 20, color: AppColors.info),
-            items: [null, ..._filteredCategories.map((c) => c['id'] as int)],
-            getLabel: (v) {
-              if (v == null) return 'Semua Jenis';
-              final c = _filteredCategories.firstWhere((e) => e['id'] == v, orElse: () => {});
-              return c['label']?.toString() ?? 'Jenis #$v';
-            },
-            onChanged: (val) {
-              setState(() {
-                _selectedCategory = val;
-                if (val != null && _selectedUtilityId != null) {
-                  final validUtils = _filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString())).toList();
-                  if (!validUtils.contains(_selectedUtilityId)) _selectedUtilityId = null;
-                }
-              });
-              _fetch();
-            },
-          ),
-          const SizedBox(height: 10),
-
-          // Row 3: Utility dropdown
-          ModernDropdown<int?>(
-            value: _selectedUtilityId,
-            labelText: 'Utility',
-            hint: 'Semua Utility',
-            prefixIcon: Icon(Icons.electrical_services_rounded, size: 20, color: AppColors.info),
-            items: [null, ..._filteredUtilities.map((u) => u['id'] is int ? u['id'] as int : int.parse(u['id'].toString()))],
-            getLabel: (v) {
-              if (v == null) return 'Semua Utility';
-              final u = _filteredUtilities.firstWhere((e) => e['id'] == v || e['id'].toString() == v.toString(), orElse: () => {});
-              return u['name']?.toString() ?? 'Utility #$v';
-            },
-            onChanged: (val) {
-              setState(() => _selectedUtilityId = val);
-              _fetch();
-            },
-          ),
-
-          if (_hasActiveFilters) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                if (_selectedStoreId != null)
-                  _buildFilterChip(
-                    'Toko: ${_stores.where((s) => s['id'] == _selectedStoreId).firstOrNull?['nickname'] ?? ''}',
-                    () => setState(() {
-                      _selectedStoreId = null;
-                      _selectedCategory = null;
-                      _selectedUtilityId = null;
-                    }),
-                    colorScheme,
-                  ),
-                if (_selectedCategory != null)
-                  _buildFilterChip(
-                    'Jenis: ${_categoryLabel(_selectedCategory!)}',
-                    () => setState(() {
-                      _selectedCategory = null;
-                      _selectedUtilityId = null;
-                    }),
-                    colorScheme,
-                  ),
-                if (_selectedUtilityId != null)
-                  _buildFilterChip(
-                    'Utility: ${_utilities.where((u) => u['id'] == _selectedUtilityId).firstOrNull?['utility_name'] ?? ''}',
-                    () => setState(() => _selectedUtilityId = null),
-                    colorScheme,
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, VoidCallback onDelete, ColorScheme colorScheme) {
-    return InputChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      onDeleted: onDelete,
-      deleteIconColor: colorScheme.onSurfaceVariant,
-      backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
-      labelStyle: TextStyle(color: colorScheme.primary, fontSize: 12),
-      deleteIcon: const Icon(Icons.close, size: 16),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  String _categoryLabel(int category) {
-    switch (category) {
-      case 1:
-        return 'Listrik';
-      case 2:
-        return 'Air';
-      case 3:
-        return 'Internet';
-      default:
-        return 'Unknown';
-    }
   }
 
   Widget _buildList(ColorScheme colorScheme, TextTheme textTheme) {

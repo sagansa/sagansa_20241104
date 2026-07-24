@@ -157,7 +157,8 @@ class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
 void main() {
   runZonedGuarded(() async {
     // Tahan splash native sampai kita lepas secara eksplisit (1 detik).
-    FlutterNativeSplash.preserve(widgetsBinding: WidgetsFlutterBinding.ensureInitialized());
+    final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
     // Set up global error handler untuk menampilkan CustomErrorWidget
     // alih-alih red screen default di release build.
@@ -171,18 +172,24 @@ void main() {
       DeviceOrientation.portraitDown,
     ]);
 
+    // Lepas splash setelah tepat 1 detik — delay ini ditunggu SEBELUM
+    // runApp sehingga selalu dieksekusi (fix: splash stuck saat app dibuka
+    // kembali setelah proses di-kill, karena sebelumnya remove() di-schedule
+    // setelah runApp yang tidak tentu kembali pada warm restore).
+    await Future.delayed(const Duration(milliseconds: 1000));
+
     // Cek apakah token tersimpan untuk auto login
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString(AppConstants.tokenKey);
     final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
 
-    // Inisialisasi pelacakan lokasi (Firebase + FCM + workmanager) dipindah
-    // ke pasca-runApp agar tidak menahan splash native saat cold start.
     runApp(ErrorBoundaryWidget(child: MyApp(initialRoute: initialRoute)));
 
-    // Lepas splash setelah tepat 1 detik (menutupi jeda cold start).
-    await Future.delayed(const Duration(milliseconds: 1000));
-    FlutterNativeSplash.remove();
+    // Splash dilepas setelah frame pertama tergambar, agar tidak ada
+    // blank frame antara native splash dan UI Flutter.
+    widgetsBinding.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
 
     // Jalankan init berat di frame berikutnya, setelah UI pertama tampil.
     WidgetsBinding.instance.addPostFrameCallback((_) async {

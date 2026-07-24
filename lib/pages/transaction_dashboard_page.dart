@@ -3,15 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/enums/order_mode.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
 import '../widgets/dashboard_scaffold.dart';
 import 'closing_store_page.dart';
-import 'delivery_page.dart';
 import 'fuel_service_list_page.dart';
 import 'procurement_workflow_page.dart';
-import 'sales_order_employee_list_page.dart';
+import 'sales_page.dart';
 import 'supplier_list_page.dart';
 
 class TransactionDashboardPage extends StatefulWidget {
@@ -66,86 +62,9 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
           subtitle: 'Catat penjualan: online, employee, atau direct.',
           visible: isStorageStaff || isAdmin,
           onTap: () {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Pilih Tipe Penjualan'),
-                contentPadding: AppSpacing.paddingMD,
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: Container(
-                        padding: AppSpacing.paddingSM,
-                        decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha: 0.1),
-                          borderRadius: AppSpacing.borderRadiusSM,
-                        ),
-                        child: const Icon(Icons.local_shipping_outlined,
-                            color: AppColors.info),
-                      ),
-                      title: const Text('Penjualan by Online'),
-                      subtitle: const Text('Pesanan via online shop (OS)'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const DeliveryPage(orderMode: OrderMode.online),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Container(
-                        padding: AppSpacing.paddingSM,
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.1),
-                          borderRadius: AppSpacing.borderRadiusSM,
-                        ),
-                        child: const Icon(Icons.person_outline,
-                            color: AppColors.success),
-                      ),
-                      title: const Text('Penjualan by Employee'),
-                      subtitle: const Text('Penjualan oleh sales ke customer'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const SalesOrderEmployeeListPage(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Container(
-                        padding: AppSpacing.paddingSM,
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: 0.1),
-                          borderRadius: AppSpacing.borderRadiusSM,
-                        ),
-                        child: const Icon(Icons.directions_run_outlined,
-                            color: AppColors.warning),
-                      ),
-                      title: const Text('Penjualan by Direct'),
-                      subtitle: const Text('Langsung outlet/toko'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const DeliveryPage(orderMode: OrderMode.direct),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SalesPage()),
             );
           },
         ),

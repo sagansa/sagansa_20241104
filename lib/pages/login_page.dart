@@ -158,6 +158,7 @@ class LoginPageState extends State<LoginPage> {
                               child: Column(
                                 children: [
                                   ModernTextField(
+                                    key: const ValueKey('email_field'),
                                     controller: emailController,
                                     labelText: 'Email',
                                     prefixIcon: Icons.email,
@@ -166,6 +167,7 @@ class LoginPageState extends State<LoginPage> {
                                   ),
                                   AppSpacing.gapVerticalMD,
                                   ModernTextField(
+                                    key: const ValueKey('password_field'),
                                     controller: passwordController,
                                     labelText: 'Password',
                                     prefixIcon: Icons.lock,

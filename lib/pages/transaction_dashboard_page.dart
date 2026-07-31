@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/dashboard_scaffold.dart';
 import 'closing_store_page.dart';
-import 'fuel_service_list_page.dart';
+import 'fuel_service_page.dart';
 import 'procurement_workflow_page.dart';
 import 'sales_page.dart';
 import 'supplier_list_page.dart';
@@ -99,7 +99,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const FuelServiceListPage()),
+                  builder: (context) => const FuelServicePage()),
             );
           },
         ),

@@ -11,8 +11,9 @@ import '../providers/printer_provider.dart';
 import '../services/sales_order_employee_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/error_utils.dart';
-import '../utils/format_utils.dart';
+import '../widgets/delivery/order_detail_page.dart';
 import '../widgets/delivery/order_list_view.dart';
+import '../widgets/employee_order_list_card.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/paged_body_view.dart';
 import 'create_sales_order_online_page.dart';
@@ -139,6 +140,23 @@ class _OnlineTabContentState extends State<_OnlineTabContent> {
     }
   }
 
+  /// Buka halaman detail baru untuk sebuah order online.
+  /// Setelah kembali (pop), refresh list agar status terbaru terlihat.
+  void _openDetail(Map<String, dynamic> order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDetailPage(
+          order: order,
+          orderMode: OrderMode.online,
+          provider: _provider,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _provider.loadInitialOrders();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -150,16 +168,25 @@ class _OnlineTabContentState extends State<_OnlineTabContent> {
             OrderListView(
               orderMode: OrderMode.online,
               onScanBarcode: _scanBarcode,
+              onOpenDetail: _openDetail,
             ),
-            if (_provider.listState.isAdmin)
-              Positioned(
-                right: AppSpacing.md,
-                bottom: AppSpacing.md,
-                child: FloatingActionButton(
-                  onPressed: _openCreateOrder,
-                  child: const Icon(Icons.add),
-                ),
-              ),
+            // Listen ke provider agar FAB reaktif saat isAdmin selesai di-load
+            // (initialize() async — isAdmin awalnya false, baru diset setelah
+            // loadAdminRole()). Tanpa listen, FAB tidak akan muncul.
+            Selector<DeliveryProvider, bool>(
+              selector: (_, p) => p.listState.isAdmin,
+              builder: (_, isAdmin, __) {
+                if (!isAdmin) return const SizedBox.shrink();
+                return Positioned(
+                  right: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                  child: FloatingActionButton(
+                    onPressed: _openCreateOrder,
+                    child: const Icon(Icons.add),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -167,7 +194,7 @@ class _OnlineTabContentState extends State<_OnlineTabContent> {
   }
 }
 
-/// Tab Direct — delivery list scoped to direct orders.
+  /// Tab Direct — delivery list scoped to direct orders.
 class _DirectTabContent extends StatefulWidget {
   @override
   State<_DirectTabContent> createState() => _DirectTabContentState();
@@ -188,6 +215,23 @@ class _DirectTabContentState extends State<_DirectTabContent> {
     super.dispose();
   }
 
+  /// Buka halaman detail baru untuk sebuah order direct.
+  /// Setelah kembali (pop), refresh list agar status terbaru terlihat.
+  void _openDetail(Map<String, dynamic> order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDetailPage(
+          order: order,
+          orderMode: OrderMode.direct,
+          provider: _provider,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _provider.loadInitialOrders();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -199,16 +243,22 @@ class _DirectTabContentState extends State<_DirectTabContent> {
             OrderListView(
               orderMode: OrderMode.direct,
               onScanBarcode: () {},
+              onOpenDetail: _openDetail,
             ),
-            if (_provider.listState.isAdmin)
-              Positioned(
-                right: AppSpacing.md,
-                bottom: AppSpacing.md,
-                child: FloatingActionButton(
-                  onPressed: () {},
-                  child: const Icon(Icons.add),
-                ),
-              ),
+            Selector<DeliveryProvider, bool>(
+              selector: (_, p) => p.listState.isAdmin,
+              builder: (_, isAdmin, __) {
+                if (!isAdmin) return const SizedBox.shrink();
+                return Positioned(
+                  right: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                  child: FloatingActionButton(
+                    onPressed: () {},
+                    child: const Icon(Icons.add),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -328,8 +378,6 @@ class _EmployeeTabContentState extends State<_EmployeeTabContent> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Stack(
       children: [
         PagedBodyView<SalesOrderEmployeeModel>(
@@ -345,27 +393,9 @@ class _EmployeeTabContentState extends State<_EmployeeTabContent> {
           emptySubtitle: _isSales ? 'Tap + untuk membuat pesanan baru.' : null,
           itemBuilder: (context, index) {
             final o = _items[index];
-            return Card(
-              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: ListTile(
-                onTap: () => _openDetail(o),
-                title: Text(
-                  o.storeName ?? 'Customer',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  '${o.orderedByName ?? '-'} · ${o.deliveryDate != null ? FormatUtils.formatDate(o.deliveryDate!) : '-'}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                trailing: Text(
-                  FormatUtils.formatCurrency(o.totalPrice),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: cs.primary,
-                  ),
-                ),
-              ),
+            return EmployeeOrderListCard(
+              order: o,
+              onTap: () => _openDetail(o),
             );
           },
         ),

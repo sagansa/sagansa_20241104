@@ -37,6 +37,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
   Map<String, dynamic>? _selectedSupplier;
+  int _paymentTypeId = 2;
 
   /// Setiap item state terikat ke request asalnya (untuk invoice lintas-request).
   List<_ItemState> _itemStates = [];
@@ -258,6 +259,20 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                             const SizedBox(height: 4),
                             SupplierPaymentInfoCard(selectedSupplier: _selectedSupplier),
                           ],
+                          DropdownButtonFormField<int>(
+                            initialValue: _paymentTypeId,
+                            decoration: const InputDecoration(
+                              labelText: 'Tipe Pembayaran *',
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 1, child: Text('Transfer')),
+                              DropdownMenuItem(value: 2, child: Text('Tunai')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _paymentTypeId = val);
+                            },
+                          ),
                           AppSpacing.gapVerticalLG,
                           Text(
                             'Pilih Item & Masukkan Harga',

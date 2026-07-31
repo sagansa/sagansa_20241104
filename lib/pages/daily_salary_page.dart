@@ -1,0 +1,739 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/procurement_model.dart';
+import '../services/closing_store_service.dart';
+import '../services/procurement_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/filter_app_bar_action.dart';
+import '../widgets/filter_bottom_sheet.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/payment_receipt_card.dart';
+import 'create_payment_receipt_page.dart';
+import 'payment_receipt_detail_page.dart';
+
+class DailySalaryPage extends StatefulWidget {
+  const DailySalaryPage({super.key});
+
+  @override
+  State<DailySalaryPage> createState() => _DailySalaryPageState();
+}
+
+class _DailySalaryPageState extends State<DailySalaryPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final ClosingStoreService _service = ClosingStoreService();
+  final ScrollController _scrollController = ScrollController();
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  String? _errorMessage;
+  List<dynamic> _dailySalaries = [];
+  int _currentPage = 1;
+  bool _hasMore = true;
+
+  // Role & filter states
+  bool _isAdmin = false;
+  List<dynamic> _employees = [];
+  int? _selectedUserId;
+  String? _selectedStatus;
+  int? _selectedPaymentType;
+  DateTime? _selectedDateFrom;
+  DateTime? _selectedDateTo;
+
+  // Bulk selection
+  bool _isSelectionMode = false;
+  final Set<int> _selectedIds = {};
+
+  final Map<String, String> _statusOptions = {
+    '1': 'Belum Dibayar',
+    '2': 'Sudah Dibayar',
+    '3': 'Siap Dibayar',
+    '4': 'Perbaiki',
+  };
+
+  final Map<int, String> _paymentTypeOptions = {
+    1: 'Transfer',
+    2: 'Tunai',
+  };
+
+  final ProcurementService _procurementService = ProcurementService();
+  List<PaymentReceipt> _receipts = [];
+  bool _isLoadingReceipts = false;
+  bool _hasMoreReceipts = true;
+  int _receiptPage = 1;
+  bool _isLoadingMoreReceipts = false;
+  final ScrollController _receiptScrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdmin();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _scrollController.addListener(_onScroll);
+    _receiptScrollController.addListener(_onReceiptScroll);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _receiptScrollController.removeListener(_onReceiptScroll);
+    _receiptScrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAdmin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userString = prefs.getString('user');
+      if (userString != null) {
+        final userData = json.decode(userString);
+        final userRoles = List<String>.from(userData['roles'] ?? []);
+        setState(() {
+          _isAdmin = userRoles.contains('admin') || userRoles.contains('super_admin');
+        });
+      }
+    } catch (e) {
+      // Ignore
+    }
+    _loadData();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _currentPage = 1;
+      _hasMore = true;
+    });
+
+    try {
+      final result = await _service.getDailySalaries(
+        page: 1,
+        userId: _selectedUserId,
+        status: _selectedStatus,
+        paymentTypeId: _selectedPaymentType,
+        dateFrom: _selectedDateFrom,
+        dateTo: _selectedDateTo,
+      );
+      setState(() {
+        _dailySalaries = result['data'];
+        _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+        _isLoading = false;
+      });
+
+      // Load employees list for admin filter
+      if (_isAdmin && _employees.isEmpty) {
+        _loadEmployees();
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadEmployees() async {
+    try {
+      final employees = await _service.getEmployeesForDailySalary();
+      if (mounted) {
+        setState(() {
+          _employees = employees;
+        });
+      }
+    } catch (e) {
+      // Ignore employee load error
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await _service.getDailySalaries(
+        page: _currentPage + 1,
+        userId: _selectedUserId,
+        status: _selectedStatus,
+        paymentTypeId: _selectedPaymentType,
+        dateFrom: _selectedDateFrom,
+        dateTo: _selectedDateTo,
+      );
+      setState(() {
+        _dailySalaries.addAll(result['data']);
+        _currentPage++;
+        _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+        _isLoadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedUserId = null;
+      _selectedStatus = null;
+      _selectedPaymentType = null;
+      _selectedDateFrom = null;
+      _selectedDateTo = null;
+    });
+    _loadData();
+  }
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedUserId != null) count++;
+    if (_selectedStatus != null) count++;
+    if (_selectedPaymentType != null) count++;
+    if (_selectedDateFrom != null || _selectedDateTo != null) count++;
+    return count;
+  }
+
+  void _openFilterSheet() {
+    final employees = _employees;
+    FilterBottomSheet.show(
+      context,
+      fields: [
+        if (_isAdmin)
+          DropdownFilterField<int>(
+            label: 'Karyawan',
+            value: _selectedUserId,
+            options: employees.map((e) => (
+              e['id'] as int,
+              e['name']?.toString() ?? 'Karyawan #${e['id']}',
+            )).toList(),
+          ),
+        DropdownFilterField<String>(
+          label: 'Status',
+          value: _selectedStatus,
+          options: _statusOptions.entries.map((e) => (e.key, e.value)).toList(),
+        ),
+        DropdownFilterField<int>(
+          label: 'Pembayaran',
+          value: _selectedPaymentType,
+          options: _paymentTypeOptions.entries.map((e) => (e.key, e.value)).toList(),
+        ),
+        DateRangeFilterField(
+          label: 'Rentang Tanggal',
+          value: _selectedDateFrom != null && _selectedDateTo != null
+              ? (_selectedDateFrom!, _selectedDateTo!)
+              : null,
+        ),
+      ],
+      onApply: (values) {
+        setState(() {
+          _selectedUserId = values['Karyawan'] as int?;
+          _selectedStatus = values['Status'] as String?;
+          _selectedPaymentType = values['Pembayaran'] as int?;
+          final dateRange = values['Rentang Tanggal'] as (DateTime, DateTime)?;
+          _selectedDateFrom = dateRange?.$1;
+          _selectedDateTo = dateRange?.$2;
+        });
+        _loadData();
+      },
+      onReset: () {
+        _clearFilters();
+      },
+    );
+  }
+
+  Future<void> _navigateToPaymentReceipt() async {
+    if (_selectedIds.isEmpty) return;
+
+    // Get selected daily salary data
+    final selectedSalaries = _dailySalaries
+        .where((s) => _selectedIds.contains(s['id']))
+        .toList();
+
+    // Get unique employee ID from selected items
+    final employeeIds = selectedSalaries
+        .map((s) => s['created_by']?['id'])
+        .where((id) => id != null)
+        .toSet()
+        .toList();
+
+    if (employeeIds.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih daily salary dari karyawan yang sama.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreatePaymentReceiptPage(
+          dailySalaries:
+              selectedSalaries.map((s) => s as Map<String, dynamic>).toList(),
+        ),
+      ),
+    );
+
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+
+    if (result == true && mounted) {
+      await _loadData();
+    }
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      if (_selectedIds.length == _dailySalaries.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.addAll(_dailySalaries.map((s) => s['id'] as int));
+      }
+    });
+  }
+
+  void _onReceiptScroll() {
+    if (_receiptScrollController.position.pixels >=
+        _receiptScrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMoreReceipts &&
+        _hasMoreReceipts) {
+      _loadMoreReceipts();
+    }
+  }
+
+  Future<void> _fetchReceipts() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingReceipts = true;
+      _receiptPage = 1;
+      _receipts = [];
+      _hasMoreReceipts = true;
+    });
+    try {
+      final result = await _procurementService.getPaymentReceipts(page: _receiptPage);
+      if (!mounted) return;
+      final filtered = result.items.where((r) => r.paymentFor == '2').toList();
+      setState(() {
+        _receipts = filtered;
+        _hasMoreReceipts = result.hasMore;
+        _isLoadingReceipts = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingReceipts = false);
+    }
+  }
+
+  Future<void> _loadMoreReceipts() async {
+    if (_isLoadingMoreReceipts || !_hasMoreReceipts) return;
+    setState(() => _isLoadingMoreReceipts = true);
+    try {
+      final result = await _procurementService.getPaymentReceipts(page: _receiptPage + 1);
+      if (!mounted) return;
+      final filtered = result.items.where((r) => r.paymentFor == '2').toList();
+      setState(() {
+        _receiptPage++;
+        _receipts.addAll(filtered);
+        _hasMoreReceipts = result.hasMore;
+        _isLoadingMoreReceipts = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingMoreReceipts = false);
+    }
+  }
+
+  Widget _buildAdminOnlyWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.lock_outline, size: 64, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 16),
+          Text('Hanya dapat diakses oleh admin.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentReceiptTab() {
+    if (_isLoadingReceipts) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_receipts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 64,
+                color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 16),
+            Text('Belum ada pembayaran gaji harian.'),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _fetchReceipts,
+      child: ListView.builder(
+        controller: _receiptScrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: _receipts.length + (_hasMoreReceipts ? 1 : 0),
+        itemBuilder: (context, idx) {
+          if (idx == _receipts.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final receipt = _receipts[idx];
+          return PaymentReceiptCard(
+            receipt: receipt,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PaymentReceiptDetailPage(receiptId: receipt.id),
+                ),
+              ).then((_) => _fetchReceipts());
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: _isSelectionMode
+            ? Text('${_selectedIds.length} dipilih')
+            : const Text('Daily Salary'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : null,
+        actions: [
+          if (_isAdmin) ...[
+            if (_isSelectionMode) ...[
+              IconButton(
+                icon: Icon(
+                  _selectedIds.length == _dailySalaries.length
+                      ? Icons.deselect
+                      : Icons.select_all,
+                ),
+                onPressed: _selectAll,
+                tooltip: _selectedIds.length == _dailySalaries.length
+                    ? 'Batalkan Semua'
+                    : 'Pilih Semua',
+              ),
+              IconButton(
+                icon: const Icon(Icons.payment),
+                onPressed: _navigateToPaymentReceipt,
+                tooltip: 'Buat Payment Receipt',
+              ),
+            ] else
+              IconButton(
+                icon: const Icon(Icons.checklist),
+                onPressed: _toggleSelectionMode,
+                tooltip: 'Pilih Data',
+              ),
+          ],
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
+          if (_isAdmin && !_isSelectionMode && _tabController.index == 0)
+            FilterAppBarAction(
+              activeCount: _activeFilterCount,
+              onTap: _openFilterSheet,
+            ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            tabs: const [
+              Tab(text: 'Gaji Harian'),
+              Tab(text: 'Pembayaran'),
+            ],
+          ),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Daily salary list
+          Column(
+            children: [
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
+                        ? _buildErrorWidget()
+                        : _dailySalaries.isEmpty
+                            ? _buildEmptyWidget()
+                            : _buildListWidget(_dailySalaries),
+              ),
+            ],
+          ),
+          // Tab 2: Payment receipts (admin only)
+          _isAdmin ? _buildPaymentReceiptTab() : _buildAdminOnlyWidget(),
+        ],
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: 3,
+        onTap: (index) {
+          if (index != 3) {
+            Navigator.pop(context);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: AppSpacing.paddingLG,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+            AppSpacing.gapVerticalMD,
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge,
+            ),
+            AppSpacing.gapVerticalLG,
+            ElevatedButton(
+              onPressed: _loadData,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyWidget() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.account_balance_wallet_outlined,
+              size: 64, color: colorScheme.outline),
+          AppSpacing.gapVerticalMD,
+          Text('Belum ada data daily salary.', style: theme.textTheme.bodyLarge),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListWidget(List<dynamic> displayList) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: displayList.length + (_hasMore ? 1 : 0),
+      padding: AppSpacing.paddingMD,
+      itemBuilder: (context, index) {
+        if (index == displayList.length) {
+          return const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final salary = displayList[index];
+        final salaryId = salary['id'] as int;
+        final employeeName = salary['created_by']?['name'] ?? 'Staff';
+        final storeName = salary['store']?['nickname'] ??
+            salary['store']?['name'] ??
+            '-';
+        final shiftStoreName = salary['shift_store']?['name'] ?? '';
+        final date = salary['date'] ?? '';
+        final amount = double.tryParse(salary['amount'].toString()) ?? 0;
+        final status = salary['status'];
+        final paymentType = salary['payment_type_id'];
+
+        String statusText;
+        Color statusColor;
+        if (status == 1 || status == '1') {
+          statusText = 'Belum Dibayar';
+          statusColor = AppColors.warning;
+        } else if (status == 2 || status == '2') {
+          statusText = 'Sudah Dibayar';
+          statusColor = AppColors.success;
+        } else if (status == 3 || status == '3') {
+          statusText = 'Siap Dibayar';
+          statusColor = AppColors.info;
+        } else if (status == 4 || status == '4') {
+          statusText = 'Perbaiki';
+          statusColor = colorScheme.error;
+        } else {
+          statusText = 'Status: $status';
+          statusColor = AppColors.onSurfaceVariant;
+        }
+
+        final String paymentTypeText =
+            paymentType == 1 || paymentType == '1' ? 'Transfer' : 'Tunai';
+
+        final isSelected = _selectedIds.contains(salaryId);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
+          color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
+          child: InkWell(
+            onTap: _isSelectionMode
+                ? () => _toggleSelection(salaryId)
+                : null,
+            borderRadius: AppSpacing.borderRadiusMD,
+            child: Padding(
+              padding: AppSpacing.paddingMD,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (_isSelectionMode)
+                        Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.sm),
+                          child: Icon(
+                            isSelected
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.outline,
+                          ),
+                        ),
+                      Expanded(
+                        child: Text(
+                          employeeName,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.1),
+                          borderRadius: AppSpacing.borderRadiusSM,
+                        ),
+                        child: Text(
+                          statusText,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.gapVerticalSM,
+                  Row(
+                    children: [
+                      Icon(Icons.store, size: 16, color: AppColors.info),
+                      AppSpacing.gapHorizontalSM,
+                      Text(storeName, style: textTheme.bodySmall),
+                      if (shiftStoreName.isNotEmpty) ...[
+                        Text(' • ', style: textTheme.bodySmall),
+                        Text(shiftStoreName, style: textTheme.bodySmall),
+                      ],
+                    ],
+                  ),
+                  AppSpacing.gapVerticalXS,
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 14, color: AppColors.info),
+                      AppSpacing.gapHorizontalSM,
+                      Text(date, style: textTheme.bodySmall),
+                    ],
+                  ),
+                  AppSpacing.gapVerticalXS,
+                  Row(
+                    children: [
+                      Icon(Icons.payment, size: 14, color: AppColors.info),
+                      AppSpacing.gapHorizontalSM,
+                      Text(paymentTypeText, style: textTheme.bodySmall),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total', style: textTheme.bodyMedium),
+                      Text(
+                        currencyFormatter.format(amount),
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

@@ -33,7 +33,8 @@ class OrderListCard extends StatelessWidget {
 
     return Card(
       color: colorScheme.surface,
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: InkWell(
         onTap: onTap,
         child: Padding(

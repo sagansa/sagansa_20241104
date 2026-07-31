@@ -49,10 +49,11 @@ class HomePageState extends State<HomePage> {
     super.initState();
     _initData();
 
-    // Check for app updates + load provider data
+    // Check for app updates. Data loading is started after authentication in
+    // _initData; starting it here as well caused duplicate unauthenticated
+    // requests during app startup.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       VersionService().checkForUpdate(context);
-      context.read<HomeDashboardProvider>().loadAll();
     });
   }
 
@@ -72,14 +73,23 @@ class HomePageState extends State<HomePage> {
       final isStorageStaffRole = authProvider.isStorageStaff;
       final hasAdminRole = widget.initialIsAdmin ?? authProvider.isAdmin;
 
+      // Load dashboard data only after the auth token/user context is ready.
+      // This prevents two concurrent waves of requests (including
+      // storage-stocks/today-status) during startup.
+      await homeProvider.loadAll();
+      if (!mounted) return;
+
       // Load presence data via provider (today + previous + active leave flag).
       await homeProvider.loadPresence();
+      if (!mounted) return;
 
       if (isStorageStaffRole) {
         await homeProvider.loadOrders();
+        if (!mounted) return;
       }
 
       await homeProvider.loadLeaveSalary();
+      if (!mounted) return;
 
       if (hasAdminRole || isStorageStaffRole) {
         await homeProvider.loadAdminStock();
@@ -189,6 +199,12 @@ class HomePageState extends State<HomePage> {
         context.select<AuthProvider, String>((a) => a.companyName);
     final isAdmin = widget.initialIsAdmin ??
         context.select<AuthProvider, bool>((a) => a.isAdmin);
+    final isStorageStaff =
+        context.select<AuthProvider, bool>((a) => a.isStorageStaff);
+    final hasLoanData = context.select<HomeDashboardProvider, bool>(
+        (p) => p.leaveSalary.hasLoanData);
+    final isUserDataLoaded = context.select<HomeDashboardProvider, bool>(
+        (p) => p.presence.isUserDataLoaded);
 
     return Scaffold(
       appBar: AppBar(
@@ -247,8 +263,7 @@ class HomePageState extends State<HomePage> {
                       BoxConstraints(minHeight: constraints.maxHeight),
                   child: Padding(
                     padding: AppSpacing.paddingMD,
-                    child: !context.select<HomeDashboardProvider, bool>(
-                        (p) => p.presence.isUserDataLoaded)
+                    child: !isUserDataLoaded
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 100),
@@ -257,12 +272,15 @@ class HomePageState extends State<HomePage> {
                   )
                 : isAdmin
                     ? _buildAdminDashboard()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           HomePresenceSection(
                               onNavigateToPresence: _navigateToPresencePage),
-                          _buildDashboardGrid(),
+                          _buildDashboardGrid(
+                            isStorageStaff: isStorageStaff,
+                            hasLoanData: hasLoanData,
+                          ),
                         ],
                       ),
                   ),
@@ -287,10 +305,11 @@ class HomePageState extends State<HomePage> {
 
 
 
-  Widget _buildDashboardGrid() {
+  Widget _buildDashboardGrid({
+    required bool isStorageStaff,
+    required bool hasLoanData,
+  }) {
     final theme = Theme.of(context);
-    final isStorageStaff =
-        context.select<AuthProvider, bool>((a) => a.isStorageStaff);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,8 +343,7 @@ class HomePageState extends State<HomePage> {
             const HomeClosingStoreCard(),
             const HomeSalarySlipCard(),
             const HomeLeaveCard(),
-            if (context.select<HomeDashboardProvider, bool>(
-                (p) => p.leaveSalary.hasLoanData))
+            if (hasLoanData)
               const HomeLoanCard(),
             const HomeShoppingCard(),
           ],

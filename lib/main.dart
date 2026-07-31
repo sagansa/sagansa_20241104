@@ -16,6 +16,7 @@ import '../pages/login_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/fuel_service_payment_provider.dart';
 import 'providers/home_dashboard_provider.dart';
+import 'providers/presence_provider.dart';
 import 'providers/printer_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/asset_service.dart';
@@ -254,6 +255,12 @@ class _MyAppState extends State<MyApp> {
             leaveService: LeaveService(),
             salaryService: SalaryService(),
           ),
+        ),
+        // PresenceProvider dipakai oleh PresencePage (check-in & check-out).
+        // Harus ada di ancestor widget tree; sebelumnya hilang saat
+        // refactoring home_page menghapus controller-based access.
+        ChangeNotifierProvider<PresenceProvider>(
+          create: (_) => PresenceProvider(),
         ),
       ],
       child: Consumer<ThemeProvider>(

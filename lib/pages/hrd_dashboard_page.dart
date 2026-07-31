@@ -5,7 +5,7 @@ import '../services/presence_service.dart';
 import '../services/salary_service.dart';
 import '../widgets/dashboard_scaffold.dart';
 import 'calendar_page.dart';
-import 'daily_salary_list_page.dart';
+import 'daily_salary_page.dart';
 import 'leave_page.dart';
 import 'loan_page.dart';
 import 'presence_monthly_page.dart';
@@ -149,7 +149,7 @@ class _HRDDashboardPageState extends State<HRDDashboardPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const DailySalaryListPage()),
+                  builder: (context) => const DailySalaryPage()),
             );
           },
         ),

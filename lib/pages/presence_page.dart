@@ -148,20 +148,13 @@ class PresencePageState extends State<PresencePage> {
   }
 
   void _validateCheckoutTime() {
-    if (!widget.isCheckIn) {
-      final now = DateTime.now();
-      final currentHour = now.hour;
-      setState(() {
-        isTimeValid = currentHour <= 23 || currentHour <= 2;
-      });
-
-      if (!isTimeValid) {
-        SnackbarUtils.error(
-          context,
-          'Waktu checkout hanya diperbolehkan sampai jam 02:00',
-        );
-      }
-    }
+    // Validasi batas waktu checkout sepenuhnya dipegang backend (PresenceController
+    // mengembalikan error 400 + checkout_deadline bila lewat). Dahulu ada gate
+    // client-side dgn jam hard-coded 02:00 yang bug (`currentHour <= 23 || ...`
+    // selalu true) dan inkonsisten dgn aturan shift malam (deadline 06:00 hari
+    // berikutnya). isTimeValid tetap true agar tombol selalu aktif; penolakan
+    // final ditangani backend saat submit.
+    isTimeValid = true;
   }
 
   Future<void> _validateAndSubmitPresence() async {

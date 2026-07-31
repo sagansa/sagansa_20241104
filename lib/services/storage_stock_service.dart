@@ -45,16 +45,15 @@ class StorageStockService {
   }
 
   Future<Map<String, int>> checkTodayStatus() async {
-    try {
-      final data = await _api.get('storage-stocks/today-status');
-      return {
-        'total_stores': data?['total_stores'] ?? 0,
-        'reported_stores': data?['reported_stores'] ?? 0,
-        'user_store_reported': data?['user_store_reported'] == true ? 1 : 0,
-      };
-    } catch (e) {
-      return {'total_stores': 0, 'reported_stores': 0, 'user_store_reported': 0};
+    final data = await _api.get('storage-stocks/today-status');
+    if (data is! Map || data['success'] != true) {
+      throw Exception('Status stok hari ini gagal dimuat.');
     }
+    return {
+      'total_stores': (data['total_stores'] as num?)?.toInt() ?? 0,
+      'reported_stores': (data['reported_stores'] as num?)?.toInt() ?? 0,
+      'user_store_reported': data['user_store_reported'] == true ? 1 : 0,
+    };
   }
 
   Future<int> countReportedStoresToday() async {

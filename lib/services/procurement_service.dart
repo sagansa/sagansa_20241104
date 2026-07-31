@@ -264,8 +264,11 @@ class ProcurementService {
     File? image,
   }) async {
     final fields = <String, String>{};
-    for (var id in fuelServiceIds) {
-      fields['fuel_service_ids[]'] = id.toString();
+    // Gunakan indeks numerik (fuel_service_ids[0], [1], ...) agar setiap id
+    // terkirim sebagai field terpisah. Memakai 'fuel_service_ids[]' pada Map
+    // <String,String> akan saling menimpa — hanya id terakhir yang terkirim.
+    for (var i = 0; i < fuelServiceIds.length; i++) {
+      fields['fuel_service_ids[$i]'] = fuelServiceIds[i].toString();
     }
     fields['transfer_amount'] = transferAmount.toString();
     if (totalAmount != null) {
@@ -298,8 +301,11 @@ class ProcurementService {
     File? image,
   }) async {
     final fields = <String, String>{};
-    for (var id in fuelServiceIds) {
-      fields['fuel_service_ids[]'] = id.toString();
+    // Gunakan indeks numerik (fuel_service_ids[0], [1], ...) agar setiap id
+    // terkirim sebagai field terpisah. Memakai 'fuel_service_ids[]' pada Map
+    // <String,String> akan saling menimpa — hanya id terakhir yang terkirim.
+    for (var i = 0; i < fuelServiceIds.length; i++) {
+      fields['fuel_service_ids[$i]'] = fuelServiceIds[i].toString();
     }
     fields['transfer_amount'] = transferAmount.toString();
     if (notes != null) {

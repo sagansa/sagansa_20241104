@@ -77,6 +77,7 @@ class DeliveryFormState {
   final bool isMarkingReady;
   final bool isPrintingSticker;
   final bool isUpdatingPaymentStatus;
+  final bool isPrintingPaymentProof;
 
   const DeliveryFormState({
     this.selectedOrder,
@@ -85,6 +86,7 @@ class DeliveryFormState {
     this.isMarkingReady = false,
     this.isPrintingSticker = false,
     this.isUpdatingPaymentStatus = false,
+    this.isPrintingPaymentProof = false,
   });
 
   DeliveryFormState copyWith({
@@ -95,6 +97,7 @@ class DeliveryFormState {
     bool? isMarkingReady,
     bool? isPrintingSticker,
     bool? isUpdatingPaymentStatus,
+    bool? isPrintingPaymentProof,
   }) {
     return DeliveryFormState(
       selectedOrder: clearOrder ? null : (selectedOrder ?? this.selectedOrder),
@@ -104,6 +107,8 @@ class DeliveryFormState {
       isPrintingSticker: isPrintingSticker ?? this.isPrintingSticker,
       isUpdatingPaymentStatus:
           isUpdatingPaymentStatus ?? this.isUpdatingPaymentStatus,
+      isPrintingPaymentProof:
+          isPrintingPaymentProof ?? this.isPrintingPaymentProof,
     );
   }
 
@@ -522,13 +527,28 @@ class DeliveryProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> printPaymentProof(Map<String, dynamic> order) async {
+    _formState = _formState.copyWith(isPrintingPaymentProof: true);
+    notifyListeners();
+    try {
+      await pdfService.printPaymentProofs([order], orderMode, requirePending: false);
+      _formState = _formState.copyWith(isPrintingPaymentProof: false);
+      notifyListeners();
+      loadInitialOrders();
+    } catch (e) {
+      _formState = _formState.copyWith(isPrintingPaymentProof: false);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> _printPaymentProofsForOrders(
       List<Map<String, dynamic>> orders) async {
     _listState = _listState.copyWith(isPrintingPaymentProof: true);
     notifyListeners();
 
     try {
-      await pdfService.printPaymentProofs(orders, orderMode);
+      await pdfService.printPaymentProofs(orders, orderMode, requirePending: true);
       _listState = _listState.copyWith(isPrintingPaymentProof: false);
       notifyListeners();
       loadInitialOrders();

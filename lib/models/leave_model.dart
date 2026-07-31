@@ -28,6 +28,11 @@ class LeaveModel {
   });
 
   factory LeaveModel.fromJson(Map<String, dynamic> json) {
+    final rawNotes = json['notes']?.toString();
+    final cleanedNotes = rawNotes
+        ?.replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .trim();
     return LeaveModel(
       id: json['id'],
       reason: int.tryParse(json['reason']?.toString() ?? '0') ?? 0,
@@ -36,7 +41,7 @@ class LeaveModel {
       untilDate: DateTime.parse(json['until_date']),
       status: int.tryParse(json['status']?.toString() ?? '0') ?? 0,
       statusText: json['status_text'] ?? '',
-      notes: json['notes'],
+      notes: cleanedNotes == null || cleanedNotes.isEmpty ? null : cleanedNotes,
       createdBy: CreatedBy.fromJson(
         json['created_by'] is Map<String, dynamic>
             ? json['created_by']

@@ -24,12 +24,26 @@ class PaymentProofPdfService {
 
   Future<void> printPaymentProofs(
     List<Map<String, dynamic>> orders,
-    OrderMode orderMode,
-  ) async {
-    final printableOrders = orders.where(_canPrintPaymentProof).toList();
+    OrderMode orderMode, {
+    required bool requirePending,
+  }) async {
+    final printableOrders = orders.where((order) {
+      final imageUrl = order['image_payment_url']?.toString();
+      if (imageUrl == null || imageUrl.trim().isEmpty) {
+        return false;
+      }
+      if (requirePending && order['delivery_status'] != 1) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     if (printableOrders.isEmpty) {
-      throw Exception('Tidak ada bukti pembayaran status belum dikirim untuk dicetak.');
+      throw Exception(
+        requirePending
+            ? 'Tidak ada bukti pembayaran status belum dikirim untuk dicetak.'
+            : 'Tidak ada bukti pembayaran untuk dicetak.',
+      );
     }
 
     final document = pw.Document();
@@ -141,14 +155,5 @@ class PaymentProofPdfService {
     }
 
     return;
-  }
-
-  bool _canPrintPaymentProof(Map<String, dynamic> order) {
-    return order['delivery_status'] == 1 && _hasPaymentProof(order);
-  }
-
-  bool _hasPaymentProof(Map<String, dynamic> order) {
-    return order['image_payment_url'] != null &&
-        order['image_payment_url'].toString().trim().isNotEmpty;
   }
 }

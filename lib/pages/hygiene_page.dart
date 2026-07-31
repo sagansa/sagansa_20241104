@@ -35,7 +35,6 @@ class _HygienePageState extends State<HygienePage> {
   int? _storeId;
 
   bool _isLoading = true;
-  bool _hasSubmittedToday = false;
   bool _isSubmitting = false;
 
   @override
@@ -70,21 +69,12 @@ class _HygienePageState extends State<HygienePage> {
       if (selectedStore == null && stores.isNotEmpty) {
         selectedStore = stores.first;
       }
-      final storeId = selectedStore?.id;
-
-      // Cek status kebersihan per-TOKO (bukan per-user): bila user lain di toko
-      // sama sudah lapor hari ini, user berikutnya tidak wajib mengisi lagi.
-      final hasSubmitted = storeId != null
-          ? await _hygieneService.checkTodayStatus(storeId: storeId)
-          : false;
-
       if (mounted) {
         setState(() {
           _rooms = rooms;
-          _hasSubmittedToday = hasSubmitted;
           _stores = stores;
           _selectedStore = selectedStore;
-          _storeId = storeId;
+          _storeId = selectedStore?.id;
           _isLoading = false;
         });
       }
@@ -274,77 +264,7 @@ class _HygienePageState extends State<HygienePage> {
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _hasSubmittedToday
-                ? _buildSubmittedView()
-                : _buildForm(),
-      ),
-    );
-  }
-
-  Widget _buildSubmittedView() {
-    final textTheme = Theme.of(context).textTheme;
-    final storeName = _selectedStore?.nickname.isNotEmpty == true
-        ? _selectedStore!.nickname
-        : 'toko ini';
-    return Center(
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, size: 80, color: AppColors.success),
-            AppSpacing.gapVerticalMD,
-            Text(
-              'Kebersihan Toko untuk $storeName\nsudah dilaporkan hari ini',
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            AppSpacing.gapVerticalSM,
-            Text(
-              _stores.length > 1
-                  ? 'Laporan cukup satu kali per toko per hari. Pilih toko lain di atas bila perlu.'
-                  : 'Laporan cukup satu kali per toko per hari.',
-              style: textTheme.bodyMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            if (_stores.length > 1) ...[
-              AppSpacing.gapVerticalMD,
-              ModernDropdown<StoreModel>(
-                value: _selectedStore,
-                labelText: 'Pilih Toko Lain',
-                hint: 'Pilih Toko...',
-                prefixIcon: const Icon(Icons.storefront_rounded, size: 20),
-                items: _stores,
-                getLabel: (s) =>
-                    s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
-                onChanged: (v) async {
-                  if (v == null || v.id == _storeId) return;
-                  bool submitted = false;
-                  try {
-                    submitted = await _hygieneService.checkTodayStatus(
-                      storeId: v.id,
-                    );
-                  } catch (_) {
-                    // Biarkan false bila gagal cek.
-                  }
-                  if (mounted) {
-                    setState(() {
-                      _selectedStore = v;
-                      _storeId = v.id;
-                      _hasSubmittedToday = submitted;
-                    });
-                  }
-                },
-              ),
-            ],
-            AppSpacing.gapVerticalLG,
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Kembali'),
-            ),
-          ],
-        ),
+            : _buildForm(),
       ),
     );
   }
@@ -374,23 +294,12 @@ class _HygienePageState extends State<HygienePage> {
                         items: _stores,
                         getLabel: (s) =>
                             s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
-                        onChanged: (v) async {
-                          if (v == null || v.id == _storeId) return;
-                          // Cek ulang status kebersihan per-toko yang dipilih.
-                          bool submitted = false;
-                          try {
-                            submitted = await _hygieneService
-                                .checkTodayStatus(storeId: v.id);
-                          } catch (_) {
-                            // Biarkan false bila gagal cek; user tetap bisa isi.
-                          }
-                          if (mounted) {
-                            setState(() {
-                              _selectedStore = v;
-                              _storeId = v.id;
-                              _hasSubmittedToday = submitted;
-                            });
-                          }
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() {
+                            _selectedStore = v;
+                            _storeId = v.id;
+                          });
                         },
                       ),
                       AppSpacing.gapVerticalMD,

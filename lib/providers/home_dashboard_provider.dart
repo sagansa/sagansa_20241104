@@ -303,6 +303,7 @@ class HomeDashboardProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
+  Future<void>? _loadAllInFlight;
 
   HomeDashboardProvider({
     required ProcurementService procurementService,
@@ -353,6 +354,23 @@ class HomeDashboardProvider extends ChangeNotifier {
 
   /// Load semua section (parallel).
   Future<void> loadAll() async {
+    final inFlight = _loadAllInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _loadAllInternal();
+    _loadAllInFlight = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_loadAllInFlight, future)) {
+        _loadAllInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _loadAllInternal() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -507,20 +525,29 @@ class HomeDashboardProvider extends ChangeNotifier {
     _adminPresence = _adminPresence.copyWith(isLoading: true);
     notifyListeners();
 
-    List<dynamic> presences = const [];
-    int totalEmployees = 0;
-    int lateCount = 0;
+    // Pertahankan data yang sudah tampil selama refresh. Request yang gagal
+    // tidak boleh mengubah ringkasan sebelumnya menjadi 0/0.
+    var presences = _adminPresence.todayPresences;
+    var totalEmployees = _adminPresence.totalEmployees;
+    var lateCount = _adminPresence.lateCount;
 
     try {
       final result = await _presenceService.getAllTodayPresences();
-      presences = result.presences;
-      final summary = result.summary;
-      lateCount = (summary?['late_count'] as num?)?.toInt() ?? 0;
+      // Response kosong tanpa summary menandakan request gagal (service
+      // memang mengembalikan fallback kosong saat error). Jangan hapus data
+      // lama dalam kondisi ini.
+      if (result.summary != null || result.presences.isNotEmpty) {
+        presences = result.presences;
+        final summary = result.summary;
+        lateCount = (summary?['late_count'] as num?)?.toInt() ?? 0;
+      }
     } catch (_) {}
 
     try {
       final users = await _userService.getUsers(role: 'staff');
-      totalEmployees = users.length;
+      if (users.isNotEmpty) {
+        totalEmployees = users.length;
+      }
     } catch (_) {}
 
     _adminPresence = _adminPresence.copyWith(

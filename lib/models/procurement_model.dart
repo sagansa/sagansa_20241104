@@ -96,9 +96,8 @@ class DetailInvoiceItem {
   final String productName;
   final String unitName;
 
-  /// Harga beli terakhir (lintas supplier) — hanya diisi untuk admin.
-  /// Null bila tidak ada riwayat atau user bukan admin.
-  final LastPurchasePrice? lastPurchasePrice;
+  /// Riwayat harga beli terakhir (maksimal 5) — hanya diisi untuk admin.
+  final List<LastPurchasePrice> lastPurchasePrices;
 
   DetailInvoiceItem({
     required this.id,
@@ -110,7 +109,7 @@ class DetailInvoiceItem {
     this.status,
     required this.productName,
     required this.unitName,
-    this.lastPurchasePrice,
+    this.lastPurchasePrices = const [],
   });
 
   double get unitPrice {
@@ -128,18 +127,35 @@ class DetailInvoiceItem {
   }
 
   factory DetailInvoiceItem.fromJson(Map<String, dynamic> json) {
-    final detailRequest = json['detail_request'] as Map<String, dynamic>?;
+    final detailRequest = json['detail_request'] is Map
+        ? Map<String, dynamic>.from(json['detail_request'] as Map)
+        : null;
     String productName = '';
     String unitName = '';
 
     if (detailRequest != null) {
-      final product = detailRequest['product'] as Map<String, dynamic>?;
+      final product = detailRequest['product'] is Map
+          ? Map<String, dynamic>.from(detailRequest['product'] as Map)
+          : null;
       if (product != null) {
         productName = product['name'] ?? '';
-        final unit = product['unit'] as Map<String, dynamic>?;
+        final unit = product['unit'] is Map
+            ? Map<String, dynamic>.from(product['unit'] as Map)
+            : null;
         unitName = unit?['unit'] ?? '';
       }
     }
+
+    final rawPrices = json['last_purchase_price'];
+    final prices = rawPrices is List
+        ? rawPrices
+            .whereType<Map>()
+            .map((e) => LastPurchasePrice.fromJson(Map<String, dynamic>.from(e)))
+            .where((e) => e.hasData)
+            .toList()
+        : rawPrices is Map
+            ? [LastPurchasePrice.fromJson(Map<String, dynamic>.from(rawPrices))]
+            : <LastPurchasePrice>[];
 
     return DetailInvoiceItem(
       id: json['id'],
@@ -153,9 +169,7 @@ class DetailInvoiceItem {
       status: json['status']?.toString(),
       productName: productName,
       unitName: unitName,
-      lastPurchasePrice: LastPurchasePrice.fromJson(
-        json['last_purchase_price'] as Map<String, dynamic>?,
-      ),
+      lastPurchasePrices: prices,
     );
   }
 }

@@ -13,10 +13,16 @@ class OrderListView extends StatelessWidget {
   final OrderMode orderMode;
   final VoidCallback onScanBarcode;
 
+  /// Dipanggil saat user menap sebuah baris order. Parent (mis. SalesPage)
+  /// bertanggung jawab membuka halaman detail baru (Navigator.push ke
+  /// OrderDetailPage). Default tetap memanggil selectOrder untuk backward-compat.
+  final void Function(Map<String, dynamic> order)? onOpenDetail;
+
   const OrderListView({
     super.key,
     required this.orderMode,
     required this.onScanBarcode,
+    this.onOpenDetail,
   });
 
   @override
@@ -54,7 +60,13 @@ class OrderListView extends StatelessWidget {
               isAdmin: listState.isAdmin,
               isStickerPrinted: provider.isStickerPrinted(orderId),
               isPrintingSticker: formState.isPrintingSticker,
-              onTap: () => provider.selectOrder(order),
+              onTap: () {
+                if (onOpenDetail != null) {
+                  onOpenDetail!(order);
+                } else {
+                  provider.selectOrder(order);
+                }
+              },
               onPrintSticker: () {
                 final printerProvider =
                     context.read<PrinterProvider>();

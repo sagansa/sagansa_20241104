@@ -84,23 +84,30 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        _report!.storeName,
-                                        style: textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.bold,
+                                      Expanded(
+                                        child: Text(
+                                          _report!.storeName,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: textTheme.titleLarge?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.primary.withValues(alpha:0.1),
-                                          borderRadius: AppSpacing.borderRadiusXL,
-                                        ),
-                                        child: Text(
-                                          _report!.statusText,
-                                          style: textTheme.labelMedium?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.bold,
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary.withValues(alpha:0.1),
+                                            borderRadius: AppSpacing.borderRadiusXL,
+                                          ),
+                                          child: Text(
+                                            _report!.statusText,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: textTheme.labelMedium?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -135,11 +142,16 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                     item.productName,
                                     style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                                   ),
-                                  trailing: Text(
-                                    '${item.quantity.toStringAsFixed(0)} ${item.unitName}',
-                                    style: textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.primary,
+                                  trailing: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 130),
+                                    child: Text(
+                                      '${item.quantity.toStringAsFixed(0)} ${item.unitName}',
+                                      textAlign: TextAlign.end,
+                                      softWrap: true,
+                                      style: textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.primary,
+                                      ),
                                     ),
                                   ),
                                 ),

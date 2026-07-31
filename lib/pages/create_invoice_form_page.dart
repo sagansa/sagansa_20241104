@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/presence_service.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
+import '../models/procurement_model.dart';
 
 class CreateInvoiceFormPage extends StatefulWidget {
   const CreateInvoiceFormPage({super.key});
@@ -19,6 +23,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
   bool _isLoadingData = true;
   bool _isSubmitting = false;
   String? _errorMessage;
+  bool _isAdmin = false;
 
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
@@ -38,6 +43,20 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
   @override
   void initState() {
     super.initState();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      final roles = List<String>.from(json.decode(userString)['roles'] ?? []);
+      if (mounted) {
+        setState(() {
+          _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+        });
+      }
+    }
     _loadInitialData();
   }
 
@@ -434,17 +453,30 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                                           ),
                                                         ))
                                                     .toList(),
-                                                onChanged: (val) {
-                                                  final dr = _detailRequests.firstWhere(
-                                                    (d) => d['id'] == val,
-                                                    orElse: () => <String, dynamic>{},
-                                                  );
-                                                  setState(() {
-                                                    item['detail_request_id'] = val;
-                                                    item['productName'] = dr['detail_request_name'] ?? dr['product']?['name'] ?? '';
-                                                    item['unitName'] = dr['product']?['unit']?['unit'] ?? '';
-                                                  });
-                                                },
+                                                  onChanged: (val) {
+                                                    final dr = _detailRequests.firstWhere(
+                                                      (d) => d['id'] == val,
+                                                      orElse: () => <String, dynamic>{},
+                                                    );
+                                                    // API mengirim riwayat harga sebagai list (maks. 5).
+                                                    // Ambil harga terbaru untuk pengisian form, tanpa cast
+                                                    // langsung yang akan gagal saat respons berupa JSArray.
+                                                    final rawLpp = dr['last_purchase_price'];
+                                                    final lppData = rawLpp is List
+                                                        ? (rawLpp.isNotEmpty && rawLpp.first is Map
+                                                            ? Map<String, dynamic>.from(rawLpp.first as Map)
+                                                            : null)
+                                                        : rawLpp is Map
+                                                            ? Map<String, dynamic>.from(rawLpp)
+                                                            : null;
+                                                    final lpp = LastPurchasePrice.fromJson(lppData);
+                                                    setState(() {
+                                                      item['detail_request_id'] = val;
+                                                      item['productName'] = dr['detail_request_name'] ?? dr['product']?['name'] ?? '';
+                                                      item['unitName'] = dr['product']?['unit']?['unit'] ?? '';
+                                                      item['lastPurchasePrice'] = lpp;
+                                                    });
+                                                  },
                                               ),
                                             ),
                                             AppSpacing.gapHorizontalSM,
@@ -498,7 +530,41 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                               ),
                                             ],
                                           ),
-                                          if (_itemSubtotal(item) > 0)
+                                          if (_isAdmin &&
+                                              item['lastPurchasePrice'] != null &&
+                                              (item['lastPurchasePrice'] as LastPurchasePrice).hasData) ...[
+                                              const SizedBox(height: 4),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withValues(alpha: 0.08),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  () {
+                                                    final lpp = item['lastPurchasePrice'] as LastPurchasePrice;
+                                                    final priceStr = lpp.unitPrice
+                                                        .toStringAsFixed(0)
+                                                        .replaceAllMapped(
+                                                            RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                                                            (m) => '${m.group(1)}.');
+                                                    final supplier = lpp.supplierName != null
+                                                        ? ' • ${lpp.supplierName}'
+                                                        : '';
+                                                    return 'Harga beli terakhir: Rp $priceStr/${item['unitName']}$supplier';
+                                                  }(),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelSmall
+                                                      ?.copyWith(
+                                                    color: Colors.blue,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            if (_itemSubtotal(item) > 0)
                                             Padding(
                                               padding: const EdgeInsets.only(top: 4),
                                               child: Align(

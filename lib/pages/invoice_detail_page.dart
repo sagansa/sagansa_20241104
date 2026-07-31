@@ -235,7 +235,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   onRefresh: _fetchDetail,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppSpacing.paddingMD,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 180),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -255,8 +255,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'INVOICE PEMBELIAN',
@@ -266,7 +266,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                             letterSpacing: 0.8,
                                           ),
                                         ),
-                                        Row(
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Wrap(
+                                            alignment: WrapAlignment.end,
+                                            spacing: 8,
+                                            runSpacing: 6,
                                           children: [
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -284,7 +290,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
@@ -302,6 +307,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                               ),
                                             ),
                                           ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -339,6 +345,44 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                             ],
                           ),
                         ),
+                        if (_invoice!.imageUrl != null && _invoice!.imageUrl!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Card(
+                            clipBehavior: Clip.antiAlias,
+                            color: colorScheme.surface,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                            ),
+                            child: InkWell(
+                              onTap: () => _showReceiptImage(_invoice!.imageUrl!),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.image_outlined, size: 18, color: colorScheme.primary),
+                                        const SizedBox(width: 7),
+                                        Expanded(
+                                          child: Text('Foto Invoice', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                        ),
+                                        Text('Perbesar', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 190,
+                                    child: _buildInvoiceImage(_invoice!.image!, colorScheme),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                         AppSpacing.gapVerticalMD,
 
                         // Card 2: Daftar Item Konsolidasi
@@ -398,86 +442,105 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                     itemBuilder: (context, index) {
                                       final item = _invoice!.detailInvoices[index];
                                       final unitPrice = item.unitPrice;
-                                      return Row(
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: colorScheme.secondary.withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(color: colorScheme.secondary.withValues(alpha: 0.2)),
-                                            ),
-                                            child: Text(
-                                              '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                                color: colorScheme.secondary,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
+                                      final subtotal = item.subtotalInvoice
+                                          .toStringAsFixed(0)
+                                          .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                                      final currentPrice = unitPrice
+                                          .toStringAsFixed(0)
+                                          .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                                      return Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item.productName,
+                                                    style: theme.textTheme.titleSmall?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: colorScheme.onSurface,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
                                                 Text(
-                                                  item.productName,
-                                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                                  'Rp $subtotal',
+                                                  style: theme.textTheme.titleSmall?.copyWith(
                                                     fontWeight: FontWeight.bold,
-                                                    color: colorScheme.onSurface,
+                                                    color: colorScheme.primary,
                                                   ),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'Rp ${unitPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.')} /${item.unitName}',
-                                                  style: theme.textTheme.bodySmall?.copyWith(
-                                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                                                  ),
-                                                ),
-                                                if (_isAdmin &&
-                                                    item.lastPurchasePrice != null &&
-                                                    item.lastPurchasePrice!.hasData) ...[
-                                                  const SizedBox(height: 4),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                        horizontal: 8, vertical: 4),
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.info.withValues(alpha: 0.08),
-                                                      borderRadius: BorderRadius.circular(6),
-                                                    ),
-                                                    child: Text(
-                                                      () {
-                                                        final lp = item.lastPurchasePrice!;
-                                                        final priceStr = lp.unitPrice
-                                                            .toStringAsFixed(0)
-                                                            .replaceAllMapped(
-                                                                RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-                                                                (m) => '${m.group(1)}.');
-                                                        final supplier = lp.supplierName != null
-                                                            ? ' • ${lp.supplierName}'
-                                                            : '';
-                                                        return 'Harga beli terakhir: Rp $priceStr/$item.unitName$supplier';
-                                                      }(),
-                                                      style: theme.textTheme.labelSmall?.copyWith(
-                                                        color: AppColors.info,
-                                                        fontStyle: FontStyle.italic,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
                                               ],
                                             ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            'Rp ${item.subtotalInvoice != 0 ? item.subtotalInvoice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: colorScheme.onSurface,
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 6,
+                                              children: [
+                                                _itemMetaChip(
+                                                  icon: Icons.inventory_2_outlined,
+                                                  label: '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
+                                                  color: colorScheme.secondary,
+                                                ),
+                                                _itemMetaChip(
+                                                  icon: Icons.sell_outlined,
+                                                  label: 'Rp $currentPrice / ${item.unitName}',
+                                                  color: colorScheme.onSurfaceVariant,
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                        ],
+                                            if (_isAdmin && item.lastPurchasePrices.isNotEmpty) ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                width: double.infinity,
+                                                padding: const EdgeInsets.all(10),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.info.withValues(alpha: 0.08),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        const Icon(Icons.history, size: 15, color: AppColors.info),
+                                                        const SizedBox(width: 6),
+                                                        Text(
+                                                          'Harga beli sebelumnya',
+                                                          style: theme.textTheme.labelMedium?.copyWith(
+                                                            color: AppColors.info,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    ...item.lastPurchasePrices.asMap().entries.map((entry) {
+                                                      final lp = entry.value;
+                                                      final price = lp.unitPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                                                      final date = lp.date != null ? lp.date!.toLocal().toString().split(' ').first : '-';
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(bottom: 3),
+                                                        child: Text(
+                                                          '${entry.key + 1}. Rp $price/${item.unitName} • ${lp.supplierName ?? 'Supplier tidak diketahui'} • $date',
+                                                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.info),
+                                                        ),
+                                                      );
+                                                    }),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
                                       );
                                     },
                                   ),
@@ -834,6 +897,25 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     return '${ApiConstants.baseUrl}/media/$path';
   }
 
+  Widget _buildInvoiceImage(String path, ColorScheme colorScheme) {
+    final primaryUrl = _invoice?.imageUrl ?? '';
+    final fallbackUrl = _imageUrl(path);
+    return Image.network(
+      primaryUrl,
+      fit: BoxFit.cover,
+      loadingBuilder: (_, child, progress) => progress == null
+          ? child
+          : const Center(child: CircularProgressIndicator()),
+      errorBuilder: (_, __, ___) => Image.network(
+        fallbackUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Center(
+          child: Icon(Icons.broken_image_outlined, size: 42, color: colorScheme.outline),
+        ),
+      ),
+    );
+  }
+
   void _showReceiptImage(String url) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -868,22 +950,61 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     );
   }
 
+  Widget _itemMetaChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildInfoRow(String label, String value, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+        const SizedBox(width: 12),
+        Flexible(
+          flex: 3,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            softWrap: true,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

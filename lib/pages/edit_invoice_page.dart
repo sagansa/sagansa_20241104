@@ -20,6 +20,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
 
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
+  int _paymentTypeId = 2;
   final _taxesController = TextEditingController();
   final _discountsController = TextEditingController();
   final _notesController = TextEditingController();
@@ -30,6 +31,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     super.initState();
     _selectedSupplierId = widget.invoice.supplierId;
     _selectedSupplierName = widget.invoice.supplierName ?? '';
+    _paymentTypeId = widget.invoice.paymentTypeId ?? 2;
     _taxesController.text = widget.invoice.taxes.toString();
     _discountsController.text = widget.invoice.discounts.toString();
     _notesController.text = widget.invoice.notes ?? '';
@@ -122,7 +124,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       final updated = await _procurementService.updateInvoice(
         widget.invoice.id,
         supplierId: _selectedSupplierId,
-        paymentTypeId: widget.invoice.paymentTypeId,
+        paymentTypeId: _paymentTypeId,
         taxes: int.tryParse(_taxesController.text) ?? 0,
         discounts: int.tryParse(_discountsController.text) ?? 0,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
@@ -181,6 +183,21 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                             ),
                           ),
                         ),
+                      ),
+                      AppSpacing.gapVerticalLG,
+                      DropdownButtonFormField<int>(
+                        initialValue: _paymentTypeId,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipe Pembayaran *',
+                          isDense: true,
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('Transfer')),
+                          DropdownMenuItem(value: 2, child: Text('Tunai')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setState(() => _paymentTypeId = val);
+                        },
                       ),
                       AppSpacing.gapVerticalLG,
                       Text(

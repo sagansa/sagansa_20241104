@@ -63,15 +63,37 @@ class OnlineOrderDetailView extends StatelessWidget {
           if (order['image_payment_url'] != null) ...[
             _buildPaymentProofCard(context, textTheme, colorScheme),
             AppSpacing.gapVerticalMD,
+            if (provider.hasPaymentProof(order))
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: formState.isPrintingPaymentProof
+                      ? null
+                      : () {
+                          provider.printPaymentProof(order).catchError((e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('$e'.replaceAll('Exception: ', ''))),
+                              );
+                            }
+                          });
+                        },
+                  icon: formState.isPrintingPaymentProof
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.image_outlined),
+                  label: Text(formState.isPrintingPaymentProof ? 'Mencetak...' : 'Cetak Bukti Bayar'),
+                ),
+              ),
+            AppSpacing.gapVerticalMD,
+            StickerPrintButton(
+              order: order,
+              isPrinting: formState.isPrintingSticker,
+              onPrint: () {
+                final printerProvider = context.read<PrinterProvider>();
+                provider.printSticker(order, printerProvider);
+              },
+            ),
           ],
-          StickerPrintButton(
-            order: order,
-            isPrinting: formState.isPrintingSticker,
-            onPrint: () {
-              final printerProvider = context.read<PrinterProvider>();
-              provider.printSticker(order, printerProvider);
-            },
-          ),
           AppSpacing.gapVerticalMD,
           if (order['image_delivery_url'] != null) ...[
             _buildDeliveryPhotoCard(context, textTheme, colorScheme),

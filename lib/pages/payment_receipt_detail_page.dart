@@ -15,6 +15,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/ticket_card_container.dart';
+import 'edit_payment_receipt_page.dart';
 
 class PaymentReceiptDetailPage extends StatefulWidget {
   final int receiptId;
@@ -35,12 +36,15 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
   Map<String, dynamic>? _qrisData;
   String? _qrisError;
   bool _isStaff = false;
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _isStaff = Provider.of<AuthProvider>(context, listen: false)
         .hasAnyRole(['staff', 'storage-staff']);
+    _isAdmin = Provider.of<AuthProvider>(context, listen: false)
+        .hasAnyRole(['admin', 'super_admin']);
     _fetchDetail();
   }
 
@@ -176,6 +180,23 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
         title: const Text('Detail Payment Receipt'),
         elevation: 0,
         actions: [
+          // Tombol Edit hanya untuk admin & receipt fuel service (payment_for == '1').
+          if (_isAdmin && _receipt?.paymentFor == '1')
+            IconButton(
+              icon: const Icon(Icons.edit_rounded),
+              tooltip: 'Edit',
+              onPressed: () async {
+                final updated = await Navigator.push<PaymentReceipt>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditPaymentReceiptPage(receipt: _receipt!),
+                  ),
+                );
+                if (updated != null && mounted) {
+                  setState(() => _receipt = updated);
+                }
+              },
+            ),
           if (_receipt?.image != null && _receipt!.image!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.share_rounded),
@@ -226,6 +247,35 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                         if (_receipt!.notes != null &&
                             _receipt!.notes!.trim().isNotEmpty)
                           _buildNotesCard(theme, isDark),
+
+                        // Fuel & Service Itemized List (payment_for == '1')
+                        if (_receipt!.paymentFor == '1' &&
+                            _receipt!.fuelServices.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.md,
+                              AppSpacing.lg,
+                              AppSpacing.xs,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.local_gas_station_outlined,
+                                    size: 18, color: AppColors.secondary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Item Bensin & Servis (${_receipt!.fuelServices.length})',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ..._receipt!.fuelServices.map(
+                            (fs) => _buildFuelServiceCard(fs, theme, isDark),
+                          ),
+                        ],
 
                         // Invoices Itemized List
                         if (_receipt!.invoicePurchases.isNotEmpty) ...[
@@ -642,6 +692,87 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
             FormatUtils.stripHtml(_receipt!.notes!),
             style: TextStyle(
               fontSize: 13,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFuelServiceCard(
+      FuelServiceItem fs, ThemeData theme, bool isDark) {
+    final isFuel = fs.fuelService == 1;
+    final typeColor = isFuel ? AppColors.success : AppColors.warning;
+    final vehicle = fs.vehicleRegister ?? 'Kendaraan';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: typeColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSM),
+                      ),
+                      child: Text(
+                        fs.typeLabel,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: typeColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '$vehicle (KM: ${fs.km})',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                _formatAmount(fs.amount),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Tgl: ${fs.date}${fs.createdByName != null && fs.createdByName!.isNotEmpty ? ' | Oleh: ${fs.createdByName}' : ''}',
+            style: TextStyle(
+              fontSize: 11,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),

@@ -366,6 +366,7 @@ class PaymentReceipt {
   final String createdAt;
   final String? supplierName;
   final List<InvoicePurchase> invoicePurchases;
+  final List<FuelServiceItem> fuelServices;
 
   PaymentReceipt({
     required this.id,
@@ -379,11 +380,16 @@ class PaymentReceipt {
     required this.createdAt,
     this.supplierName,
     this.invoicePurchases = const [],
+    this.fuelServices = const [],
   });
 
   factory PaymentReceipt.fromJson(Map<String, dynamic> json) {
     final list = json['invoice_purchases'] as List? ?? [];
     final List<InvoicePurchase> invoices = list.map((i) => InvoicePurchase.fromJson(i)).toList();
+
+    final fuelList = json['fuel_services'] as List? ?? [];
+    final List<FuelServiceItem> fuelServices =
+        fuelList.map((i) => FuelServiceItem.fromJson(i as Map<String, dynamic>)).toList();
 
     return PaymentReceipt(
       id: json['id'],
@@ -397,6 +403,44 @@ class PaymentReceipt {
       createdAt: json['created_at'] ?? '',
       supplierName: json['supplier']?['name'],
       invoicePurchases: invoices,
+      fuelServices: fuelServices,
+    );
+  }
+}
+
+/// Representasi ringkas satu item fuel/service yang tercantum dalam sebuah
+/// [PaymentReceipt] (payment_for == '1'). Field-field ini sama dengan yang
+/// dipakai untuk merender list fuel service (fuel_service_page.dart).
+class FuelServiceItem {
+  final int id;
+  final int fuelService; // 1 = Fuel, 2 = Service
+  final int amount;
+  final String date;
+  final String? vehicleRegister;
+  final String km;
+  final String? createdByName;
+
+  FuelServiceItem({
+    required this.id,
+    this.fuelService = 1,
+    this.amount = 0,
+    this.date = '',
+    this.vehicleRegister,
+    this.km = '',
+    this.createdByName,
+  });
+
+  String get typeLabel => fuelService == 1 ? 'Fuel' : 'Service';
+
+  factory FuelServiceItem.fromJson(Map<String, dynamic> json) {
+    return FuelServiceItem(
+      id: json['id'],
+      fuelService: int.tryParse(json['fuel_service']?.toString() ?? '1') ?? 1,
+      amount: int.tryParse(json['amount']?.toString() ?? '0') ?? 0,
+      date: json['date']?.toString() ?? '',
+      vehicleRegister: json['vehicle']?['no_register']?.toString(),
+      km: json['km']?.toString() ?? '',
+      createdByName: json['created_by']?['name']?.toString(),
     );
   }
 }

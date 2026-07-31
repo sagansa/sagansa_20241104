@@ -235,9 +235,7 @@ class _DropdownFieldWidget<T> extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    value != null
-                        ? options.firstWhere((o) => o.$1 == value, orElse: () => (value as T, '')).$2
-                        : 'Pilih $label',
+                    value != null ? _labelFor(value) : 'Pilih $label',
                     style: tt.bodyMedium?.copyWith(
                       color: value != null ? cs.onSurface : cs.onSurfaceVariant,
                     ),
@@ -250,6 +248,26 @@ class _DropdownFieldWidget<T> extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Returns the display label for [v] from [options], or a fallback string
+  /// when [v] is not present (e.g. the selected id is no longer in the list).
+  ///
+  /// A plain loop is used instead of `firstWhere(orElse:)` on purpose: the
+  /// sheet is generic on `T` but built with `T = dynamic` (see `_buildField`),
+  /// so an `orElse` fallback closure would be checked against the *runtime*
+  /// element type of `options` (e.g. `(int, String)`) and crash with a
+  /// `(dynamic, String) is not a subtype of (int, String)` TypeError when
+  /// `value` isn't found.
+  ///
+  /// The parameter is `T?` (not `T`) because `T` may itself be nullable (e.g.
+  /// `DropdownFilterField<int?>`), so a `value != null` check cannot promote
+  /// `T?` to `T` for a type parameter.
+  String _labelFor(T? v) {
+    for (final opt in options) {
+      if (opt.$1 == v) return opt.$2;
+    }
+    return '$v';
   }
 
   void _showDropdown(BuildContext context) {

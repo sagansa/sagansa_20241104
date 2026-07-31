@@ -198,12 +198,14 @@ class ProcurementService {
     int? invoiceId,
     int page = 1,
     int perPage = 10,
+    String? paymentFor,
   }) async {
     final params = <String, String>{
       'page': page.toString(),
       'per_page': perPage.toString(),
     };
     if (invoiceId != null) params['invoice_id'] = invoiceId.toString();
+    if (paymentFor != null) params['payment_for'] = paymentFor;
 
     final body = await _api.getRaw('procurement/payment-receipts', queryParams: params);
     final List<dynamic> receiptsJson = body['data'] ?? [];
@@ -281,6 +283,37 @@ class ProcurementService {
     final data = await _api.multipart(
       method: 'POST',
       path: 'procurement/fuel-service-payment-receipts',
+      fields: fields,
+    );
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  /// Update payment receipt fuel & service: edit daftar item (status sync
+  /// dua arah di backend) + metadata. total_amount computed backend.
+  Future<Map<String, dynamic>> updateFuelServicePaymentReceipt({
+    required int receiptId,
+    required List<int> fuelServiceIds,
+    required int transferAmount,
+    String? notes,
+    File? image,
+  }) async {
+    final fields = <String, String>{};
+    for (var id in fuelServiceIds) {
+      fields['fuel_service_ids[]'] = id.toString();
+    }
+    fields['transfer_amount'] = transferAmount.toString();
+    if (notes != null) {
+      fields['notes'] = notes;
+    }
+    if (image != null) {
+      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
+    }
+
+    final data = await _api.multipart(
+      method: 'POST',
+      path: 'procurement/fuel-service-payment-receipts/$receiptId',
       fields: fields,
     );
     return (data as Map<String, dynamic>?) ?? {};

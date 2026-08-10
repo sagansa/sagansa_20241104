@@ -141,7 +141,12 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Profil')),
       body: SingleChildScrollView(
-        padding: AppSpacing.paddingMD,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

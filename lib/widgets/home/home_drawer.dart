@@ -135,7 +135,6 @@ class HomeDrawer extends StatelessWidget {
             leading: Icon(Icons.logout, color: colorScheme.error),
             title: Text('Logout', style: TextStyle(color: colorScheme.error)),
             onTap: () async {
-              Navigator.pop(context);
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (dialogContext) => AlertDialog(
@@ -154,7 +153,8 @@ class HomeDrawer extends StatelessWidget {
                 ),
               );
 
-              if (confirmed == true) {
+              if (confirmed == true && context.mounted) {
+                Navigator.pop(context);
                 await onLogout();
               }
             },

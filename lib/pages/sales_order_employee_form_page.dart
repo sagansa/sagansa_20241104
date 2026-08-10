@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
 import '../utils/snackbar_utils.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 /// Form create/update penjualan employee (role sales).
@@ -260,7 +261,12 @@ class _SalesOrderEmployeeFormPageState
               : Form(
                   key: _formKey,
                   child: ListView(
-                    padding: AppSpacing.paddingMD,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                    ),
                     children: [
                       _buildStoreField(theme),
                       AppSpacing.gapVerticalMD,
@@ -295,19 +301,11 @@ class _SalesOrderEmployeeFormPageState
                         maxLines: 2,
                       ),
                       AppSpacing.gapVerticalLG,
-                      FilledButton.icon(
+                      ModernButton(
+                        text: _isEdit ? 'Simpan Perubahan' : 'Simpan',
                         onPressed: _saving ? null : _save,
-                        icon: _saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(_isEdit ? 'Simpan Perubahan' : 'Simpan'),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                        ),
+                        isLoading: _saving,
+                        icon: Icons.save_outlined,
                       ),
                     ],
                   ),

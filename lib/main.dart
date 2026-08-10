@@ -13,6 +13,7 @@ import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
+import 'providers/asset_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/fuel_service_payment_provider.dart';
 import 'providers/home_dashboard_provider.dart';
@@ -157,7 +158,8 @@ class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
 
 void main() {
   runZonedGuarded(() async {
-    // Tahan splash native sampai kita lepas secara eksplisit (1 detik).
+    // Tahan splash native sampai kita lepas secara eksplisit (setelah frame
+    // pertama Flutter tergambar, lihat addPostFrameCallback di bawah).
     final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
@@ -173,13 +175,9 @@ void main() {
       DeviceOrientation.portraitDown,
     ]);
 
-    // Lepas splash setelah tepat 1 detik — delay ini ditunggu SEBELUM
-    // runApp sehingga selalu dieksekusi (fix: splash stuck saat app dibuka
-    // kembali setelah proses di-kill, karena sebelumnya remove() di-schedule
-    // setelah runApp yang tidak tentu kembali pada warm restore).
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    // Cek apakah token tersimpan untuk auto login
+    // JANGAN menunggu delay buatan sebelum runApp — menahan splash lebih lama
+    // dari yang diperlukan membuat startup terasa macet. Splash dilepas pada
+    // frame pertama setelah runApp (atau via safety fallback di bawah).
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString(AppConstants.tokenKey);
     final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
@@ -189,7 +187,17 @@ void main() {
     // Splash dilepas setelah frame pertama tergambar, agar tidak ada
     // blank frame antara native splash dan UI Flutter.
     widgetsBinding.addPostFrameCallback((_) {
-      FlutterNativeSplash.remove();
+      try {
+        FlutterNativeSplash.remove();
+      } catch (_) {}
+    });
+
+    // Safety fallback: lepas splash secara paksa jika belum dilepas setelah
+    // frame pertama (mis. first frame lambat di device kentang).
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      try {
+        FlutterNativeSplash.remove();
+      } catch (_) {}
     });
 
     // Jalankan init berat di frame berikutnya, setelah UI pertama tampil.
@@ -261,6 +269,9 @@ class _MyAppState extends State<MyApp> {
         // refactoring home_page menghapus controller-based access.
         ChangeNotifierProvider<PresenceProvider>(
           create: (_) => PresenceProvider(),
+        ),
+        ChangeNotifierProvider<AssetProvider>(
+          create: (_) => AssetProvider(),
         ),
       ],
       child: Consumer<ThemeProvider>(

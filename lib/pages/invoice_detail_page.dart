@@ -88,13 +88,17 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
 
   Future<void> _navigateToEdit() async {
     if (_invoice == null) return;
-    final result = await Navigator.push<InvoicePurchase>(
+    await Navigator.push<InvoicePurchase>(
       context,
       MaterialPageRoute(
         builder: (context) => EditInvoicePage(invoice: _invoice!),
       ),
     );
-    if (result != null) {
+    // Selalu refresh detail setelah kembali dari halaman edit, karena
+    // perubahan (mis. tipe pembayaran tunai→transfer) baru terlihat di
+    // server. Sebelumnya hanya refresh bila result != null sehingga detail
+    // tetap menampilkan data lama sampai di-refresh manual.
+    if (mounted) {
       _fetchDetail();
     }
   }
@@ -235,7 +239,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   onRefresh: _fetchDetail,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 180),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 200),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -764,24 +768,28 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
               (_invoice != null &&
                   _invoice!.orderStatus == '1' &&
                   _canReceive)
-          ? Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  )
-                ],
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ? SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    )
+                  ],
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                 ),
-              ),
-              child: Column(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Existing: Buat Payment Receipt (admin + draft + transfer type)
@@ -887,7 +895,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     ),
                 ],
               ),
-            )
+            ),
+          )
               : null,
     );
   }

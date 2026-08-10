@@ -369,27 +369,30 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
                   ],
                 ),
       bottomSheet: hasApprovedItems
-          ? Container(
-              padding: AppSpacing.paddingMD,
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ? SafeArea(
+              top: false,
+              child: Container(
+                padding: AppSpacing.paddingMD,
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                 ),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isActionLoading ? null : _navigateToCreateInvoice,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  ),
-                  icon: const Icon(Icons.receipt_long),
-                  label: Text(
-                    'Buat Invoice',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isActionLoading ? null : _navigateToCreateInvoice,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    ),
+                    icon: const Icon(Icons.receipt_long),
+                    label: Text(
+                      'Buat Invoice',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),

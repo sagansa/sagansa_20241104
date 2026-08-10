@@ -1,6 +1,21 @@
 import '../services/image_service.dart';
 import 'enums/procurement_item_status.dart';
 
+/// Parse nilai numerik yang bisa datang sebagai `int`, `double`, maupun
+/// `String` dari API (tergantung driver DB/MySQL). Mencegah error
+/// `String is not a subtype of type int` pada `fromJson`.
+int _toInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  return int.tryParse(value.toString()) ?? 0;
+}
+
+int? _toIntOrNull(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  return int.tryParse(value.toString());
+}
+
 class ProcurementProduct {
   final int id;
   final String name;
@@ -18,11 +33,11 @@ class ProcurementProduct {
 
   factory ProcurementProduct.fromJson(Map<String, dynamic> json) {
     return ProcurementProduct(
-      id: json['id'],
-      name: json['name'] ?? '',
-      unitId: json['unit_id'],
-      paymentTypeId: json['payment_type_id'],
-      unitName: json['unit']?['unit'] ?? '',
+      id: _toInt(json['id']),
+      name: (json['name'] ?? '').toString(),
+      unitId: _toIntOrNull(json['unit_id']),
+      paymentTypeId: _toIntOrNull(json['payment_type_id']),
+      unitName: (json['unit']?['unit'] ?? '').toString(),
     );
   }
 }
@@ -67,13 +82,13 @@ class DetailRequestItem {
 
   factory DetailRequestItem.fromJson(Map<String, dynamic> json) {
     return DetailRequestItem(
-      id: json['id'],
-      productId: json['product_id'],
+      id: _toInt(json['id']),
+      productId: _toInt(json['product_id']),
       quantityPlan: double.tryParse(json['quantity_plan']?.toString() ?? '0') ?? 0.0,
       status: json['status']?.toString() ?? '1',
-      paymentTypeId: json['payment_type_id'],
-      productName: json['product']?['name'] ?? '',
-      unitName: json['product']?['unit']?['unit'] ?? '',
+      paymentTypeId: _toIntOrNull(json['payment_type_id']),
+      productName: (json['product']?['name'] ?? '').toString(),
+      unitName: (json['product']?['unit']?['unit'] ?? '').toString(),
     );
   }
 }
@@ -138,11 +153,11 @@ class DetailInvoiceItem {
           ? Map<String, dynamic>.from(detailRequest['product'] as Map)
           : null;
       if (product != null) {
-        productName = product['name'] ?? '';
+        productName = (product['name'] ?? '').toString();
         final unit = product['unit'] is Map
             ? Map<String, dynamic>.from(product['unit'] as Map)
             : null;
-        unitName = unit?['unit'] ?? '';
+        unitName = (unit?['unit'] ?? '').toString();
       }
     }
 
@@ -158,9 +173,9 @@ class DetailInvoiceItem {
             : <LastPurchasePrice>[];
 
     return DetailInvoiceItem(
-      id: json['id'],
-      invoicePurchaseId: json['invoice_purchase_id'],
-      detailRequestId: json['detail_request_id'],
+      id: _toInt(json['id']),
+      invoicePurchaseId: _toInt(json['invoice_purchase_id']),
+      detailRequestId: _toIntOrNull(json['detail_request_id']),
       quantityProduct: double.tryParse(json['quantity_product']?.toString() ?? '0') ?? 0.0,
       quantityInvoice: json['quantity_invoice'] != null
           ? double.tryParse(json['quantity_invoice'].toString())
@@ -191,8 +206,8 @@ class LastPurchasePrice {
   factory LastPurchasePrice.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const LastPurchasePrice(unitPrice: 0);
     return LastPurchasePrice(
-      unitPrice: (json['unit_price'] as num?)?.toInt() ?? 0,
-      supplierName: json['supplier_name'] as String?,
+      unitPrice: _toInt(json['unit_price']),
+      supplierName: json['supplier_name']?.toString(),
       date: json['date'] != null ? DateTime.tryParse(json['date'].toString()) : null,
     );
   }
@@ -275,23 +290,23 @@ class InvoicePurchase {
     final List<DetailInvoiceItem> items = list.map((i) => DetailInvoiceItem.fromJson(i)).toList();
 
     return InvoicePurchase(
-      id: json['id'],
-      paymentTypeId: json['payment_type_id'],
-      storeId: json['store_id'],
-      supplierId: json['supplier_id'],
-      date: json['date'] ?? '',
-      taxes: int.tryParse(json['taxes']?.toString() ?? '0') ?? 0,
-      discounts: int.tryParse(json['discounts']?.toString() ?? '0') ?? 0,
-      totalPrice: int.tryParse(json['total_price']?.toString() ?? '0') ?? 0,
-      notes: json['notes'],
-      createdById: json['created_by_id'],
+      id: _toInt(json['id']),
+      paymentTypeId: _toIntOrNull(json['payment_type_id']),
+      storeId: _toInt(json['store_id']),
+      supplierId: _toIntOrNull(json['supplier_id']),
+      date: (json['date'] ?? '').toString(),
+      taxes: _toInt(json['taxes']),
+      discounts: _toInt(json['discounts']),
+      totalPrice: _toInt(json['total_price']),
+      notes: json['notes']?.toString(),
+      createdById: _toInt(json['created_by_id']),
       paymentStatus: json['payment_status']?.toString() ?? '1',
       orderStatus: json['order_status']?.toString() ?? '1',
-      storeName: json['store']?['nickname'] ?? json['store']?['name'] ?? 'Toko',
-      supplierName: json['supplier']?['name'],
-      createdByName: json['created_by']?['name'] ?? '',
+      storeName: (json['store']?['nickname'] ?? json['store']?['name'] ?? 'Toko').toString(),
+      supplierName: json['supplier']?['name']?.toString(),
+      createdByName: (json['created_by']?['name'] ?? '').toString(),
       detailInvoices: items,
-      image: json['image'],
+      image: json['image']?.toString(),
     );
   }
 }
@@ -337,12 +352,12 @@ class RequestPurchase {
     final List<DetailRequestItem> items = list.map((i) => DetailRequestItem.fromJson(i)).toList();
 
     return RequestPurchase(
-      id: json['id'],
-      storeId: json['store_id'],
-      storeName: json['store']?['nickname'] ?? json['store']?['name'] ?? 'Toko',
-      date: json['date'] ?? '',
-      userId: json['user_id'],
-      userName: json['user']?['name'] ?? '',
+      id: _toInt(json['id']),
+      storeId: _toInt(json['store_id']),
+      storeName: (json['store']?['nickname'] ?? json['store']?['name'] ?? 'Toko').toString(),
+      date: (json['date'] ?? '').toString(),
+      userId: _toInt(json['user_id']),
+      userName: (json['user']?['name'] ?? '').toString(),
       detailRequests: items,
     );
   }
@@ -406,16 +421,16 @@ class PaymentReceipt {
         fuelList.map((i) => FuelServiceItem.fromJson(i as Map<String, dynamic>)).toList();
 
     return PaymentReceipt(
-      id: json['id'],
+      id: _toInt(json['id']),
       paymentFor: json['payment_for']?.toString() ?? '3',
-      totalAmount: int.tryParse(json['total_amount']?.toString() ?? '0') ?? 0,
-      transferAmount: int.tryParse(json['transfer_amount']?.toString() ?? '0') ?? 0,
-      supplierId: json['supplier_id'],
-      notes: json['notes'],
-      image: json['image'],
-      imageAdjust: json['image_adjust'],
-      createdAt: json['created_at'] ?? '',
-      supplierName: json['supplier']?['name'],
+      totalAmount: _toInt(json['total_amount']),
+      transferAmount: _toInt(json['transfer_amount']),
+      supplierId: _toIntOrNull(json['supplier_id']),
+      notes: json['notes']?.toString(),
+      image: json['image']?.toString(),
+      imageAdjust: json['image_adjust']?.toString(),
+      createdAt: (json['created_at'] ?? '').toString(),
+      supplierName: json['supplier']?['name']?.toString(),
       invoicePurchases: invoices,
       fuelServices: fuelServices,
     );
@@ -448,9 +463,9 @@ class FuelServiceItem {
 
   factory FuelServiceItem.fromJson(Map<String, dynamic> json) {
     return FuelServiceItem(
-      id: json['id'],
-      fuelService: int.tryParse(json['fuel_service']?.toString() ?? '1') ?? 1,
-      amount: int.tryParse(json['amount']?.toString() ?? '0') ?? 0,
+      id: _toInt(json['id']),
+      fuelService: _toIntOrNull(json['fuel_service']) ?? 1,
+      amount: _toInt(json['amount']),
       date: json['date']?.toString() ?? '',
       vehicleRegister: json['vehicle']?['no_register']?.toString(),
       km: json['km']?.toString() ?? '',

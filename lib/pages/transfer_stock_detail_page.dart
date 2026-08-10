@@ -95,7 +95,13 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
               : _transfer == null
                   ? const SizedBox.shrink()
                   : SingleChildScrollView(
-                      padding: AppSpacing.paddingMD,
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md +
+                            MediaQuery.of(context).padding.bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

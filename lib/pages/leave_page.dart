@@ -236,6 +236,7 @@ class LeavePageState extends State<LeavePage> {
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Tolak'),
           ),

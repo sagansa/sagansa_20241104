@@ -96,7 +96,13 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
               : _info == null
                   ? const Center(child: Text('Data tidak ditemukan.'))
                   : SingleChildScrollView(
-                      padding: AppSpacing.paddingMD,
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md +
+                            MediaQuery.of(context).padding.bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

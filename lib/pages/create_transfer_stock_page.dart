@@ -6,6 +6,7 @@ import '../services/store_service.dart';
 import '../services/transfer_stock_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 class CreateTransferStockPage extends StatefulWidget {
@@ -458,22 +459,6 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                             ],
                           ),
                         ),
-                        Padding(
-                          padding: AppSpacing.paddingMD,
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(),
-                              onPressed:
-                                  _isSubmitting ? null : _submitTransfer,
-                              child: Text(
-                                'Ajukan Transfer Stok',
-                                style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     if (_isSubmitting)
@@ -484,6 +469,16 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                       ),
                   ],
                 ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: ModernButton(
+            text: 'Ajukan Transfer Stok',
+            onPressed: _isSubmitting ? null : _submitTransfer,
+            isLoading: _isSubmitting,
+          ),
+        ),
+      ),
     );
   }
 }

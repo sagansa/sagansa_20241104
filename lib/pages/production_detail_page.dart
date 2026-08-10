@@ -281,6 +281,7 @@ class _ProductionDetailPageState extends State<ProductionDetailPage> {
         ),
         style: FilledButton.styleFrom(
           backgroundColor: p.isApplied ? AppColors.warning : AppColors.success,
+          foregroundColor: Colors.white,
         ),
       ),
     );

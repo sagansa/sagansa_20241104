@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/production_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/production_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -167,6 +169,7 @@ class _ProductionListPageState extends State<ProductionListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.watch<AuthProvider>().isAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Produksi'),
@@ -177,8 +180,8 @@ class _ProductionListPageState extends State<ProductionListPage> {
           ),
         ],
       ),
-      body: _buildBody(),
-      floatingActionButton: AddFab(onPressed: _openCreate),
+      body: _buildBody(isAdmin),
+      floatingActionButton: isAdmin ? null : AddFab(onPressed: _openCreate),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {
@@ -190,7 +193,7 @@ class _ProductionListPageState extends State<ProductionListPage> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(bool isAdmin) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -221,12 +224,14 @@ class _ProductionListPageState extends State<ProductionListPage> {
                         size: 64, color: Theme.of(context).colorScheme.outline),
                     AppSpacing.gapVerticalMD,
                     const Text('Belum ada produksi.'),
-                    AppSpacing.gapVerticalSM,
-                    FilledButton.tonalIcon(
-                      onPressed: _openCreate,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Buat Produksi'),
-                    ),
+                    if (!isAdmin) ...[
+                      AppSpacing.gapVerticalSM,
+                      FilledButton.tonalIcon(
+                        onPressed: _openCreate,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Buat Produksi'),
+                      ),
+                    ],
                   ],
                 ),
               ),

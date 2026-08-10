@@ -409,21 +409,28 @@ class _EditPaymentReceiptPageState extends State<EditPaymentReceiptPage> {
                 ],
               ),
             ],
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: Icon(
-                    _imageFile == null
-                        ? Icons.add_a_photo_rounded
-                        : Icons.edit_rounded,
-                    size: 18),
-                label: Text(_imageFile == null
-                    ? 'Unggah Bukti Baru'
-                    : 'Ganti Foto Bukti'),
+            SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: Icon(
+                          _imageFile == null
+                              ? Icons.add_a_photo_rounded
+                              : Icons.edit_rounded,
+                          size: 18),
+                      label: Text(_imageFile == null
+                          ? 'Unggah Bukti Baru'
+                          : 'Ganti Foto Bukti'),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),

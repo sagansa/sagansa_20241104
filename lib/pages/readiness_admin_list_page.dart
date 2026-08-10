@@ -8,7 +8,6 @@ import '../theme/app_spacing.dart';
 import '../widgets/modern_bottom_nav.dart';
 import 'home_page.dart';
 import 'hrd_dashboard_page.dart';
-import 'readiness_page.dart';
 import 'stock_dashboard_page.dart';
 import 'transaction_dashboard_page.dart';
 
@@ -367,17 +366,6 @@ class _ReadinessAdminListPageState extends State<ReadinessAdminListPage> {
                           ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ReadinessPage()),
-          );
-          _load();
-        },
-        tooltip: 'Kesiapan Diri Baru',
-        child: const Icon(Icons.add),
       ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 4,

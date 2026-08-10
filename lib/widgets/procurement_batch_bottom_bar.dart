@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import 'glass_container.dart';
 
 /// Bottom bar untuk aksi batch di halaman procurement workflow.
 ///
@@ -68,18 +69,8 @@ class ProcurementBatchBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    return GlassContainer.bottomBar(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
       child: Row(
         children: [
           Expanded(

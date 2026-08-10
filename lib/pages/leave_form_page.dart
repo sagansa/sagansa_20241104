@@ -287,10 +287,10 @@ class LeaveFormPageState extends State<LeaveFormPage> {
                   ),
                 ],
               ),
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: AppSpacing.md,
                 right: AppSpacing.md,
-                bottom: MediaQuery.of(context).padding.bottom + AppSpacing.sm,
+                bottom: AppSpacing.sm,
                 top: AppSpacing.sm,
               ),
               child: ModernButton(

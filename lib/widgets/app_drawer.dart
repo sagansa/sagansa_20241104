@@ -2,14 +2,15 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../pages/admin_profile_list_page.dart';
 import '../pages/home_page.dart';
 import '../pages/printer_settings_page.dart';
 import '../pages/profile_page.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_spacing.dart';
-import '../utils/constants.dart';
 import '../utils/error_utils.dart';
 import '../widgets/app_version_text.dart';
 
@@ -128,25 +129,25 @@ class AppDrawer extends StatelessWidget {
             leading: Icon(Icons.logout, color: colorScheme.error),
             title: Text('Logout', style: TextStyle(color: colorScheme.error)),
             onTap: () async {
-              Navigator.pop(context);
               final confirmed = await showDialog<bool>(
                 context: context,
-                builder: (context) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('Konfirmasi'),
                   content: const Text('Apakah Anda yakin ingin keluar?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () => Navigator.pop(dialogContext, false),
                       child: const Text('Batal'),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () => Navigator.pop(dialogContext, true),
                       child: const Text('Ya'),
                     ),
                   ],
                 ),
               );
               if (confirmed == true && context.mounted) {
+                Navigator.pop(context);
                 if (onLogout != null) {
                   await onLogout!(context);
                 } else {
@@ -165,9 +166,8 @@ class AppDrawer extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user');
-      await prefs.remove(AppConstants.tokenKey);
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.logout();
       if (context.mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,

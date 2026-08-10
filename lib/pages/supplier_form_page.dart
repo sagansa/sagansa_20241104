@@ -10,6 +10,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
+import '../widgets/glass_container.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 class SupplierFormPage extends StatefulWidget {
@@ -635,38 +637,14 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
   }
 
   Widget _buildBottomBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
+    return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: FilledButton(
-            onPressed: _isSaving ? null : _submit,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  )
-                : Text(
-                    isEditing ? 'Simpan Perubahan' : 'Tambah Supplier',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-          ),
+        child: ModernButton(
+          text: isEditing ? 'Simpan Perubahan' : 'Tambah Supplier',
+          onPressed: _isSaving ? null : _submit,
+          isLoading: _isSaving,
         ),
       ),
     );

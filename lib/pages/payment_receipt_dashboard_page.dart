@@ -301,7 +301,8 @@ class _PaymentReceiptDashboardPageState
           ),
         ],
       ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           // Togglable Search Bar
           if (_searchExpanded)
@@ -428,6 +429,7 @@ class _PaymentReceiptDashboardPageState
                           ),
           ),
         ],
+      ),
       ),
       floatingActionButton: context.watch<AuthProvider>().hasAnyRole(['staff', 'storage-staff'])
           ? null

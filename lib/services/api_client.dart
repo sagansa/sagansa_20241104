@@ -10,6 +10,42 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
+  /// Batas waktu maksimum setiap request HTTP. Tanpa timeout, request yang
+  /// menggantung (jaringan lambat / server tidak merespons) akan membuat
+  /// aplikasi tampak macet selamanya — mis. splash tidak hilang, login/logout
+  /// tidak kembali ke menu.
+  static const Duration _requestTimeout = Duration(seconds: 30);
+
+  Future<http.Response> _get(
+    Uri uri, {
+    Map<String, String>? headers,
+  }) {
+    return http.get(uri, headers: headers).timeout(_requestTimeout);
+  }
+
+  Future<http.Response> _post(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
+    return http.post(uri, headers: headers, body: body).timeout(_requestTimeout);
+  }
+
+  Future<http.Response> _put(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
+    return http.put(uri, headers: headers, body: body).timeout(_requestTimeout);
+  }
+
+  Future<http.Response> _delete(
+    Uri uri, {
+    Map<String, String>? headers,
+  }) {
+    return http.delete(uri, headers: headers).timeout(_requestTimeout);
+  }
+
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(AppConstants.tokenKey);
@@ -32,7 +68,7 @@ class ApiClient {
     }
 
     AppLogger.debug('ApiClient GET: $uri');
-    final response = await http.get(uri, headers: await _headers());
+    final response = await _get(uri, headers: await _headers());
     return _handleResponse(response);
   }
 
@@ -79,7 +115,7 @@ class ApiClient {
     }
 
     AppLogger.debug('ApiClient GET (raw): $uri');
-    final response = await http.get(uri, headers: await _headers());
+    final response = await _get(uri, headers: await _headers());
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final json = jsonDecode(response.body);
@@ -102,7 +138,7 @@ class ApiClient {
   Future<dynamic> post(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
     AppLogger.debug('ApiClient POST: $uri');
-    final response = await http.post(
+    final response = await _post(
       uri,
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
@@ -125,7 +161,7 @@ class ApiClient {
   Future<Map<String, dynamic>> postRaw(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
     AppLogger.debug('ApiClient POST (raw): $uri');
-    final response = await http.post(
+    final response = await _post(
       uri,
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
@@ -152,7 +188,7 @@ class ApiClient {
   Future<dynamic> put(String path, {dynamic body}) async {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
     AppLogger.debug('ApiClient PUT: $uri');
-    final response = await http.put(
+    final response = await _put(
       uri,
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
@@ -171,10 +207,13 @@ class ApiClient {
   }
 
   /// Sends a DELETE request to the specified endpoint path.
-  Future<dynamic> delete(String path) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+  Future<dynamic> delete(String path, {Map<String, String>? queryParams}) async {
+    var uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+    if (queryParams != null && queryParams.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParams);
+    }
     AppLogger.debug('ApiClient DELETE: $uri');
-    final response = await http.delete(uri, headers: await _headers());
+    final response = await _delete(uri, headers: await _headers());
     return _handleResponse(response);
   }
 
@@ -200,8 +239,43 @@ class ApiClient {
       request.files.addAll(files);
     }
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(_requestTimeout);
     final response = await http.Response.fromStream(streamedResponse);
+    return _handleResponse(response);
+  }
+
+  /// Sama seperti [multipart], tapi mengembalikan SELURUH body JSON agar
+  /// pemanggil bisa membaca field di luar `data` (mis. `invoice_id`).
+  Future<Map<String, dynamic>> multipartRaw({
+    required String method,
+    required String path,
+    required Map<String, String> fields,
+    List<http.MultipartFile>? files,
+  }) async {
+    final token = await _getToken();
+    final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+    AppLogger.debug('ApiClient Multipart $method (raw): $uri');
+
+    final request = http.MultipartRequest(method, uri);
+    request.headers.addAll({
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
+
+    request.fields.addAll(fields);
+    if (files != null) {
+      request.files.addAll(files);
+    }
+
+    final streamedResponse = await request.send().timeout(_requestTimeout);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final json = jsonDecode(response.body);
+      if (json is Map<String, dynamic>) return json;
+      throw Exception('Format respons tidak dikenali.');
+    }
+
     return _handleResponse(response);
   }
 

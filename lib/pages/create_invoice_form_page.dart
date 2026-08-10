@@ -1,13 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/image_service.dart';
 import '../../services/presence_service.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
 import '../models/procurement_model.dart';
+import '../widgets/modern_button.dart';
 
 class CreateInvoiceFormPage extends StatefulWidget {
   const CreateInvoiceFormPage({super.key});
@@ -39,6 +42,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
 
   List<Map<String, dynamic>> _detailRequests = [];
   final List<Map<String, dynamic>> _items = [];
+  File? _imageFile;
 
   @override
   void initState() {
@@ -241,6 +245,20 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final photo = await ImageService.selectAndPickImage(context);
+      if (photo != null && mounted) {
+        setState(() => _imageFile = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: $e')),
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (_selectedSupplierId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -275,6 +293,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
         taxes: _taxes,
         discounts: _discounts,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        image: _imageFile,
       );
 
       if (!mounted) return;
@@ -364,7 +383,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                           ),
                                         ),
                                       ),
-                                      AppSpacing.gapVerticalSM,
+                                      AppSpacing.gapVerticalMD,
                                       DropdownButtonFormField<int>(
                                         initialValue: _paymentTypeId,
                                         decoration: const InputDecoration(
@@ -604,7 +623,7 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                         onChanged: (v) => setState(
                                             () => _taxes = int.tryParse(v) ?? 0),
                                       ),
-                                      AppSpacing.gapVerticalSM,
+                                      AppSpacing.gapVerticalMD,
                                       TextFormField(
                                         controller: _discountsController,
                                         decoration: const InputDecoration(
@@ -642,6 +661,58 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                                 ),
                               ),
                               AppSpacing.gapVerticalSM,
+
+                              // Bukti/Foto Invoice
+                              Text(
+                                'Bukti/Foto Invoice (Opsional)',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              if (_imageFile != null) ...[
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                                      child: Image.file(
+                                        _imageFile!,
+                                        height: 180,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: CircleAvatar(
+                                        backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                        radius: 18,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
+                                          onPressed: () => setState(() => _imageFile = null),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                              ],
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickImage,
+                                  icon: Icon(
+                                    _imageFile == null ? Icons.add_a_photo_rounded : Icons.edit_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    _imageFile == null ? 'Unggah Foto Invoice' : 'Ganti Foto Invoice',
+                                  ),
+                                ),
+                              ),
+                              AppSpacing.gapVerticalSM,
+
                               TextFormField(
                                 controller: _notesController,
                                 decoration: const InputDecoration(
@@ -653,17 +724,14 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
                             ],
                           ),
                         ),
-                        Padding(
-                          padding: AppSpacing.paddingMD,
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
+                        SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: ModernButton(
+                              text: 'Buat Invoice',
+                              icon: Icons.receipt_long_outlined,
                               onPressed: _submit,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                              ),
-                              child: Text('Buat Invoice',
-                                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ),

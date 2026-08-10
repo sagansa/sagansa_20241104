@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/transfer_stock_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/transfer_stock_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -284,19 +286,21 @@ class _TransferStockListPageState extends State<TransferStockListPage> {
                         },
                       ),
                     ),
-      floatingActionButton: AddFab(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateTransferStockPage(),
+      floatingActionButton: context.watch<AuthProvider>().isAdmin
+          ? null
+          : AddFab(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateTransferStockPage(),
+                  ),
+                );
+                if (result == true) {
+                  _fetchTransfers();
+                }
+              },
             ),
-          );
-          if (result == true) {
-            _fetchTransfers();
-          }
-        },
-      ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {

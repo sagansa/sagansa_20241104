@@ -514,13 +514,13 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
             _fetchData();
           },
           onTapCreateInvoice: () async {
-            final created = await Navigator.push<bool>(
+            final created = await Navigator.push<int>(
               context,
               MaterialPageRoute(
                 builder: (_) => CreateInvoicePage(requestId: req.id, requestIds: [req.id]),
               ),
             );
-            if (created == true) _fetchData();
+            if (created != null && created > 0) _fetchData();
           },
           onTapLinkInvoice: (inv) async {
             await Navigator.push(
@@ -685,13 +685,13 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         }),
         onAction: () async {
           final ids = _selectedRequestIds.toList();
-          final created = await Navigator.push<bool>(
+          final created = await Navigator.push<int>(
             context,
             MaterialPageRoute(
               builder: (_) => CreateInvoicePage(requestId: ids.first, requestIds: ids),
             ),
           );
-          if (created == true) {
+          if (created != null && created > 0) {
             setState(() {
               _selectedRequestIds.clear();
               _batchMode = false;

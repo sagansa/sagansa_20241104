@@ -113,7 +113,10 @@ class _SalesOrderEmployeeDetailPageState
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onError,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Hapus'),
           ),
@@ -215,7 +218,12 @@ class _SalesOrderEmployeeDetailPageState
                   : RefreshIndicator(
                       onRefresh: _loadOrder,
                       child: ListView(
-                        padding: AppSpacing.paddingMD,
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                        ),
                         children: [
                           _buildHeader(context),
                           AppSpacing.gapVerticalMD,

@@ -96,13 +96,29 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    // Hentikan pelacakan & hapus FCM token device sebelum sesi dibersihkan.
-    await LocationTrackingService.instance.onLogout();
+    // 1. Panggil API logout backend (opsional/silent jika gagal/offline)
+    try {
+      await _api.post('logout');
+    } catch (e) {
+      debugPrint('AuthService.logout: backend API logout failed ($e)');
+    }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.tokenKey);
-    await prefs.remove('token_type');
-    await prefs.remove('user');
-    await prefs.remove(AppConstants.loginDataKey);
+    // 2. Hentikan pelacakan & hapus FCM token device (silent jika gagal)
+    try {
+      await LocationTrackingService.instance.onLogout();
+    } catch (e) {
+      debugPrint('AuthService.logout: LocationTracking.onLogout failed ($e)');
+    }
+
+    // 3. Bersihkan SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.tokenKey);
+      await prefs.remove('token_type');
+      await prefs.remove('user');
+      await prefs.remove(AppConstants.loginDataKey);
+    } catch (e) {
+      debugPrint('AuthService.logout: clearing prefs failed ($e)');
+    }
   }
 }

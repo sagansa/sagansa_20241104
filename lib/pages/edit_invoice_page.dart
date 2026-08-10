@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/procurement_model.dart';
+import '../../services/image_service.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/supplier_picker_modal.dart';
 
 class EditInvoicePage extends StatefulWidget {
@@ -16,6 +20,11 @@ class EditInvoicePage extends StatefulWidget {
 
 class _EditInvoicePageState extends State<EditInvoicePage> {
   final ProcurementService _procurementService = ProcurementService();
+  final NumberFormat _currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
   bool _isSubmitting = false;
 
   int? _selectedSupplierId;
@@ -25,6 +34,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
   final _discountsController = TextEditingController();
   final _notesController = TextEditingController();
   List<Map<String, dynamic>> _itemStates = [];
+  File? _imageFile;
 
   @override
   void initState() {
@@ -39,7 +49,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       return {
         'detailInvoice': item,
         'priceController': TextEditingController(
-          text: item.unitPrice.toStringAsFixed(0),
+          text: item.subtotalInvoice.toStringAsFixed(0),
         ),
         'qtyController': TextEditingController(
           text: item.quantityProduct.toStringAsFixed(
@@ -66,8 +76,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     int total = 0;
     for (var state in _itemStates) {
       final price = int.tryParse((state['priceController'] as TextEditingController).text) ?? 0;
-      final qty = int.tryParse((state['qtyController'] as TextEditingController).text) ?? 0;
-      total += price * qty;
+      total += price;
     }
     final taxes = int.tryParse(_taxesController.text) ?? 0;
     final discounts = int.tryParse(_discountsController.text) ?? 0;
@@ -111,6 +120,20 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final photo = await ImageService.selectAndPickImage(context);
+      if (photo != null && mounted) {
+        setState(() => _imageFile = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: $e')),
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (_selectedSupplierId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,12 +151,16 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
         taxes: int.tryParse(_taxesController.text) ?? 0,
         discounts: int.tryParse(_discountsController.text) ?? 0,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        image: _imageFile,
         items: _itemStates.map((s) {
           final detail = s['detailInvoice'] as DetailInvoiceItem;
+          final total = double.tryParse((s['priceController'] as TextEditingController).text) ?? 0;
+          final qty = double.tryParse((s['qtyController'] as TextEditingController).text) ?? 0;
+          final unitPrice = qty > 0 ? (total / qty).round() : 0;
           return {
             'detail_invoice_id': detail.id,
-            'price': int.tryParse((s['priceController'] as TextEditingController).text) ?? 0,
-            'quantity': int.tryParse((s['qtyController'] as TextEditingController).text) ?? 0,
+            'price': unitPrice,
+            'quantity': qty.toInt(),
           };
         }).toList(),
       );
@@ -243,7 +270,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                       child: TextFormField(
                                         controller: priceCtrl,
                                         decoration: const InputDecoration(
-                                          labelText: 'Harga Satuan',
+                                          labelText: 'Harga Total',
                                           prefixText: 'Rp ',
                                           isDense: true,
                                         ),
@@ -252,6 +279,35 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                       ),
                                     ),
                                   ],
+                                ),
+                                Builder(
+                                  builder: (_) {
+                                    final totalPrice = double.tryParse(priceCtrl.text) ?? 0;
+                                    final qty = double.tryParse(qtyCtrl.text) ?? 0;
+                                    final unitPrice = qty > 0 ? (totalPrice / qty) : 0.0;
+                                    if (totalPrice <= 0) return const SizedBox.shrink();
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.calculate_outlined,
+                                            size: 14,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Harga Satuan: ${_currencyFormatter.format(unitPrice.round())} / ${detail.unitName}',
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              color: Theme.of(context).colorScheme.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -279,6 +335,94 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                         onChanged: (_) => setState(() {}),
                       ),
                       AppSpacing.gapVerticalSM,
+
+                      // Bukti/Foto Invoice
+                      Text(
+                        'Bukti/Foto Invoice (Opsional)',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      if (widget.invoice.imageUrl != null && _imageFile == null) ...[
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                              child: Image.network(
+                                widget.invoice.imageUrl!,
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 180,
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                  child: const Center(child: Icon(Icons.broken_image_rounded, size: 48)),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'Foto Saat Ini',
+                                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (_imageFile != null) ...[
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                              child: Image.file(
+                                _imageFile!,
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: CircleAvatar(
+                                backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                radius: 18,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
+                                  onPressed: () => setState(() => _imageFile = null),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _pickImage,
+                          icon: Icon(
+                            _imageFile == null ? Icons.add_a_photo_rounded : Icons.edit_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _imageFile == null ? 'Unggah Foto Invoice' : 'Ganti Foto Invoice',
+                          ),
+                        ),
+                      ),
+                      AppSpacing.gapVerticalSM,
+
                       TextFormField(
                         controller: _notesController,
                         decoration: const InputDecoration(
@@ -301,36 +445,34 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                     ),
                   ),
                   child: SafeArea(
-                    child: Row(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Total',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
-                              Text(
-                                'Rp ${_totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.')}',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                            ),
+                            Text(
+                              'Rp ${_totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.')}',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        AppSpacing.gapHorizontalMD,
-                        ElevatedButton(
+                        AppSpacing.gapVerticalSM,
+                        ModernButton(
+                          text: 'Simpan',
+                          icon: Icons.save_outlined,
                           onPressed: _submit,
-                          child: Text(
-                            'Simpan',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                          ),
                         ),
                       ],
                     ),

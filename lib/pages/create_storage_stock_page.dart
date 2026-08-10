@@ -4,6 +4,7 @@ import '../models/store_model.dart';
 import '../services/storage_stock_service.dart';
 import '../services/store_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 class CreateStorageStockPage extends StatefulWidget {
@@ -243,20 +244,6 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                             },
                           ),
                         ),
-                        Padding(
-                          padding: AppSpacing.paddingMD,
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(),
-                              onPressed: _isSubmitting ? null : _submitReport,
-                              child: Text(
-                                'Simpan Stock Opname',
-                                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     if (_isSubmitting)
@@ -266,6 +253,16 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                       ),
                   ],
                 ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: ModernButton(
+            text: 'Simpan Stock Opname',
+            onPressed: _isSubmitting ? null : _submitReport,
+            isLoading: _isSubmitting,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/fuel_service_payment_provider.dart';
@@ -20,7 +22,7 @@ class FuelServicePaymentBottomSheet extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -94,13 +96,19 @@ class _FuelServicePaymentBottomSheetState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final provider = context.watch<FuelServicePaymentProvider>();
-    final paddingBottom = MediaQuery.of(context).viewInsets.bottom;
+    final paddingBottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: paddingBottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          color: cs.surface.withValues(alpha: 0.85),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: paddingBottom),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -253,6 +261,9 @@ class _FuelServicePaymentBottomSheetState
             const SizedBox(height: 12),
           ],
         ),
+      ),
+      ),
+      ),
       ),
     );
   }

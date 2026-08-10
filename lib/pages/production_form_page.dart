@@ -7,6 +7,7 @@ import '../services/production_service.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 /// Form create produksi.
@@ -144,7 +145,12 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
       body: _loadingStores
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: AppSpacing.paddingMD,
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md + MediaQuery.of(context).padding.bottom,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -239,20 +245,11 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
                       maxLines: 2,
                     ),
                     AppSpacing.gapVerticalLG,
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.save),
-                        label: Text(_submitting ? 'Menyimpan...' : 'Simpan'),
-                      ),
+                    ModernButton(
+                      text: _submitting ? 'Menyimpan...' : 'Simpan',
+                      onPressed: _submitting ? null : _submit,
+                      isLoading: _submitting,
+                      icon: Icons.save,
                     ),
                     AppSpacing.gapVerticalSM,
                     Text(

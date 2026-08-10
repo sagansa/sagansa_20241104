@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
@@ -63,7 +65,7 @@ class FilterBottomSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       isDismissible: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -98,11 +100,17 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Column(
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          color: cs.surface.withValues(alpha: 0.85),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 10),
@@ -167,7 +175,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+  ),
+);
   }
 
   Widget _buildField(FilterField field) {
@@ -274,7 +285,7 @@ class _DropdownFieldWidget<T> extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

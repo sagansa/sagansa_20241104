@@ -210,6 +210,21 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         ),
       ),
 
+      // Filled button theme
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.gold,
+          elevation: 0,
+          padding:
+              AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppSpacing.borderRadiusMD,
+          ),
+          textStyle: AppTypography.buttonMedium,
+        ),
+      ),
+
       // Outlined button theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
@@ -419,6 +434,21 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
           backgroundColor: AppColors.darkPrimary,
           foregroundColor: AppColors.darkOnPrimary,
           elevation: AppElevation.level1,
+          padding:
+              AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppSpacing.borderRadiusMD,
+          ),
+          textStyle: AppTypography.buttonMedium,
+        ),
+      ),
+
+      // Filled button theme (dark)
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.darkPrimary,
+          foregroundColor: AppColors.darkOnPrimary,
+          elevation: 0,
           padding:
               AppSpacing.paddingVerticalMD + AppSpacing.paddingHorizontalLG,
           shape: RoundedRectangleBorder(

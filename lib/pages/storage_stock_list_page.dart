@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../models/storage_stock_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/storage_stock_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/add_fab.dart';
@@ -39,6 +41,13 @@ class _StorageStockListPageState extends State<StorageStockListPage> {
   }
 
   Future<void> _checkCanReport() async {
+    final isAdmin = context.read<AuthProvider>().isAdmin;
+    if (isAdmin) {
+      if (!mounted) return;
+      setState(() => _canReport = false);
+      return;
+    }
+
     // Window pelaporan: 22:00 tgl D-1 s.d. 11:00 tgl D. Di luar itu (jam 11-22)
     // pelaporan ditutup, FAB disembunyikan.
     final now = DateTime.now();

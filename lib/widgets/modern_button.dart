@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../theme/app_button_style.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 /// Varian tombol yang konsisten dengan tema Champagne / Obsidian Gold.
@@ -34,13 +36,34 @@ class ModernButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    // Warna teks efektif: selalu diambil dari foreground tombol (bukan
-    // textTheme) agar tidak terjadi charcoal-on-charcoal. Di light:
-    // gold; di dark: charcoal (onPrimary). Bila override diberikan,
-    // gunakan itu.
-    final resolvedForeground =
-        foregroundColor ?? colorScheme.onPrimary;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final Color effectiveBg;
+    final Color resolvedForeground;
+
+    switch (variant) {
+      case ModernButtonVariant.filled:
+        effectiveBg = backgroundColor ?? colorScheme.primary;
+        resolvedForeground = foregroundColor ??
+            AppButtonStyle.foregroundFor(
+              effectiveBg,
+              onDarkColor: isDark ? colorScheme.onPrimary : AppColors.gold,
+              onLightColor: isDark ? AppColors.darkOnPrimary : AppColors.primary,
+            );
+        break;
+      case ModernButtonVariant.outlined:
+        effectiveBg = backgroundColor ?? Colors.transparent;
+        resolvedForeground = foregroundColor ??
+            (isDark ? colorScheme.onSurface : colorScheme.primary);
+        break;
+      case ModernButtonVariant.text:
+        effectiveBg = backgroundColor ?? Colors.transparent;
+        resolvedForeground = foregroundColor ??
+            (isDark ? colorScheme.primary : colorScheme.primary);
+        break;
+    }
 
     final Widget content = isLoading
         ? SizedBox(
@@ -71,11 +94,12 @@ class ModernButton extends StatelessWidget {
         Size(fullWidth ? double.infinity : 0, height ?? 48),
       ),
       padding: WidgetStateProperty.all(AppSpacing.paddingVerticalMD),
-      backgroundColor: backgroundColor != null
-          ? WidgetStateProperty.all(backgroundColor)
-          : null,
-      foregroundColor:
-          WidgetStateProperty.all(resolvedForeground),
+      backgroundColor: variant == ModernButtonVariant.filled
+          ? WidgetStateProperty.all(effectiveBg)
+          : (backgroundColor != null
+              ? WidgetStateProperty.all(backgroundColor)
+              : null),
+      foregroundColor: WidgetStateProperty.all(resolvedForeground),
       textStyle: WidgetStateProperty.all(
         TextStyle(color: resolvedForeground),
       ),
@@ -112,7 +136,8 @@ class ModernButton extends StatelessWidget {
                   if (!isLoading) onPressed!();
                 },
           style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? colorScheme.primary,
+            backgroundColor: effectiveBg,
+            foregroundColor: resolvedForeground,
           ).merge(baseStyle),
           child: content,
         );

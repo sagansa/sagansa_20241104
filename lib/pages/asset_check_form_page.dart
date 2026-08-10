@@ -13,6 +13,7 @@ import '../providers/asset_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
+import '../widgets/modern_button.dart';
 
 /// Form pemeriksaan aset: checklist dinamis per kategori, foto kondisi,
 /// geotag (wajib), severity, dan catatan. Submit multipart ke /asset-checks.
@@ -304,20 +305,13 @@ class _AssetCheckFormPageState extends State<AssetCheckFormPage> {
                                 maxLines: 3,
                               ),
                               AppSpacing.gapVerticalLG,
-                              FilledButton.icon(
-                                onPressed: _isSubmitting ? null : _submit,
-                                icon: _isSubmitting
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : const Icon(Icons.send_rounded)
-                                ,
-                                label: Text(_isSubmitting
+                              ModernButton(
+                                text: _isSubmitting
                                     ? 'Menyimpan...'
-                                    : 'Submit Pemeriksaan'),
+                                    : 'Submit Pemeriksaan',
+                                onPressed: _isSubmitting ? null : _submit,
+                                isLoading: _isSubmitting,
+                                icon: Icons.send_rounded,
                               ),
                             ],
                           ),

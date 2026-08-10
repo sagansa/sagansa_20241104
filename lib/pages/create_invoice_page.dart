@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/procurement_model.dart';
+import '../../services/image_service.dart';
 import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/supplier_payment_info_card.dart';
 import '../widgets/supplier_picker_modal.dart';
 
@@ -38,9 +41,14 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   String _selectedSupplierName = '';
   Map<String, dynamic>? _selectedSupplier;
   int _paymentTypeId = 2;
+  int _taxes = 0;
+  int _discounts = 0;
+  final _taxesController = TextEditingController(text: '0');
+  final _discountsController = TextEditingController(text: '0');
 
   /// Setiap item state terikat ke request asalnya (untuk invoice lintas-request).
   List<_ItemState> _itemStates = [];
+  File? _imageFile;
 
   @override
   void initState() {
@@ -102,6 +110,8 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
   @override
   void dispose() {
+    _taxesController.dispose();
+    _discountsController.dispose();
     for (var state in _itemStates) {
       state.priceController.dispose();
       state.qtyCtrl.dispose();
@@ -118,7 +128,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         total += totalPrice.round();
       }
     }
-    return total;
+    return total + _taxes - _discounts;
   }
 
   Future<void> _pickSupplier() async {
@@ -163,6 +173,20 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final photo = await ImageService.selectAndPickImage(context);
+      if (photo != null && mounted) {
+        setState(() => _imageFile = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil foto: $e')),
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (_selectedSupplierId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -199,8 +223,12 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       final invoiceId = await _procurementService.createInvoice(
         widget.requestId,
         supplierId: _selectedSupplierId!,
+        paymentTypeId: _paymentTypeId,
         items: items,
+        taxes: _taxes,
+        discounts: _discounts,
         requestIds: allRequestIds,
+        image: _imageFile,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,6 +287,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                             const SizedBox(height: 4),
                             SupplierPaymentInfoCard(selectedSupplier: _selectedSupplier),
                           ],
+                          AppSpacing.gapVerticalMD,
                           DropdownButtonFormField<int>(
                             initialValue: _paymentTypeId,
                             decoration: const InputDecoration(
@@ -281,6 +310,104 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                           ),
                           SizedBox(height: AppSpacing.sectionGap),
                           ..._buildGroupedItems(theme, colorScheme),
+                          AppSpacing.gapVerticalMD,
+
+                          // Pajak & Diskon
+                          Card(
+                            child: Padding(
+                              padding: AppSpacing.paddingMD,
+                              child: Column(
+                                children: [
+                                  TextFormField(
+                                    controller: _taxesController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Pajak',
+                                      prefixText: 'Rp ',
+                                      isDense: true,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onTap: () {
+                                      _taxesController.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: _taxesController.text.length,
+                                      );
+                                    },
+                                    onChanged: (v) => setState(
+                                        () => _taxes = int.tryParse(v) ?? 0),
+                                  ),
+                                  AppSpacing.gapVerticalMD,
+                                  TextFormField(
+                                    controller: _discountsController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Diskon',
+                                      prefixText: 'Rp ',
+                                      isDense: true,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onTap: () {
+                                      _discountsController.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: _discountsController.text.length,
+                                      );
+                                    },
+                                    onChanged: (v) => setState(
+                                        () => _discounts = int.tryParse(v) ?? 0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          AppSpacing.gapVerticalMD,
+
+                          // Bukti/Foto Invoice
+                          Text(
+                            'Bukti/Foto Invoice (Opsional)',
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (_imageFile != null) ...[
+                            Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                                  child: Image.file(
+                                    _imageFile!,
+                                    height: 180,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: CircleAvatar(
+                                    backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                    radius: 18,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
+                                      onPressed: () => setState(() => _imageFile = null),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _pickImage,
+                              icon: Icon(
+                                _imageFile == null ? Icons.add_a_photo_rounded : Icons.edit_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _imageFile == null ? 'Unggah Foto Invoice' : 'Ganti Foto Invoice',
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -295,37 +422,34 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ),
                       ),
                       child: SafeArea(
-                        child: Row(
+                        top: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Total',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
-                                  Text(
-                                    'Rp ${_totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.')}',
-                                    style: textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.primary,
-                                    ),
+                                ),
+                                Text(
+                                  'Rp ${_totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.')}',
+                                  style: textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            AppSpacing.gapHorizontalMD,
-                            ElevatedButton(
+                            AppSpacing.gapVerticalSM,
+                            ModernButton(
+                              text: 'Buat Invoice',
+                              icon: Icons.receipt_long_outlined,
                               onPressed: _submit,
-                              child: Text(
-                                'Buat Invoice',
-                                style: textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
                             ),
                           ],
                         ),

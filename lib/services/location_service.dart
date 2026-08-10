@@ -66,7 +66,7 @@ class LocationService {
   /// Menghapus FCM token milik device ini saat logout.
   Future<void> deregisterDeviceToken(String fcmToken) async {
     try {
-      await _api.delete('device-tokens');
+      await _api.delete('device-tokens', queryParams: {'token': fcmToken});
     } catch (e) {
       developer.log('deregisterDeviceToken error: $e',
           name: 'LocationService');

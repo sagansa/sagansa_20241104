@@ -37,7 +37,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
       final status = await _readinessService.checkStatus();
       if (mounted) {
         setState(() {
-          _hasSubmittedToday = status['data']['has_submitted_today'] ?? false;
+          _hasSubmittedToday = status['data']?['has_submitted_today'] ?? false;
         });
       }
     } catch (e) {
@@ -216,7 +216,12 @@ class _ReadinessPageState extends State<ReadinessPage> {
                   ),
                 )
               : SingleChildScrollView(
-                  padding: AppSpacing.paddingMD,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

@@ -17,6 +17,7 @@ import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/fuel_service_payment_bottom_sheet.dart';
+import '../widgets/glass_container.dart';
 import '../widgets/list_thumbnail.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_dropdown.dart';
@@ -709,55 +710,48 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
 
   Widget _buildPaymentActionBar() {
     final provider = context.read<FuelServicePaymentProvider>();
-    return Container(
+    return GlassContainer.bottomBar(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${provider.selectedCount} item terpilih',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  FormatUtils.formatCurrency(provider.totalAmount),
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${provider.selectedCount} item terpilih',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  Text(
+                    FormatUtils.formatCurrency(provider.totalAmount),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final success = await FuelServicePaymentBottomSheet.show(context);
-              if (success == true) {
-                setState(() => _paymentMode = false);
-                _fetch();
-              }
-            },
-            icon: const Icon(Icons.payment),
-            label: const Text('Bayar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.gold,
+            ElevatedButton.icon(
+              onPressed: () async {
+                final success = await FuelServicePaymentBottomSheet.show(context);
+                if (success == true) {
+                  setState(() => _paymentMode = false);
+                  _fetch();
+                }
+              },
+              icon: const Icon(Icons.payment),
+              label: const Text('Bayar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.gold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,8 @@ import '../services/fuel_service_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/glass_container.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../widgets/supplier_picker_modal.dart';
 
@@ -516,38 +518,14 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
   }
 
   Widget _buildBottomBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
+    return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isSubmitting ? null : _submit,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    'Simpan Transaksi',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold),
-                  ),
-          ),
+        child: ModernButton(
+          text: 'Simpan Transaksi',
+          onPressed: _isSubmitting ? null : _submit,
+          isLoading: _isSubmitting,
         ),
       ),
     );

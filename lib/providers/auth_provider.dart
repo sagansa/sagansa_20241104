@@ -118,25 +118,33 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authService.logout();
+      // Batasi waktu logout (API + deregister FCM/periodic task). Jika layanan
+      // lambat/tidak merespons, tetap lanjut membersihkan prefs & kembali ke
+      // login — sebelumnya request tanpa timeout bisa menggantung dan membuat
+      // user tidak pernah kembali ke menu login.
+      await _authService.logout().timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('AuthProvider: Error during _authService.logout(): $e');
+    } finally {
       _token = '';
       _userData = null;
       _authState = AuthState.idle;
       _errorMessage = '';
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(AppConstants.tokenKey);
-      await prefs.remove('user');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(AppConstants.tokenKey);
+        await prefs.remove('token_type');
+        await prefs.remove('user');
+        await prefs.remove(AppConstants.loginDataKey);
+      } catch (e) {
+        debugPrint('AuthProvider: Error clearing prefs in finally: $e');
+      }
 
       _setLoading(false);
       notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = 'Gagal melakukan logout';
-      _setLoading(false);
-      notifyListeners();
-      return false;
     }
+    return true;
   }
 
   Future<void> refreshAuth() async {

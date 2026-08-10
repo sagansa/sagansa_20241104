@@ -356,6 +356,9 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
         ),
       ),
       body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
           children: [
             Container(

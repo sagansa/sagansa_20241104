@@ -6,6 +6,7 @@ import '../../services/store_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 class CreateProcurementPage extends StatefulWidget {
@@ -239,7 +240,12 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
               : Stack(
                   children: [
                     Padding(
-                      padding: AppSpacing.paddingMD,
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -330,18 +336,6 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                                     },
                                   ),
                           ),
-                          AppSpacing.gapVerticalMD,
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(),
-                              onPressed: _isSubmitting ? null : _submitRequest,
-                              child: Text(
-                                'Kirim Request Belanja',
-                                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -352,6 +346,16 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                       ),
                   ],
                 ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: ModernButton(
+            text: 'Kirim Request Belanja',
+            onPressed: _isSubmitting ? null : _submitRequest,
+            isLoading: _isSubmitting,
+          ),
+        ),
+      ),
     );
   }
 

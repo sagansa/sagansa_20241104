@@ -115,36 +115,85 @@ class ProcurementService {
     int? taxes,
     int? discounts,
     String? notes,
+    File? image,
   }) async {
-    final body = <String, dynamic>{
-      'supplier_id': supplierId,
-      'store_id': storeId,
-      'payment_type_id': paymentTypeId,
+    final fields = <String, String>{
+      'supplier_id': supplierId.toString(),
+      'store_id': storeId.toString(),
+      'payment_type_id': paymentTypeId.toString(),
       'date': date,
-      'items': items,
     };
-    if (taxes != null) body['taxes'] = taxes;
-    if (discounts != null) body['discounts'] = discounts;
-    if (notes != null) body['notes'] = notes;
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      fields['items[$i][detail_request_id]'] = item['detail_request_id'].toString();
+      fields['items[$i][quantity_product]'] = item['quantity_product'].toString();
+      fields['items[$i][subtotal_invoice]'] = item['subtotal_invoice'].toString();
+    }
+    if (taxes != null) fields['taxes'] = taxes.toString();
+    if (discounts != null) fields['discounts'] = discounts.toString();
+    if (notes != null) fields['notes'] = notes;
 
-    final data = await _api.post('procurement/invoices', body: body);
+    if (image != null) {
+      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
+    }
+
+    final data = await _api.multipart(
+      method: 'POST',
+      path: 'procurement/invoices',
+      fields: fields,
+    );
     return data?['id'] ?? 0;
   }
 
   Future<int> createInvoice(int requestId, {
     required int supplierId,
     required List<Map<String, dynamic>> items,
+    int? paymentTypeId,
+    int? taxes,
+    int? discounts,
     List<int>? requestIds,
+    File? image,
   }) async {
-    final body = <String, dynamic>{
-      'supplier_id': supplierId,
-      'items': items,
+    final fields = <String, String>{
+      'supplier_id': supplierId.toString(),
     };
-    if (requestIds != null && requestIds.isNotEmpty) {
-      body['request_ids'] = requestIds;
+    if (paymentTypeId != null) {
+      fields['payment_type_id'] = paymentTypeId.toString();
     }
-    final rawBody = await _api.postRaw('procurement/requests/$requestId/create-invoice', body: body);
-    return rawBody['invoice_id'] ?? 0;
+    if (taxes != null) {
+      fields['taxes'] = taxes.toString();
+    }
+    if (discounts != null) {
+      fields['discounts'] = discounts.toString();
+    }
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      fields['items[$i][detail_request_id]'] = item['detail_request_id'].toString();
+      fields['items[$i][price]'] = item['price'].toString();
+      fields['items[$i][quantity]'] = item['quantity'].toString();
+    }
+    if (requestIds != null && requestIds.isNotEmpty) {
+      for (var i = 0; i < requestIds.length; i++) {
+        fields['request_ids[$i]'] = requestIds[i].toString();
+      }
+    }
+
+    if (image != null) {
+      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
+    }
+
+    final rawBody = await _api.multipartRaw(
+      method: 'POST',
+      path: 'procurement/requests/$requestId/create-invoice',
+      fields: fields,
+    );
+    return int.tryParse('${rawBody['invoice_id']}') ??
+        int.tryParse('${rawBody['id']}') ??
+        0;
   }
 
   Future<InvoicePurchase> updateInvoice(int invoiceId, {
@@ -154,16 +203,36 @@ class ProcurementService {
     int? discounts,
     String? notes,
     List<Map<String, dynamic>>? items,
+    File? image,
   }) async {
-    final body = <String, dynamic>{};
-    if (supplierId != null) body['supplier_id'] = supplierId;
-    if (paymentTypeId != null) body['payment_type_id'] = paymentTypeId;
-    if (taxes != null) body['taxes'] = taxes;
-    if (discounts != null) body['discounts'] = discounts;
-    if (notes != null) body['notes'] = notes;
-    if (items != null) body['items'] = items;
+    final fields = <String, String>{
+      '_method': 'PUT',
+    };
+    if (supplierId != null) fields['supplier_id'] = supplierId.toString();
+    if (paymentTypeId != null) fields['payment_type_id'] = paymentTypeId.toString();
+    if (taxes != null) fields['taxes'] = taxes.toString();
+    if (discounts != null) fields['discounts'] = discounts.toString();
+    if (notes != null) fields['notes'] = notes;
+    if (items != null) {
+      for (var i = 0; i < items.length; i++) {
+        final item = items[i];
+        fields['items[$i][detail_invoice_id]'] = item['detail_invoice_id'].toString();
+        fields['items[$i][price]'] = item['price'].toString();
+        fields['items[$i][quantity]'] = item['quantity'].toString();
+      }
+    }
 
-    final data = await _api.put('procurement/invoices/$invoiceId', body: body);
+    if (image != null) {
+      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
+    }
+
+    final data = await _api.multipart(
+      method: 'POST',
+      path: 'procurement/invoices/$invoiceId',
+      fields: fields,
+    );
     return InvoicePurchase.fromJson(data);
   }
 

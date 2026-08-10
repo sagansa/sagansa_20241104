@@ -200,7 +200,12 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Profil Saya')),
       body: SingleChildScrollView(
-        padding: AppSpacing.paddingMD,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+        ),
         child: Form(
           key: _formKey,
           child: Column(

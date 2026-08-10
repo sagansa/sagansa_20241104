@@ -10,6 +10,8 @@ import '../services/utility_usage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
+import '../widgets/glass_container.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 
 class UtilityUsageFormPage extends StatefulWidget {
@@ -391,7 +393,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
                 ],
               ),
             ),
-      bottomNavigationBar: _buildBottomBar(colorScheme),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -894,57 +896,16 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
     );
   }
 
-  Widget _buildBottomBar(ColorScheme colorScheme) {
-    return Container(
+  Widget _buildBottomBar() {
+    return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: FilledButton(
-            onPressed: _isSaving ? null : _submit,
-            style: FilledButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: AppSpacing.borderRadiusSM,
-              ),
-            ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isEditing
-                            ? Icons.save_rounded
-                            : Icons.add_circle_rounded,
-                        size: 20,
-                      ),
-                      AppSpacing.gapHorizontalSM,
-                      Text(
-                        isEditing ? 'Simpan Perubahan' : 'Tambah Pemakaian',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+        child: ModernButton(
+          text: isEditing ? 'Simpan Perubahan' : 'Tambah Pemakaian',
+          icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
+          onPressed: _isSaving ? null : _submit,
+          isLoading: _isSaving,
         ),
       ),
     );

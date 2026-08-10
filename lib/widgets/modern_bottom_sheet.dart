@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 
@@ -24,13 +26,11 @@ class ModernBottomSheet extends StatelessWidget {
     bool isDismissible = true,
     Color? backgroundColor,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
     return showModalBottomSheet<T>(
       context: context,
       isDismissible: isDismissible,
       isScrollControlled: true,
-      backgroundColor:
-          backgroundColor ?? colorScheme.surface,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -50,37 +50,43 @@ class ModernBottomSheet extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: colorScheme.surface,
+    return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: Padding(
-        padding: padding ?? AppSpacing.paddingMD,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: AppSpacing.borderRadiusXS,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Material(
+          color: colorScheme.surface.withValues(alpha: 0.85),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: Padding(
+            padding: padding ?? AppSpacing.paddingMD,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      borderRadius: AppSpacing.borderRadiusXS,
+                    ),
+                  ),
                 ),
-              ),
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  AppSpacing.gapVerticalMD,
+                ],
+                child,
+              ],
             ),
-            if (title != null) ...[
-              Text(
-                title!,
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              AppSpacing.gapVerticalMD,
-            ],
-            child,
-          ],
+          ),
         ),
       ),
     );

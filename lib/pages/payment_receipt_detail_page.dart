@@ -226,12 +226,15 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                     ),
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _fetchDetail,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    child: Column(
+              : SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: RefreshIndicator(
+                    onRefresh: _fetchDetail,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      child: Column(
                       children: [
                         // Ticket Receipt Main Header Container
                         _buildTicketHeader(theme, isDark),
@@ -308,6 +311,7 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                     ),
                   ),
                 ),
+              ),
     );
   }
 

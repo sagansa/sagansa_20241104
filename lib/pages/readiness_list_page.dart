@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
 import '../models/readiness_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -218,16 +221,18 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
                         },
                       ),
                     ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ReadinessPage()),
-          );
-          _load();
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: context.watch<AuthProvider>().isAdmin
+          ? null
+          : FloatingActionButton(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ReadinessPage()),
+                );
+                _load();
+              },
+              child: const Icon(Icons.add),
+            ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 4,
         onTap: (index) => _handleNavigation(context, index),

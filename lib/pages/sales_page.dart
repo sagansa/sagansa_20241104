@@ -245,20 +245,6 @@ class _DirectTabContentState extends State<_DirectTabContent> {
               onScanBarcode: () {},
               onOpenDetail: _openDetail,
             ),
-            Selector<DeliveryProvider, bool>(
-              selector: (_, p) => p.listState.isAdmin,
-              builder: (_, isAdmin, __) {
-                if (!isAdmin) return const SizedBox.shrink();
-                return Positioned(
-                  right: AppSpacing.md,
-                  bottom: AppSpacing.md,
-                  child: FloatingActionButton(
-                    onPressed: () {},
-                    child: const Icon(Icons.add),
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),

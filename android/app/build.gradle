@@ -42,7 +42,9 @@ def hasReleaseKeystore = releaseStoreFile != null &&
 
 android {
     namespace = "id.sagansa.app"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage butuh compileSdk >= 37; versi ini backward
+    // compatible dengan targetSdk/minSdk yang lebih rendah.
+    compileSdk = 37
     ndkVersion = "28.2.13676358"  // Remove "ndk;" prefix
 
     compileOptions {

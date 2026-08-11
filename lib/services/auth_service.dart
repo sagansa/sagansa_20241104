@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import 'api_client.dart';
 import 'location_tracking_service.dart';
+import 'token_store.dart';
 
 class AuthService {
   static const List<String> allowedRoles = ['admin', 'staff', 'supervisor', 'storage-staff'];
@@ -42,12 +43,15 @@ class AuthService {
   Future<void> _saveUserData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Simpan token
+    // Simpan token (secure storage, bukan prefs) untuk mencegah exposure
+    // pada device rooted / backup forensic.
     final token = data['access_token'];
     if (token != null) {
-      await prefs.setString(AppConstants.tokenKey, token.toString());
-      await prefs.setString('token_type', data['token_type'] ?? 'Bearer');
-      debugPrint('Token tersimpan: $token');
+      await TokenStore.instance.writeToken(
+        token.toString(),
+        tokenType: data['token_type']?.toString() ?? 'Bearer',
+      );
+      debugPrint('Token tersimpan di secure storage');
     }
 
     // Simpan data user
@@ -110,11 +114,16 @@ class AuthService {
       debugPrint('AuthService.logout: LocationTracking.onLogout failed ($e)');
     }
 
-    // 3. Bersihkan SharedPreferences
+    // 3. Bersihkan token dari secure storage
+    try {
+      await TokenStore.instance.clear();
+    } catch (e) {
+      debugPrint('AuthService.logout: TokenStore.clear failed ($e)');
+    }
+
+    // 4. Bersihkan data non-token dari SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(AppConstants.tokenKey);
-      await prefs.remove('token_type');
       await prefs.remove('user');
       await prefs.remove(AppConstants.loginDataKey);
     } catch (e) {

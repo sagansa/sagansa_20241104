@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../utils/constants.dart';
+import 'auth_session.dart';
+import 'token_store.dart';
 
 class ApiClient {
   // Singleton pattern
@@ -46,10 +47,7 @@ class ApiClient {
     return http.delete(uri, headers: headers).timeout(_requestTimeout);
   }
 
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.tokenKey);
-  }
+  Future<String?> _getToken() => TokenStore.instance.readToken();
 
   Future<Map<String, String>> _headers() async {
     final token = await _getToken();
@@ -69,7 +67,7 @@ class ApiClient {
 
     AppLogger.debug('ApiClient GET: $uri');
     final response = await _get(uri, headers: await _headers());
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
   /// Deteksi response sukses dari backend yang **inkonsisten**:
@@ -117,6 +115,10 @@ class ApiClient {
     AppLogger.debug('ApiClient GET (raw): $uri');
     final response = await _get(uri, headers: await _headers());
 
+    if (response.statusCode == 401) {
+      _onUnauthorized(path: path);
+    }
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final json = jsonDecode(response.body);
       if (json is Map<String, dynamic>) return json;
@@ -143,7 +145,7 @@ class ApiClient {
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
     );
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
   /// POST yang return single object `T`.
@@ -166,6 +168,10 @@ class ApiClient {
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
     );
+
+    if (response.statusCode == 401) {
+      _onUnauthorized(path: path);
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final json = jsonDecode(response.body);
@@ -193,7 +199,7 @@ class ApiClient {
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,
     );
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
   /// PUT yang return single object `T`.
@@ -214,7 +220,7 @@ class ApiClient {
     }
     AppLogger.debug('ApiClient DELETE: $uri');
     final response = await _delete(uri, headers: await _headers());
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
   /// Sends a multipart request (e.g. for uploads).
@@ -241,7 +247,7 @@ class ApiClient {
 
     final streamedResponse = await request.send().timeout(_requestTimeout);
     final response = await http.Response.fromStream(streamedResponse);
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
   /// Sama seperti [multipart], tapi mengembalikan SELURUH body JSON agar
@@ -270,18 +276,37 @@ class ApiClient {
     final streamedResponse = await request.send().timeout(_requestTimeout);
     final response = await http.Response.fromStream(streamedResponse);
 
+    if (response.statusCode == 401) {
+      _onUnauthorized(path: path);
+    }
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final json = jsonDecode(response.body);
       if (json is Map<String, dynamic>) return json;
       throw Exception('Format respons tidak dikenali.');
     }
 
-    return _handleResponse(response);
+    return _handleResponse(response, path: path);
   }
 
-  dynamic _handleResponse(http.Response response) {
+  /// Trigger auto-logout saat 401, kecuali untuk endpoint publik (login).
+  /// Fire-and-forget — tidak di-await agar caller tetap dapat exception 401.
+  void _onUnauthorized({String? path}) {
+    // Endpoint login dikecualikan: 401 di login = kredensial salah, bukan
+    // sesi expired.
+    if (path != null && (path == 'login' || path.startsWith('login/'))) {
+      return;
+    }
+    AuthSession.instance.handleUnauthorized();
+  }
+
+  dynamic _handleResponse(http.Response response, {String? path}) {
     AppLogger.debug('ApiClient Response (${response.statusCode}): '
         '${AppLogger.preview(response.body)}');
+
+    if (response.statusCode == 401) {
+      _onUnauthorized(path: path);
+    }
     final json = jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

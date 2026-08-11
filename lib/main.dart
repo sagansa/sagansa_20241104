@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 
 import '../pages/home_page.dart';
@@ -21,6 +20,7 @@ import 'providers/presence_provider.dart';
 import 'providers/printer_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/asset_service.dart';
+import 'services/auth_session.dart';
 import 'services/inventory_anomaly_service.dart';
 import 'services/leave_service.dart';
 import 'services/location_tracking_service.dart';
@@ -29,9 +29,9 @@ import 'services/procurement_service.dart';
 import 'services/salary_service.dart';
 import 'services/sales_dashboard_service.dart';
 import 'services/storage_stock_service.dart';
+import 'services/token_store.dart';
 import 'services/user_service.dart';
 import 'theme/app_colors.dart';
-import 'utils/constants.dart';
 
 // Custom error widget to show instead of the default red screen
 class CustomErrorWidget extends StatelessWidget {
@@ -186,8 +186,11 @@ void main() {
       DeviceOrientation.portraitDown,
     ]);
 
-    final prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString(AppConstants.tokenKey);
+    // Migrasi one-shot: pindahkan token dari SharedPreferences lama ke secure
+    // storage (idempotent — aman dijalankan setiap startup).
+    await TokenStore.instance.migrateFromPrefs();
+
+    final String? token = await TokenStore.instance.readToken();
     final String initialRoute =
         (token != null && token.isNotEmpty) ? '/home' : '/login';
 
@@ -231,11 +234,16 @@ class _MyAppState extends State<MyApp> {
   final FuelServicePaymentProvider _fuelServicePaymentProvider =
       FuelServicePaymentProvider();
 
+  /// Key global Navigator agar service layer (AuthSession) bisa navigasi
+  /// tanpa BuildContext — dipakai untuk auto-logout saat 401.
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
     _themeProvider.initialize();
     // PrinterProvider melakukan load di constructor, tidak perlu await.
+    AuthSession.instance.configure(_navigatorKey);
   }
 
   @override
@@ -290,6 +298,7 @@ class _MyAppState extends State<MyApp> {
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: overlayStyle,
             child: MaterialApp(
+              navigatorKey: _navigatorKey,
               title: 'Sagansa',
               theme: themeData,
               darkTheme: ThemeProvider.darkTheme,

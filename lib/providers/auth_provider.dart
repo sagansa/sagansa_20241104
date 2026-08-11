@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/leave_service.dart';
+import '../services/token_store.dart';
 import '../utils/constants.dart';
 
 enum AuthState { idle, loading, success, error }
@@ -34,12 +35,12 @@ class AuthProvider with ChangeNotifier {
   Future<void> _loadToken() async {
     try {
       debugPrint('Loading token...');
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString(AppConstants.tokenKey) ?? '';
+      _token = await TokenStore.instance.readToken() ?? '';
       debugPrint('Token loaded: ${_token.isNotEmpty ? 'exists' : 'empty'}');
 
       // Load user data if token exists
       if (_token.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
         final userDataString = prefs.getString('user');
         if (userDataString != null) {
           try {
@@ -132,9 +133,13 @@ class AuthProvider with ChangeNotifier {
       _errorMessage = '';
 
       try {
+        await TokenStore.instance.clear();
+      } catch (e) {
+        debugPrint('AuthProvider: TokenStore.clear failed: $e');
+      }
+
+      try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(AppConstants.tokenKey);
-        await prefs.remove('token_type');
         await prefs.remove('user');
         await prefs.remove(AppConstants.loginDataKey);
       } catch (e) {
@@ -160,8 +165,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> updateToken(String newToken) async {
     _token = newToken;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.tokenKey, newToken);
+    await TokenStore.instance.writeToken(newToken);
     notifyListeners();
   }
 

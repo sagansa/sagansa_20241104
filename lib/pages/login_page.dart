@@ -33,17 +33,17 @@ class LoginPageState extends State<LoginPage> {
 
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // One-shot cleanup: hapus password plaintext lama dari prefs (pre-migration
+    // app masih menyimpan saved_password). Idempoten.
+    if (prefs.containsKey('saved_password')) {
+      await prefs.remove('saved_password');
+    }
+
     final savedEmail = prefs.getString('saved_email');
-    final savedPassword = prefs.getString('saved_password');
-    
     if (savedEmail != null) {
       setState(() {
         emailController.text = savedEmail;
-      });
-    }
-    if (savedPassword != null) {
-      setState(() {
-        passwordController.text = savedPassword;
       });
     }
   }
@@ -68,10 +68,10 @@ class LoginPageState extends State<LoginPage> {
       if (success) {
         debugPrint('Login berhasil, navigating to HomePage...');
 
-        // Simpan email dan password agar tidak perlu mengetik ulang
+        // Simpan email agar tidak perlu mengetik ulang. Password TIDAK
+        // disimpan — penyimpanan password plaintext dilarang (security risk).
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('saved_email', emailController.text.trim());
-        await prefs.setString('saved_password', passwordController.text);
 
         // Determine admin role from stored user data
         bool initialIsAdmin = false;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../services/asset_service.dart';
 import '../services/hygiene_service.dart';
 import '../theme/app_colors.dart';
@@ -7,6 +9,7 @@ import '../theme/app_spacing.dart';
 import '../widgets/dashboard_scaffold.dart';
 import 'hygiene_list_page.dart';
 import 'readiness_admin_list_page.dart';
+import 'readiness_list_page.dart';
 import 'utility_usage_list_page.dart';
 
 class OperationalDashboardPage extends StatefulWidget {
@@ -46,6 +49,7 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isAdmin = context.select<AuthProvider, bool>((a) => a.isAdmin);
 
     return DashboardScaffold(
       currentIndex: 4,
@@ -55,12 +59,16 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
         DashboardMenuItem(
           icon: Icons.checkroom_outlined,
           title: 'Kesiapan Diri',
-          subtitle: 'Lihat & kelola kesiapan diri karyawan.',
+          subtitle: isAdmin
+              ? 'Lihat & kelola kesiapan diri karyawan.'
+              : 'Lihat riwayat & catat kesiapan diri.',
           onTap: () async {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ReadinessAdminListPage(),
+                builder: (context) => isAdmin
+                    ? const ReadinessAdminListPage()
+                    : const ReadinessListPage(),
               ),
             );
           },
@@ -97,8 +105,7 @@ class _OperationalDashboardPageState extends State<OperationalDashboardPage> {
           onTap: () async {
             await Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (context) => const HygieneListPage()),
+              MaterialPageRoute(builder: (context) => const HygieneListPage()),
             );
             _checkHygiene();
           },

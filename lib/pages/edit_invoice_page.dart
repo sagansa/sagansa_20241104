@@ -7,6 +7,7 @@ import '../../services/procurement_service.dart';
 import '../../services/supplier_service.dart';
 import '../../theme/app_spacing.dart';
 import '../widgets/modern_button.dart';
+import '../widgets/supplier_payment_info_card.dart';
 import '../widgets/supplier_picker_modal.dart';
 
 class EditInvoicePage extends StatefulWidget {
@@ -29,6 +30,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
 
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
+  Map<String, dynamic>? _selectedSupplier;
   int _paymentTypeId = 2;
   final _taxesController = TextEditingController();
   final _discountsController = TextEditingController();
@@ -53,11 +55,39 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
         ),
         'qtyController': TextEditingController(
           text: item.quantityProduct.toStringAsFixed(
-            item.quantityProduct == item.quantityProduct.roundToDouble() ? 0 : 2,
+            item.quantityProduct == item.quantityProduct.roundToDouble()
+                ? 0
+                : 2,
           ),
         ),
       };
     }).toList();
+    _loadSupplierPaymentInfo();
+  }
+
+  /// Pre-populate [_selectedSupplier] dari supplier invoice saat ini agar
+  /// kartu [SupplierPaymentInfoCard] langsung tampil (rekening & QRIS).
+  Future<void> _loadSupplierPaymentInfo() async {
+    final supplierId = widget.invoice.supplierId;
+    if (supplierId == null) return;
+    try {
+      final supplier = await SupplierService().getSupplier(supplierId);
+      if (!mounted) return;
+      setState(() {
+        _selectedSupplier = {
+          'id': supplier.id,
+          'name': supplier.name,
+          'address': supplier.address,
+          'no_telp': supplier.noTelp,
+          'bank_name': supplier.bankName,
+          'bank_account_name': supplier.bankAccountName,
+          'bank_account_no': supplier.bankAccountNo,
+          'qris': supplier.qris,
+        };
+      });
+    } catch (_) {
+      // Rekening gagal dimuat — kartu tetap muncul saat user memilih supplier.
+    }
   }
 
   @override
@@ -75,7 +105,9 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
   int get _totalPrice {
     int total = 0;
     for (var state in _itemStates) {
-      final price = int.tryParse((state['priceController'] as TextEditingController).text) ?? 0;
+      final price = int.tryParse(
+              (state['priceController'] as TextEditingController).text) ??
+          0;
       total += price;
     }
     final taxes = int.tryParse(_taxesController.text) ?? 0;
@@ -88,12 +120,18 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     List<dynamic> suppliers;
     try {
       final list = await supplierService.getSuppliers();
-      suppliers = list.map((s) => {
-        'id': s.id,
-        'name': s.name,
-        'address': s.address,
-        'no_telp': s.noTelp,
-      }).toList();
+      suppliers = list
+          .map((s) => {
+                'id': s.id,
+                'name': s.name,
+                'address': s.address,
+                'no_telp': s.noTelp,
+                'bank_name': s.bankName,
+                'bank_account_name': s.bankAccountName,
+                'bank_account_no': s.bankAccountNo,
+                'qris': s.qris,
+              })
+          .toList();
     } catch (_) {
       suppliers = [];
     }
@@ -116,6 +154,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       setState(() {
         _selectedSupplierId = result['id'];
         _selectedSupplierName = result['name'];
+        _selectedSupplier = result;
       });
     }
   }
@@ -154,8 +193,12 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
         image: _imageFile,
         items: _itemStates.map((s) {
           final detail = s['detailInvoice'] as DetailInvoiceItem;
-          final total = double.tryParse((s['priceController'] as TextEditingController).text) ?? 0;
-          final qty = double.tryParse((s['qtyController'] as TextEditingController).text) ?? 0;
+          final total = double.tryParse(
+                  (s['priceController'] as TextEditingController).text) ??
+              0;
+          final qty = double.tryParse(
+                  (s['qtyController'] as TextEditingController).text) ??
+              0;
           final unitPrice = qty > 0 ? (total / qty).round() : 0;
           return {
             'detail_invoice_id': detail.id,
@@ -203,14 +246,22 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                           ),
                           child: Text(
                             _selectedSupplierName,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: _selectedSupplierName.isEmpty
-                                  ? Theme.of(context).colorScheme.onSurfaceVariant
-                                  : null,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: _selectedSupplierName.isEmpty
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant
+                                          : null,
+                                    ),
                           ),
                         ),
                       ),
+                      if (_selectedSupplier != null) ...[
+                        const SizedBox(height: 4),
+                        SupplierPaymentInfoCard(
+                            selectedSupplier: _selectedSupplier),
+                      ],
                       AppSpacing.gapVerticalLG,
                       DropdownButtonFormField<int>(
                         initialValue: _paymentTypeId,
@@ -229,16 +280,23 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                       AppSpacing.gapVerticalLG,
                       Text(
                         'Item & Harga',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: AppSpacing.sectionGap),
                       ..._itemStates.map((state) {
-                        final detail = state['detailInvoice'] as DetailInvoiceItem;
-                        final priceCtrl = state['priceController'] as TextEditingController;
-                        final qtyCtrl = state['qtyController'] as TextEditingController;
+                        final detail =
+                            state['detailInvoice'] as DetailInvoiceItem;
+                        final priceCtrl =
+                            state['priceController'] as TextEditingController;
+                        final qtyCtrl =
+                            state['qtyController'] as TextEditingController;
 
                         return Card(
-                          margin: EdgeInsets.only(bottom: AppSpacing.sectionGap),
+                          margin:
+                              EdgeInsets.only(bottom: AppSpacing.sectionGap),
                           child: Padding(
                             padding: AppSpacing.cardPadding,
                             child: Column(
@@ -246,9 +304,12 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                               children: [
                                 Text(
                                   detail.productName,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
                                 AppSpacing.gapVerticalSM,
                                 Row(
@@ -265,7 +326,8 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                         onChanged: (_) => setState(() {}),
                                       ),
                                     ),
-                                    SizedBox(width: AppSpacing.sm + AppSpacing.xs),
+                                    SizedBox(
+                                        width: AppSpacing.sm + AppSpacing.xs),
                                     Expanded(
                                       child: TextFormField(
                                         controller: priceCtrl,
@@ -282,10 +344,15 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                 ),
                                 Builder(
                                   builder: (_) {
-                                    final totalPrice = double.tryParse(priceCtrl.text) ?? 0;
-                                    final qty = double.tryParse(qtyCtrl.text) ?? 0;
-                                    final unitPrice = qty > 0 ? (totalPrice / qty) : 0.0;
-                                    if (totalPrice <= 0) return const SizedBox.shrink();
+                                    final totalPrice =
+                                        double.tryParse(priceCtrl.text) ?? 0;
+                                    final qty =
+                                        double.tryParse(qtyCtrl.text) ?? 0;
+                                    final unitPrice =
+                                        qty > 0 ? (totalPrice / qty) : 0.0;
+                                    if (totalPrice <= 0) {
+                                      return const SizedBox.shrink();
+                                    }
 
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
@@ -294,15 +361,22 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                           Icon(
                                             Icons.calculate_outlined,
                                             size: 14,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             'Harga Satuan: ${_currencyFormatter.format(unitPrice.round())} / ${detail.unitName}',
-                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: Theme.of(context).colorScheme.primary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -313,7 +387,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                             ),
                           ),
                         );
-                        }),
+                      }),
                       AppSpacing.gapVerticalMD,
                       TextFormField(
                         controller: _taxesController,
@@ -340,15 +414,17 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                       Text(
                         'Bukti/Foto Invoice (Opsional)',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                       const SizedBox(height: 6),
-                      if (widget.invoice.imageUrl != null && _imageFile == null) ...[
+                      if (widget.invoice.imageUrl != null &&
+                          _imageFile == null) ...[
                         Stack(
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusMD),
                               child: Image.network(
                                 widget.invoice.imageUrl!,
                                 height: 180,
@@ -356,8 +432,13 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(
                                   height: 180,
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                                  child: const Center(child: Icon(Icons.broken_image_rounded, size: 48)),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.3),
+                                  child: const Center(
+                                      child: Icon(Icons.broken_image_rounded,
+                                          size: 48)),
                                 ),
                               ),
                             ),
@@ -365,14 +446,18 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                               top: 8,
                               right: 8,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.6),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
                                   'Foto Saat Ini',
-                                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
                             ),
@@ -384,7 +469,8 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                         Stack(
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusMD),
                               child: Image.file(
                                 _imageFile!,
                                 height: 180,
@@ -396,11 +482,14 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                               top: 8,
                               right: 8,
                               child: CircleAvatar(
-                                backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                backgroundColor:
+                                    Colors.black.withValues(alpha: 0.6),
                                 radius: 18,
                                 child: IconButton(
-                                  icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
-                                  onPressed: () => setState(() => _imageFile = null),
+                                  icon: const Icon(Icons.close_rounded,
+                                      size: 18, color: Colors.white),
+                                  onPressed: () =>
+                                      setState(() => _imageFile = null),
                                 ),
                               ),
                             ),
@@ -413,11 +502,15 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                         child: OutlinedButton.icon(
                           onPressed: _pickImage,
                           icon: Icon(
-                            _imageFile == null ? Icons.add_a_photo_rounded : Icons.edit_rounded,
+                            _imageFile == null
+                                ? Icons.add_a_photo_rounded
+                                : Icons.edit_rounded,
                             size: 18,
                           ),
                           label: Text(
-                            _imageFile == null ? 'Unggah Foto Invoice' : 'Ganti Foto Invoice',
+                            _imageFile == null
+                                ? 'Unggah Foto Invoice'
+                                : 'Ganti Foto Invoice',
                           ),
                         ),
                       ),
@@ -440,7 +533,10 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                     color: Theme.of(context).colorScheme.surface,
                     border: Border(
                       top: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -455,16 +551,25 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                           children: [
                             Text(
                               'Total',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                             ),
                             Text(
                               'Rp ${_totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.')}',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                             ),
                           ],
                         ),
@@ -480,6 +585,6 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
                 ),
               ],
             ),
-        );
-      }
-    }
+    );
+  }
+}

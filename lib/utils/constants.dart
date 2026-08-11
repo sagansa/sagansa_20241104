@@ -35,6 +35,8 @@ class ApiConstants {
   static const String checkOut = '$baseUrl/check-out';
   static const String todayPresenceEndpoint = '$baseUrl/presences/today';
   static const String historyPresenceEndpoint = '$baseUrl/presences/history';
+  // Admin manual presence management (CRUD).
+  static const String adminPresences = '$baseUrl/admin/presences';
 
   // Store Endpoints
   static const String stores = '$baseUrl/stores';

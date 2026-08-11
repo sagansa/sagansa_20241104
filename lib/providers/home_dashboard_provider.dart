@@ -575,11 +575,18 @@ class HomeDashboardProvider extends ChangeNotifier {
           .length;
       final hasLeaves = currentMonthLeaves.isNotEmpty;
 
-      // Active leave: status approved & date range contains now.
-      final hasActiveLeave = leaves.any((l) =>
-          l.status == AppConstants.leaveStatusApproved &&
-          l.fromDate.isBefore(now) &&
-          l.untilDate.isAfter(now));
+      // Active leave: status approved & rentang tanggal (inklusif) mencakup
+      // hari ini. Bandikan di level tanggal-kalender (bukan timestamp) supaya
+      // hari pertama dan hari terakhir cuti tetap dianggap aktif. Sebelumnya
+      // pakai isBefore/isAfter yang eksklusif thd. timestamp midnight, sehingga
+      // hari terakhir cuti salah terdeteksi sebagai tidak aktif.
+      final today = DateTime(now.year, now.month, now.day);
+      final hasActiveLeave = leaves.any((l) {
+        if (l.status != AppConstants.leaveStatusApproved) return false;
+        final start = DateTime(l.fromDate.year, l.fromDate.month, l.fromDate.day);
+        final end = DateTime(l.untilDate.year, l.untilDate.month, l.untilDate.day);
+        return !today.isBefore(start) && !today.isAfter(end);
+      });
       if (hasActiveLeave != _presence.hasActiveLeave) {
         _presence = _presence.copyWith(hasActiveLeave: hasActiveLeave);
       }

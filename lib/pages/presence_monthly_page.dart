@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/presence_service.dart';
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/app_dialogs.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
+import 'presence_manual_form_page.dart';
 
 /// Rekap presensi untuk satu periode cut-off gaji bulanan (mis. "Juni 2026"
 /// = presensi 26 Mei – 25 Jun).
@@ -29,9 +33,11 @@ class PresenceMonthlyPage extends StatefulWidget {
 
 class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
   final SalaryService _salaryService = SalaryService();
+  final PresenceService _presenceService = PresenceService();
 
   bool _isAdmin = false;
   bool _isLoading = true;
+  bool _isDeleting = false;
   String? _errorMessage;
   Map<String, dynamic>? _data;
 
@@ -235,6 +241,62 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
     return dt != null ? DateFormat('HH:mm').format(dt) : '-';
   }
 
+  // ---------------------------------------------------------------------------
+  // Admin manual presence management (create / edit / delete).
+  // ---------------------------------------------------------------------------
+
+  Future<void> _openCreateForm() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PresenceManualFormPage(),
+      ),
+    );
+    if (result == true && mounted) _loadData();
+  }
+
+  Future<void> _openEditForm(Map<String, dynamic> presence) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PresenceManualFormPage(presence: presence),
+      ),
+    );
+    if (result == true && mounted) _loadData();
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> presence) async {
+    final id = presence['id'];
+    final userName = presence['user_name']?.toString();
+    final dateLabel = presence['check_in'] != null
+        ? DateFormat('dd MMM yyyy', 'id_ID')
+            .format(DateTime.parse(presence['check_in']))
+        : '?';
+
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Hapus Presensi',
+      content: 'Hapus presensi ${userName ?? 'karyawan'} tanggal $dateLabel? '
+          'Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Hapus',
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await _presenceService.deletePresence(int.parse(id.toString()));
+      if (!mounted) return;
+      showSuccessSnackBar(context, 'Presensi berhasil dihapus.');
+      _loadData();
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -253,6 +315,13 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
             ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Input Manual'),
+              onPressed: _openCreateForm,
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: Column(
@@ -480,6 +549,35 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
                   _photo(m['image_in'] as String, 'Masuk'),
                 if (m['image_out'] != null)
                   _photo(m['image_out'] as String, 'Pulang'),
+              ],
+            ),
+          ],
+          if (_isAdmin && m['id'] != null) ...[
+            AppSpacing.gapVerticalMD,
+            const Divider(height: 1),
+            AppSpacing.gapVerticalSM,
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit'),
+                  onPressed: () => _openEditForm(m),
+                ),
+                AppSpacing.gapHorizontalSM,
+                FilledButton.tonalIcon(
+                  icon: _isDeleting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Hapus'),
+                  style: FilledButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                  ),
+                  onPressed: _isDeleting ? null : () => _confirmDelete(m),
+                ),
               ],
             ),
           ],

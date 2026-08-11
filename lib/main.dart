@@ -145,6 +145,12 @@ class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     developer.log('App lifecycle state changed to: $state');
+    // Safety net: pastikan splash tidak tersisa saat app kembali ke foreground.
+    if (state == AppLifecycleState.resumed) {
+      try {
+        FlutterNativeSplash.remove();
+      } catch (_) {}
+    }
   }
 
   @override
@@ -158,64 +164,54 @@ class ErrorBoundaryWidgetState extends State<ErrorBoundaryWidget>
 
 void main() {
   runZonedGuarded(() async {
-    // Tahan splash native sampai kita lepas secara eksplisit (setelah frame
-    // pertama Flutter tergambar, lihat addPostFrameCallback di bawah).
     final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-    // Set up global error handler untuk menampilkan CustomErrorWidget
-    // alih-alih red screen default di release build.
+    // SAFETY NET: jadwalkan penghapusan splash SEBELUM await berisiko,
+    // agar splash tidak pernah stuck walau langkah di bawah throw/hang.
+    // (Future.delayed berjalan di event loop; walau await di bawah belum
+    // selesai, timer ini tetap fire setelah 3 detik.)
+    Timer(const Duration(seconds: 3), () {
+      try {
+        FlutterNativeSplash.remove();
+      } catch (_) {}
+    });
+
     ErrorWidget.builder = (FlutterErrorDetails details) {
       return CustomErrorWidget(errorDetails: details);
     };
 
-    // Set orientasi ke portrait
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
 
-    // JANGAN menunggu delay buatan sebelum runApp — menahan splash lebih lama
-    // dari yang diperlukan membuat startup terasa macet. Splash dilepas pada
-    // frame pertama setelah runApp (atau via safety fallback di bawah).
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString(AppConstants.tokenKey);
-    final String initialRoute = (token != null && token.isNotEmpty) ? '/home' : '/login';
+    final String initialRoute =
+        (token != null && token.isNotEmpty) ? '/home' : '/login';
 
     runApp(ErrorBoundaryWidget(child: MyApp(initialRoute: initialRoute)));
 
-    // Splash dilepas setelah frame pertama tergambar, agar tidak ada
-    // blank frame antara native splash dan UI Flutter.
     widgetsBinding.addPostFrameCallback((_) {
       try {
         FlutterNativeSplash.remove();
       } catch (_) {}
     });
 
-    // Safety fallback: lepas splash secara paksa jika belum dilepas setelah
-    // frame pertama (mis. first frame lambat di device kentang).
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      try {
-        FlutterNativeSplash.remove();
-      } catch (_) {}
-    });
-
-    // Jalankan init berat di frame berikutnya, setelah UI pertama tampil.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Bila Firebase belum dikonfigurasi (mis. google-services.json belum ada),
-      // di-silent agar tidak mengganggu aplikasi utama.
       await LocationTrackingService.instance.initialize();
-      // Auto-login: pastikan FCM token & periodic task aktif.
       if (token != null && token.isNotEmpty) {
         await LocationTrackingService.instance.onLogin();
       }
     });
   }, (error, stackTrace) {
-    developer.log(
-      'Uncaught error',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    developer.log('Uncaught error', error: error, stackTrace: stackTrace);
+    // LAST RESORT: bila main() throw sebelum runApp, tetap lepas splash
+    // agar user tidak melihat splash selamanya.
+    try {
+      FlutterNativeSplash.remove();
+    } catch (_) {}
   });
 }
 
@@ -294,7 +290,6 @@ class _MyAppState extends State<MyApp> {
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: overlayStyle,
             child: MaterialApp(
-              restorationScopeId: 'sagansa',
               title: 'Sagansa',
               theme: themeData,
               darkTheme: ThemeProvider.darkTheme,

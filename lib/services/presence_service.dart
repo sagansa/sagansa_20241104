@@ -102,6 +102,51 @@ class PresenceService {
     }
   }
 
+  // ===========================================================================
+  // Admin manual presence management (CRUD).
+  // Backend: AdminPresenceController at admin/presences.
+  // Authorization: hanya role `admin`.
+  // ===========================================================================
+
+  /// Buat presensi manual untuk karyawan (admin).
+  ///
+  /// [data] harus berisi: created_by_id, store_id, shift_store_id, check_in,
+  /// latitude_in, longitude_in, status. Optional: check_out, latitude_out,
+  /// longitude_out.
+  Future<Map<String, dynamic>> createPresenceManual(
+      Map<String, dynamic> data) async {
+    try {
+      final result = await _api.post('admin/presences', body: data);
+      return result is Map<String, dynamic>
+          ? result
+          : <String, dynamic>{};
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  /// Update presensi manual (admin).
+  Future<Map<String, dynamic>> updatePresenceManual(
+      int id, Map<String, dynamic> data) async {
+    try {
+      final result = await _api.put('admin/presences/$id', body: data);
+      return result is Map<String, dynamic>
+          ? result
+          : <String, dynamic>{};
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  /// Hapus presensi (admin).
+  Future<void> deletePresence(int id) async {
+    try {
+      await _api.delete('admin/presences/$id');
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
   /// Get all employees' presence data for today (admin only).
   /// Returns record (presences, summary) where summary contains
   /// late_count, on_time_count, total_count from backend.

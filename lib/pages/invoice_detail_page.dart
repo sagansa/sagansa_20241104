@@ -29,6 +29,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   List<PaymentReceipt> _paymentReceipts = [];
   bool _canReceive = false;
   bool _isReceiving = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -44,7 +45,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       final roles = List<String>.from(userData['roles'] ?? []);
       _isAdmin = roles.contains('admin') || roles.contains('super_admin');
       _currentUserId = userData['id'] ?? 0;
-      _canReceive = roles.any((r) => ['staff', 'admin', 'super_admin'].contains(r));
+      _canReceive =
+          roles.any((r) => ['staff', 'admin', 'super_admin'].contains(r));
     }
     _fetchDetail();
   }
@@ -57,7 +59,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     });
 
     try {
-      final invoice = await _procurementService.getInvoiceDetail(widget.invoiceId);
+      final invoice =
+          await _procurementService.getInvoiceDetail(widget.invoiceId);
       if (!mounted) return;
 
       List<PaymentReceipt> receipts = [];
@@ -149,21 +152,79 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     }
   }
 
+  Future<bool?> _confirmDeleteInvoice() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Invoice'),
+        content: const Text(
+          'Hapus invoice ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteInvoice() async {
+    final confirmed = await _confirmDeleteInvoice();
+    if (confirmed != true) return;
+    if (!mounted) return;
+    setState(() => _isDeleting = true);
+    try {
+      await _procurementService.deleteInvoice(widget.invoiceId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invoice berhasil dihapus.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus invoice: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
+  }
+
   Color _paymentStatusColor(String status) {
     switch (status) {
-      case '1': return AppColors.warning;
-      case '2': return AppColors.success;
-      case '3': return AppColors.error;
-      default: return AppColors.onSurfaceVariant;
+      case '1':
+        return AppColors.warning;
+      case '2':
+        return AppColors.success;
+      case '3':
+        return AppColors.error;
+      default:
+        return AppColors.onSurfaceVariant;
     }
   }
 
   Color _orderStatusColor(String status) {
     switch (status) {
-      case '1': return AppColors.warning;
-      case '2': return AppColors.success;
-      case '3': return AppColors.error;
-      default: return AppColors.onSurfaceVariant;
+      case '1':
+        return AppColors.warning;
+      case '2':
+        return AppColors.success;
+      case '3':
+        return AppColors.error;
+      default:
+        return AppColors.onSurfaceVariant;
     }
   }
 
@@ -211,6 +272,16 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
               onPressed: _navigateToEdit,
               tooltip: 'Edit Invoice',
             ),
+          if (_isAdmin)
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 24,
+                color: colorScheme.error,
+              ),
+              onPressed: _isDeleting ? null : _deleteInvoice,
+              tooltip: 'Hapus Invoice',
+            ),
         ],
       ),
       body: _isLoading
@@ -222,9 +293,12 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                        Icon(Icons.error_outline,
+                            size: 48, color: colorScheme.error),
                         AppSpacing.gapVerticalMD,
-                        Text(_errorMessage!, style: TextStyle(color: colorScheme.error), textAlign: TextAlign.center),
+                        Text(_errorMessage!,
+                            style: TextStyle(color: colorScheme.error),
+                            textAlign: TextAlign.center),
                         AppSpacing.gapVerticalMD,
                         ElevatedButton.icon(
                           onPressed: _fetchDetail,
@@ -249,7 +323,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                            side: BorderSide(
+                                color: colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,12 +336,15 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'INVOICE PEMBELIAN',
-                                          style: theme.textTheme.labelSmall?.copyWith(
-                                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant
+                                                .withValues(alpha: 0.6),
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 0.8,
                                           ),
@@ -277,40 +356,70 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                             alignment: WrapAlignment.end,
                                             spacing: 8,
                                             runSpacing: 6,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: _paymentStatusColor(_invoice!.paymentStatus).withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: _paymentStatusColor(_invoice!.paymentStatus).withValues(alpha: 0.2)),
-                                              ),
-                                              child: Text(
-                                                _invoice!.paymentStatusText,
-                                                style: theme.textTheme.labelSmall?.copyWith(
-                                                  color: _paymentStatusColor(_invoice!.paymentStatus),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 10,
+                                            children: [
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: _paymentStatusColor(
+                                                          _invoice!
+                                                              .paymentStatus)
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: _paymentStatusColor(
+                                                              _invoice!
+                                                                  .paymentStatus)
+                                                          .withValues(
+                                                              alpha: 0.2)),
+                                                ),
+                                                child: Text(
+                                                  _invoice!.paymentStatusText,
+                                                  style: theme
+                                                      .textTheme.labelSmall
+                                                      ?.copyWith(
+                                                    color: _paymentStatusColor(
+                                                        _invoice!
+                                                            .paymentStatus),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: _orderStatusColor(_invoice!.orderStatus).withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(color: _orderStatusColor(_invoice!.orderStatus).withValues(alpha: 0.2)),
-                                              ),
-                                              child: Text(
-                                                _invoice!.orderStatusText,
-                                                style: theme.textTheme.labelSmall?.copyWith(
-                                                  color: _orderStatusColor(_invoice!.orderStatus),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 10,
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: _orderStatusColor(
+                                                          _invoice!.orderStatus)
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: _orderStatusColor(
+                                                              _invoice!
+                                                                  .orderStatus)
+                                                          .withValues(
+                                                              alpha: 0.2)),
+                                                ),
+                                                child: Text(
+                                                  _invoice!.orderStatusText,
+                                                  style: theme
+                                                      .textTheme.labelSmall
+                                                      ?.copyWith(
+                                                    color: _orderStatusColor(
+                                                        _invoice!.orderStatus),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
                                           ),
                                         ),
                                       ],
@@ -318,7 +427,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                     const SizedBox(height: 12),
                                     Text(
                                       _invoice!.storeName,
-                                      style: theme.textTheme.headlineSmall?.copyWith(
+                                      style: theme.textTheme.headlineSmall
+                                          ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: colorScheme.onSurface,
                                       ),
@@ -327,29 +437,36 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: _buildDashedLine(colorScheme.outlineVariant),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: _buildDashedLine(
+                                    colorScheme.outlineVariant),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   children: [
-                                    _buildInfoRow('Tanggal', _invoice!.date, theme),
+                                    _buildInfoRow(
+                                        'Tanggal', _invoice!.date, theme),
                                     const SizedBox(height: 8),
                                     if (_invoice!.supplierName != null) ...[
-                                      _buildInfoRow('Supplier', _invoice!.supplierName!, theme),
+                                      _buildInfoRow('Supplier',
+                                          _invoice!.supplierName!, theme),
                                       const SizedBox(height: 8),
                                     ],
-                                    _buildInfoRow('Dibuat Oleh', _invoice!.createdByName, theme),
+                                    _buildInfoRow('Dibuat Oleh',
+                                        _invoice!.createdByName, theme),
                                     const SizedBox(height: 8),
-                                    _buildInfoRow('Tipe Pembayaran', _invoice!.paymentTypeText, theme),
+                                    _buildInfoRow('Tipe Pembayaran',
+                                        _invoice!.paymentTypeText, theme),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        if (_invoice!.imageUrl != null && _invoice!.imageUrl!.isNotEmpty) ...[
+                        if (_invoice!.imageUrl != null &&
+                            _invoice!.imageUrl!.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           Card(
                             clipBehavior: Clip.antiAlias,
@@ -357,30 +474,45 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                              side: BorderSide(
+                                  color: colorScheme.outlineVariant
+                                      .withValues(alpha: 0.5)),
                             ),
                             child: InkWell(
-                              onTap: () => _showReceiptImage(_invoice!.imageUrl!),
+                              onTap: () =>
+                                  _showReceiptImage(_invoice!.imageUrl!),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        12, 10, 12, 8),
                                     child: Row(
                                       children: [
-                                        Icon(Icons.image_outlined, size: 18, color: colorScheme.primary),
+                                        Icon(Icons.image_outlined,
+                                            size: 18,
+                                            color: colorScheme.primary),
                                         const SizedBox(width: 7),
                                         Expanded(
-                                          child: Text('Foto Invoice', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                          child: Text('Foto Invoice',
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold)),
                                         ),
-                                        Text('Perbesar', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                                        Text('Perbesar',
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                    color: colorScheme
+                                                        .onSurfaceVariant)),
                                       ],
                                     ),
                                   ),
                                   SizedBox(
                                     width: double.infinity,
                                     height: 190,
-                                    child: _buildInvoiceImage(_invoice!.image!, colorScheme),
+                                    child: _buildInvoiceImage(
+                                        _invoice!.image!, colorScheme),
                                   ),
                                 ],
                               ),
@@ -395,7 +527,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                            side: BorderSide(
+                                color: colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5)),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -407,15 +541,18 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: colorScheme.primary.withValues(alpha: 0.1),
+                                        color: colorScheme.primary
+                                            .withValues(alpha: 0.1),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: Icon(Icons.shopping_bag_outlined, color: colorScheme.primary, size: 20),
+                                      child: Icon(Icons.shopping_bag_outlined,
+                                          color: colorScheme.primary, size: 20),
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
                                       'Item Pembelian',
-                                      style: theme.textTheme.titleSmall?.copyWith(
+                                      style:
+                                          theme.textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: colorScheme.onSurface,
                                       ),
@@ -423,16 +560,22 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                                Divider(
+                                    height: 1,
+                                    color: colorScheme.outlineVariant
+                                        .withValues(alpha: 0.3)),
                                 const SizedBox(height: 12),
                                 if (_invoice!.detailInvoices.isEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 24.0),
                                     child: Center(
                                       child: Text(
                                         'Belum ada item dalam invoice ini.',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant
+                                              .withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ),
@@ -440,44 +583,67 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                 else
                                   ListView.separated(
                                     shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     itemCount: _invoice!.detailInvoices.length,
-                                    separatorBuilder: (context, index) => Divider(height: 24, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                            height: 24,
+                                            color: colorScheme.outlineVariant
+                                                .withValues(alpha: 0.2)),
                                     itemBuilder: (context, index) {
-                                      final item = _invoice!.detailInvoices[index];
+                                      final item =
+                                          _invoice!.detailInvoices[index];
                                       final unitPrice = item.unitPrice;
                                       final subtotal = item.subtotalInvoice
                                           .toStringAsFixed(0)
-                                          .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                                          .replaceAllMapped(
+                                              RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                                              (m) => '${m.group(1)}.');
                                       final currentPrice = unitPrice
                                           .toStringAsFixed(0)
-                                          .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
+                                          .replaceAllMapped(
+                                              RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                                              (m) => '${m.group(1)}.');
                                       return Container(
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
+                                          color: colorScheme
+                                              .surfaceContainerHighest
+                                              .withValues(alpha: 0.35),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          border: Border.all(
+                                              color: colorScheme.outlineVariant
+                                                  .withValues(alpha: 0.45)),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Expanded(
                                                   child: Text(
                                                     item.productName,
-                                                    style: theme.textTheme.titleSmall?.copyWith(
-                                                      fontWeight: FontWeight.bold,
-                                                      color: colorScheme.onSurface,
+                                                    style: theme
+                                                        .textTheme.titleSmall
+                                                        ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          colorScheme.onSurface,
                                                     ),
                                                   ),
                                                 ),
                                                 const SizedBox(width: 12),
                                                 Text(
                                                   'Rp $subtotal',
-                                                  style: theme.textTheme.titleSmall?.copyWith(
+                                                  style: theme
+                                                      .textTheme.titleSmall
+                                                      ?.copyWith(
                                                     fontWeight: FontWeight.bold,
                                                     color: colorScheme.primary,
                                                   ),
@@ -490,52 +656,95 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                               runSpacing: 6,
                                               children: [
                                                 _itemMetaChip(
-                                                  icon: Icons.inventory_2_outlined,
-                                                  label: '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
+                                                  icon: Icons
+                                                      .inventory_2_outlined,
+                                                  label:
+                                                      '${item.quantityProduct.toStringAsFixed(0)} ${item.unitName}',
                                                   color: colorScheme.secondary,
                                                 ),
                                                 _itemMetaChip(
                                                   icon: Icons.sell_outlined,
-                                                  label: 'Rp $currentPrice / ${item.unitName}',
-                                                  color: colorScheme.onSurfaceVariant,
+                                                  label:
+                                                      'Rp $currentPrice / ${item.unitName}',
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
                                                 ),
                                               ],
                                             ),
-                                            if (_isAdmin && item.lastPurchasePrices.isNotEmpty) ...[
+                                            if (_isAdmin &&
+                                                item.lastPurchasePrices
+                                                    .isNotEmpty) ...[
                                               const SizedBox(height: 12),
                                               Container(
                                                 width: double.infinity,
-                                                padding: const EdgeInsets.all(10),
+                                                padding:
+                                                    const EdgeInsets.all(10),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.info.withValues(alpha: 0.08),
-                                                  borderRadius: BorderRadius.circular(10),
+                                                  color: AppColors.info
+                                                      .withValues(alpha: 0.08),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
                                                 ),
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Row(
                                                       children: [
-                                                        const Icon(Icons.history, size: 15, color: AppColors.info),
-                                                        const SizedBox(width: 6),
+                                                        const Icon(
+                                                            Icons.history,
+                                                            size: 15,
+                                                            color:
+                                                                AppColors.info),
+                                                        const SizedBox(
+                                                            width: 6),
                                                         Text(
                                                           'Harga beli sebelumnya',
-                                                          style: theme.textTheme.labelMedium?.copyWith(
-                                                            color: AppColors.info,
-                                                            fontWeight: FontWeight.bold,
+                                                          style: theme.textTheme
+                                                              .labelMedium
+                                                              ?.copyWith(
+                                                            color:
+                                                                AppColors.info,
+                                                            fontWeight:
+                                                                FontWeight.bold,
                                                           ),
                                                         ),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 6),
-                                                    ...item.lastPurchasePrices.asMap().entries.map((entry) {
+                                                    ...item.lastPurchasePrices
+                                                        .asMap()
+                                                        .entries
+                                                        .map((entry) {
                                                       final lp = entry.value;
-                                                      final price = lp.unitPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m.group(1)}.');
-                                                      final date = lp.date != null ? lp.date!.toLocal().toString().split(' ').first : '-';
+                                                      final price = lp.unitPrice
+                                                          .toStringAsFixed(0)
+                                                          .replaceAllMapped(
+                                                              RegExp(
+                                                                  r'(\d)(?=(\d{3})+(?!\d))'),
+                                                              (m) =>
+                                                                  '${m.group(1)}.');
+                                                      final date =
+                                                          lp.date != null
+                                                              ? lp.date!
+                                                                  .toLocal()
+                                                                  .toString()
+                                                                  .split(' ')
+                                                                  .first
+                                                              : '-';
                                                       return Padding(
-                                                        padding: const EdgeInsets.only(bottom: 3),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                bottom: 3),
                                                         child: Text(
                                                           '${entry.key + 1}. Rp $price/${item.unitName} • ${lp.supplierName ?? 'Supplier tidak diketahui'} • $date',
-                                                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.info),
+                                                          style: theme.textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                                  color:
+                                                                      AppColors
+                                                                          .info),
                                                         ),
                                                       );
                                                     }),
@@ -560,7 +769,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                            side: BorderSide(
+                                color: colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5)),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -572,15 +783,18 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(alpha: 0.1),
+                                        color:
+                                            Colors.blue.withValues(alpha: 0.1),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.receipt_long, color: Colors.blue, size: 20),
+                                      child: const Icon(Icons.receipt_long,
+                                          color: Colors.blue, size: 20),
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
                                       'Rincian Tagihan',
-                                      style: theme.textTheme.titleSmall?.copyWith(
+                                      style:
+                                          theme.textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: colorScheme.onSurface,
                                       ),
@@ -588,27 +802,39 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                                Divider(
+                                    height: 1,
+                                    color: colorScheme.outlineVariant
+                                        .withValues(alpha: 0.3)),
                                 const SizedBox(height: 16),
-                                _buildInfoRow('Pajak', 'Rp ${_invoice!.taxes != 0 ? _invoice!.taxes.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}', theme),
+                                _buildInfoRow(
+                                    'Pajak',
+                                    'Rp ${_invoice!.taxes != 0 ? _invoice!.taxes.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}',
+                                    theme),
                                 const SizedBox(height: 8),
-                                _buildInfoRow('Diskon', 'Rp ${_invoice!.discounts != 0 ? _invoice!.discounts.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}', theme),
+                                _buildInfoRow(
+                                    'Diskon',
+                                    'Rp ${_invoice!.discounts != 0 ? _invoice!.discounts.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}',
+                                    theme),
                                 const SizedBox(height: 16),
                                 _buildDashedLine(colorScheme.outlineVariant),
                                 const SizedBox(height: 16),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'TOTAL AKHIR',
-                                      style: theme.textTheme.titleMedium?.copyWith(
+                                      style:
+                                          theme.textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                     Text(
                                       'Rp ${_invoice!.totalPrice != 0 ? _invoice!.totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}',
-                                      style: theme.textTheme.titleLarge?.copyWith(
+                                      style:
+                                          theme.textTheme.titleLarge?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: colorScheme.primary,
                                       ),
@@ -619,16 +845,19 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                             ),
                           ),
                         ),
-                        
+
                         // Catatan (jika ada)
-                        if (_invoice!.notes != null && _invoice!.notes!.isNotEmpty) ...[
+                        if (_invoice!.notes != null &&
+                            _invoice!.notes!.isNotEmpty) ...[
                           AppSpacing.gapVerticalMD,
                           Card(
                             color: colorScheme.surface,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                              side: BorderSide(
+                                  color: colorScheme.outlineVariant
+                                      .withValues(alpha: 0.5)),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -637,11 +866,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.notes, color: colorScheme.primary, size: 18),
+                                      Icon(Icons.notes,
+                                          color: colorScheme.primary, size: 18),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Catatan',
-                                        style: theme.textTheme.titleSmall?.copyWith(
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: colorScheme.onSurface,
                                         ),
@@ -661,9 +892,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                             ),
                           ),
                         ],
-                        
+
                         // Bukti Pembayaran / Lampiran (jika ada)
-                        if (_invoice!.paymentStatus == '2' && _paymentReceipts.isNotEmpty) ...[
+                        if (_invoice!.paymentStatus == '2' &&
+                            _paymentReceipts.isNotEmpty) ...[
                           AppSpacing.gapVerticalMD,
                           ..._paymentReceipts.map((receipt) {
                             final multi = receipt.invoicePurchases.length > 1;
@@ -672,7 +904,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(color: AppColors.success.withValues(alpha: 0.5)),
+                                side: BorderSide(
+                                    color: AppColors.success
+                                        .withValues(alpha: 0.5)),
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
@@ -681,23 +915,27 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                   children: [
                                     Row(
                                       children: [
-                                        Icon(Icons.check_circle, size: 20, color: AppColors.success),
+                                        Icon(Icons.check_circle,
+                                            size: 20, color: AppColors.success),
                                         const SizedBox(width: 8),
                                         Text(
                                           'Transaksi Pembayaran Sukses',
-                                          style: theme.textTheme.titleSmall?.copyWith(
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: AppColors.success,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    if (receipt.image != null && receipt.image!.isNotEmpty) ...[
+                                    if (receipt.image != null &&
+                                        receipt.image!.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
                                         child: GestureDetector(
-                                          onTap: () => _showReceiptImage(_imageUrl(receipt.image)),
+                                          onTap: () => _showReceiptImage(
+                                              _imageUrl(receipt.image)),
                                           child: Stack(
                                             alignment: Alignment.bottomCenter,
                                             children: [
@@ -706,28 +944,49 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                                 height: 180,
                                                 width: double.infinity,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                                loadingBuilder: (_, child, progress) {
-                                                  if (progress == null) return child;
+                                                errorBuilder: (_, __, ___) =>
+                                                    const SizedBox.shrink(),
+                                                loadingBuilder:
+                                                    (_, child, progress) {
+                                                  if (progress == null) {
+                                                    return child;
+                                                  }
                                                   return Container(
                                                     height: 180,
-                                                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                                                    child: const Center(child: CircularProgressIndicator()),
+                                                    color: colorScheme
+                                                        .surfaceContainerHighest
+                                                        .withValues(alpha: 0.3),
+                                                    child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator()),
                                                   );
                                                 },
                                               ),
                                               Container(
                                                 width: double.infinity,
-                                                color: Colors.black.withValues(alpha: 0.6),
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.6),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 8),
                                                 child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
                                                   children: [
-                                                    const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                                    const Icon(Icons.zoom_in,
+                                                        color: Colors.white,
+                                                        size: 16),
                                                     const SizedBox(width: 8),
                                                     Text(
                                                       'Ketuk untuk memperbesar gambar',
-                                                      style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+                                                      style: theme
+                                                          .textTheme.bodySmall
+                                                          ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color:
+                                                                  Colors.white),
                                                     ),
                                                   ],
                                                 ),
@@ -738,15 +997,23 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                                       ),
                                     ],
                                     const SizedBox(height: 16),
-                                    _buildInfoRow('Jumlah Transfer', 'Rp ${FormatUtils.formatNumber(receipt.transferAmount)}', theme),
+                                    _buildInfoRow(
+                                        'Jumlah Transfer',
+                                        'Rp ${FormatUtils.formatNumber(receipt.transferAmount)}',
+                                        theme),
                                     const SizedBox(height: 8),
-                                    _buildInfoRow('Tanggal Verifikasi', receipt.createdAt.substring(0, 10), theme),
+                                    _buildInfoRow(
+                                        'Tanggal Verifikasi',
+                                        receipt.createdAt.substring(0, 10),
+                                        theme),
                                     if (multi) ...[
                                       const SizedBox(height: 12),
                                       Text(
                                         'Tergabung dalam pembayaran ${receipt.invoicePurchases.length} invoice',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color: colorScheme.onSurfaceVariant
+                                              .withValues(alpha: 0.7),
                                           fontStyle: FontStyle.italic,
                                         ),
                                       ),
@@ -765,139 +1032,151 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   _invoice!.paymentStatus == '1' &&
                   _invoice!.paymentTypeId == 1 &&
                   _isAdmin) ||
-              (_invoice != null &&
-                  _invoice!.orderStatus == '1' &&
-                  _canReceive)
-          ? SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, -4),
-                    )
-                  ],
-                  border: Border(
-                    top: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              (_invoice != null && _invoice!.orderStatus == '1' && _canReceive)
+          ? Builder(
+              builder: (context) {
+                // MediaQuery.viewPaddingOf tidak pernah di-consume oleh
+                // ancestor, jadi masih mereport bottom inset sistem (nav bar)
+                // walau dalam edge-to-edge Android 15 (targetSdk 36). SafeArea
+                // biasa tidak efektif karena MediaQuery.padding sudah dipakai
+                // ancestor — tombol "Tandai Sudah Diterima" jadi tertutup nav bar.
+                final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+                return Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottomInset),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, -4),
+                      )
+                    ],
+                    border: Border(
+                      top: BorderSide(
+                        color:
+                            colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      ),
                     ),
                   ),
-                ),
-                child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Existing: Buat Payment Receipt (admin + draft + transfer type)
-                  if (_invoice != null &&
-                      _invoice!.paymentStatus == '1' &&
-                      _invoice!.paymentTypeId == 1 &&
-                      _isAdmin) ...[
-                    Container(
-                      width: double.infinity,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InvoiceSelectionPage(
-                                  initialSelectedIds: {_invoice!.id},
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Existing: Buat Payment Receipt (admin + draft + transfer type)
+                      if (_invoice != null &&
+                          _invoice!.paymentStatus == '1' &&
+                          _invoice!.paymentTypeId == 1 &&
+                          _isAdmin) ...[
+                        Container(
+                          width: double.infinity,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    colorScheme.primary.withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => InvoiceSelectionPage(
+                                      initialSelectedIds: {_invoice!.id},
+                                    ),
+                                  ),
+                                );
+                                if (result != null) {
+                                  _fetchDetail();
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.payments,
+                                        color: Colors.white, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Buat Payment Receipt',
+                                      style:
+                                          theme.textTheme.labelLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                            if (result != null) {
-                              _fetchDetail();
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.payments, color: Colors.white, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Buat Payment Receipt',
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    AppSpacing.gapVerticalSM,
-                  ],
-                  // New: Tandai Sudah Diterima (staff/admin/super_admin + order_status 1)
-                  if (_invoice != null &&
-                      _invoice!.orderStatus == '1' &&
-                      _canReceive)
-                    Container(
-                      width: double.infinity,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.success,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.success.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _isReceiving ? null : _markAsReceived,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Center(
-                            child: _isReceiving
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Tandai Sudah Diterima',
-                                        style: theme.textTheme.labelLarge?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
+                        AppSpacing.gapVerticalSM,
+                      ],
+                      // New: Tandai Sudah Diterima (staff/admin/super_admin + order_status 1)
+                      if (_invoice != null &&
+                          _invoice!.orderStatus == '1' &&
+                          _canReceive)
+                        Container(
+                          width: double.infinity,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.success,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.success.withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _isReceiving ? null : _markAsReceived,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Center(
+                                child: _isReceiving
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white)
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.check_circle,
+                                              color: Colors.white, size: 20),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Tandai Sudah Diterima',
+                                            style: theme.textTheme.labelLarge
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          )
-              : null,
+                    ],
+                  ),
+                );
+              },
+            )
+          : null,
     );
   }
 
@@ -919,7 +1198,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
         fallbackUrl,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Center(
-          child: Icon(Icons.broken_image_outlined, size: 42, color: colorScheme.outline),
+          child: Icon(Icons.broken_image_outlined,
+              size: 42, color: colorScheme.outline),
         ),
       ),
     );
@@ -987,7 +1267,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       ),
     );
   }
-
 
   Widget _buildInfoRow(String label, String value, ThemeData theme) {
     final colorScheme = theme.colorScheme;

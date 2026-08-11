@@ -116,8 +116,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
         return _invoices.where((inv) => inv.orderStatus == '1').toList();
       case 4:
         return _invoices
-            .where((inv) =>
-                inv.orderStatus == '2' && inv.paymentStatus == '2')
+            .where((inv) => inv.orderStatus == '2' && inv.paymentStatus == '2')
             .toList();
       default:
         return _invoices;
@@ -166,12 +165,14 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     height: 120,
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    color: colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
                     alignment: Alignment.center,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+                        const Icon(Icons.broken_image,
+                            color: Colors.grey, size: 36),
                         const SizedBox(height: 8),
                         Text(
                           'Gagal memuat gambar',
@@ -249,8 +250,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                             Icon(
                               Icons.receipt_outlined,
                               size: 48,
-                              color: AppColors.info
-                                  .withValues(alpha: 0.5),
+                              color: AppColors.info.withValues(alpha: 0.5),
                             ),
                             AppSpacing.gapVerticalMD,
                             Text(
@@ -268,8 +268,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                       child: ListView.builder(
                         controller: _scrollControllers[index],
                         padding: AppSpacing.paddingMD,
-                        itemCount:
-                            invoices.length + (_loadingMore ? 1 : 0),
+                        itemCount: invoices.length + (_loadingMore ? 1 : 0),
                         itemBuilder: (context, idx) {
                           if (idx == invoices.length) {
                             return const Padding(
@@ -278,15 +277,16 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                 child: SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               ),
                             );
                           }
                           final invoice = invoices[idx];
                           return Card(
-                            margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
+                            margin: const EdgeInsets.only(
+                                bottom: AppSpacing.sectionGap),
                             child: InkWell(
                               borderRadius: AppSpacing.borderRadiusLG,
                               onTap: () {
@@ -296,13 +296,14 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                     builder: (context) => InvoiceDetailPage(
                                         invoiceId: invoice.id),
                                   ),
-                                );
+                                ).then((result) {
+                                  if (result == true) _fetchInvoices();
+                                });
                               },
                               child: Padding(
                                 padding: AppSpacing.paddingMD,
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       mainAxisAlignment:
@@ -311,8 +312,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                         Expanded(
                                           child: Text(
                                             invoice.storeName,
-                                            style: theme
-                                                .textTheme.titleMedium
+                                            style: theme.textTheme.titleMedium
                                                 ?.copyWith(
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -320,8 +320,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                         ),
                                         Text(
                                           'Rp ${invoice.totalPrice != 0 ? invoice.totalPrice.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.') : '0'}',
-                                          style: theme
-                                              .textTheme.titleMedium
+                                          style: theme.textTheme.titleMedium
                                               ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: colorScheme.primary,
@@ -331,43 +330,59 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                     ),
                                     AppSpacing.gapVerticalSM,
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 'Tanggal: ${invoice.date}',
-                                                style: theme.textTheme.bodyMedium?.copyWith(
-                                                  color: colorScheme.onSurfaceVariant,
+                                                style: theme
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
                                                 ),
                                               ),
-                                              if (invoice.supplierName != null) ...[
+                                              if (invoice.supplierName !=
+                                                  null) ...[
                                                 AppSpacing.gapVerticalXS,
                                                 Text(
                                                   'Supplier: ${invoice.supplierName}',
-                                                  style: theme.textTheme.bodySmall?.copyWith(
-                                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: colorScheme
+                                                        .onSurfaceVariant
+                                                        .withValues(alpha: 0.8),
                                                   ),
                                                 ),
                                               ],
                                               AppSpacing.gapVerticalXS,
                                               Text(
                                                 '${invoice.detailInvoices.length} item • ${invoice.paymentTypeText}',
-                                                style: theme.textTheme.bodySmall?.copyWith(
-                                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant
+                                                      .withValues(alpha: 0.8),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        if (invoice.imageUrl != null && invoice.imageUrl!.isNotEmpty) ...[
+                                        if (invoice.imageUrl != null &&
+                                            invoice.imageUrl!.isNotEmpty) ...[
                                           const SizedBox(width: 16),
                                           GestureDetector(
-                                            onTap: () => _showInvoiceImage(context, invoice.imageUrl!),
+                                            onTap: () => _showInvoiceImage(
+                                                context, invoice.imageUrl!),
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                               child: Stack(
                                                 alignment: Alignment.center,
                                                 children: [
@@ -376,18 +391,28 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                                     width: 60,
                                                     height: 60,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (_, __, ___) => Container(
+                                                    errorBuilder:
+                                                        (_, __, ___) =>
+                                                            Container(
                                                       width: 60,
                                                       height: 60,
-                                                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                                                      child: const Icon(Icons.broken_image, size: 20),
+                                                      color: colorScheme
+                                                          .surfaceContainerHighest
+                                                          .withValues(
+                                                              alpha: 0.3),
+                                                      child: const Icon(
+                                                          Icons.broken_image,
+                                                          size: 20),
                                                     ),
                                                   ),
                                                   Container(
                                                     width: 60,
                                                     height: 60,
                                                     color: Colors.black26,
-                                                    child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                                                    child: const Icon(
+                                                        Icons.zoom_in,
+                                                        color: Colors.white,
+                                                        size: 20),
                                                   ),
                                                 ],
                                               ),
@@ -400,10 +425,8 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                     Row(
                                       children: [
                                         Container(
-                                          padding: const EdgeInsets
-                                              .symmetric(
-                                              horizontal: 10,
-                                              vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: _paymentStatusColor(
                                                     invoice.paymentStatus)
@@ -413,23 +436,18 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                           ),
                                           child: Text(
                                             invoice.paymentStatusText,
-                                            style: theme
-                                                .textTheme.labelSmall
+                                            style: theme.textTheme.labelSmall
                                                 ?.copyWith(
-                                              color:
-                                                  _paymentStatusColor(
-                                                      invoice
-                                                          .paymentStatus),
+                                              color: _paymentStatusColor(
+                                                  invoice.paymentStatus),
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),
                                         AppSpacing.gapHorizontalSM,
                                         Container(
-                                          padding: const EdgeInsets
-                                              .symmetric(
-                                              horizontal: 10,
-                                              vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: _orderStatusColor(
                                                     invoice.orderStatus)
@@ -439,8 +457,7 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
                                           ),
                                           child: Text(
                                             invoice.orderStatusText,
-                                            style: theme
-                                                .textTheme.labelSmall
+                                            style: theme.textTheme.labelSmall
                                                 ?.copyWith(
                                               color: _orderStatusColor(
                                                   invoice.orderStatus),

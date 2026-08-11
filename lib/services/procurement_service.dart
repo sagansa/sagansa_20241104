@@ -24,7 +24,8 @@ class ProcurementService {
     return requestsJson.map((e) => RequestPurchase.fromJson(e)).toList();
   }
 
-  Future<Map<String, dynamic>> getRequestsPaged({int page = 1, int perPage = 20}) async {
+  Future<Map<String, dynamic>> getRequestsPaged(
+      {int page = 1, int perPage = 20}) async {
     final body = await _api.getRaw('procurement/requests', queryParams: {
       'page': page.toString(),
       'per_page': perPage.toString(),
@@ -44,9 +45,11 @@ class ProcurementService {
   Future<Map<String, dynamic>> getProcurementSummary() async {
     final body = await _api.getRaw('procurement/requests');
     final List<dynamic> requestsJson = body['data'] ?? [];
-    final List<RequestPurchase> requests = requestsJson.map((e) => RequestPurchase.fromJson(e)).toList();
+    final List<RequestPurchase> requests =
+        requestsJson.map((e) => RequestPurchase.fromJson(e)).toList();
     final Map<String, dynamic> meta = body['meta'] ?? {};
-    final Map<String, dynamic> invoiceCounts = meta['invoice_counts'] ?? {'draft': 0, 'done': 0, 'unpaid': 0};
+    final Map<String, dynamic> invoiceCounts =
+        meta['invoice_counts'] ?? {'draft': 0, 'done': 0, 'unpaid': 0};
 
     return {
       'requests': requests,
@@ -61,7 +64,8 @@ class ProcurementService {
     return RequestPurchase.fromJson(data);
   }
 
-  Future<bool> createRequest(int storeId, List<Map<String, dynamic>> items) async {
+  Future<bool> createRequest(
+      int storeId, List<Map<String, dynamic>> items) async {
     await _api.post('procurement/requests', body: {
       'store_id': storeId,
       'items': items,
@@ -89,6 +93,14 @@ class ProcurementService {
     return true;
   }
 
+  Future<void> deleteInvoice(int invoiceId) async {
+    await _api.delete('procurement/invoices/$invoiceId');
+  }
+
+  Future<void> deleteRequest(int requestId) async {
+    await _api.delete('procurement/requests/$requestId');
+  }
+
   Future<List<Map<String, dynamic>>> getDetailRequests({
     required int storeId,
     int? paymentTypeId,
@@ -99,7 +111,8 @@ class ProcurementService {
     if (paymentTypeId != null) {
       params['payment_type_id'] = paymentTypeId.toString();
     }
-    final body = await _api.getRaw('procurement/detail-requests', queryParams: params);
+    final body =
+        await _api.getRaw('procurement/detail-requests', queryParams: params);
     if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Failed to load detail requests');
     }
@@ -125,16 +138,20 @@ class ProcurementService {
     };
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
-      fields['items[$i][detail_request_id]'] = item['detail_request_id'].toString();
-      fields['items[$i][quantity_product]'] = item['quantity_product'].toString();
-      fields['items[$i][subtotal_invoice]'] = item['subtotal_invoice'].toString();
+      fields['items[$i][detail_request_id]'] =
+          item['detail_request_id'].toString();
+      fields['items[$i][quantity_product]'] =
+          item['quantity_product'].toString();
+      fields['items[$i][subtotal_invoice]'] =
+          item['subtotal_invoice'].toString();
     }
     if (taxes != null) fields['taxes'] = taxes.toString();
     if (discounts != null) fields['discounts'] = discounts.toString();
     if (notes != null) fields['notes'] = notes;
 
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/InvoicePurchase');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -147,7 +164,8 @@ class ProcurementService {
     return data?['id'] ?? 0;
   }
 
-  Future<int> createInvoice(int requestId, {
+  Future<int> createInvoice(
+    int requestId, {
     required int supplierId,
     required List<Map<String, dynamic>> items,
     int? paymentTypeId,
@@ -170,7 +188,8 @@ class ProcurementService {
     }
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
-      fields['items[$i][detail_request_id]'] = item['detail_request_id'].toString();
+      fields['items[$i][detail_request_id]'] =
+          item['detail_request_id'].toString();
       fields['items[$i][price]'] = item['price'].toString();
       fields['items[$i][quantity]'] = item['quantity'].toString();
     }
@@ -181,7 +200,8 @@ class ProcurementService {
     }
 
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/InvoicePurchase');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -196,7 +216,8 @@ class ProcurementService {
         0;
   }
 
-  Future<InvoicePurchase> updateInvoice(int invoiceId, {
+  Future<InvoicePurchase> updateInvoice(
+    int invoiceId, {
     int? supplierId,
     int? paymentTypeId,
     int? taxes,
@@ -209,21 +230,25 @@ class ProcurementService {
       '_method': 'PUT',
     };
     if (supplierId != null) fields['supplier_id'] = supplierId.toString();
-    if (paymentTypeId != null) fields['payment_type_id'] = paymentTypeId.toString();
+    if (paymentTypeId != null) {
+      fields['payment_type_id'] = paymentTypeId.toString();
+    }
     if (taxes != null) fields['taxes'] = taxes.toString();
     if (discounts != null) fields['discounts'] = discounts.toString();
     if (notes != null) fields['notes'] = notes;
     if (items != null) {
       for (var i = 0; i < items.length; i++) {
         final item = items[i];
-        fields['items[$i][detail_invoice_id]'] = item['detail_invoice_id'].toString();
+        fields['items[$i][detail_invoice_id]'] =
+            item['detail_invoice_id'].toString();
         fields['items[$i][price]'] = item['price'].toString();
         fields['items[$i][quantity]'] = item['quantity'].toString();
       }
     }
 
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/InvoicePurchase');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/InvoicePurchase');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -276,7 +301,8 @@ class ProcurementService {
     if (invoiceId != null) params['invoice_id'] = invoiceId.toString();
     if (paymentFor != null) params['payment_for'] = paymentFor;
 
-    final body = await _api.getRaw('procurement/payment-receipts', queryParams: params);
+    final body =
+        await _api.getRaw('procurement/payment-receipts', queryParams: params);
     final List<dynamic> receiptsJson = body['data'] ?? [];
     final meta = body['meta'] as Map<String, dynamic>? ?? {};
     return PaginatedResult(
@@ -312,7 +338,8 @@ class ProcurementService {
       fields['notes'] = notes;
     }
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/PaymentReceipt');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -347,7 +374,8 @@ class ProcurementService {
       fields['notes'] = notes;
     }
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/PaymentReceipt');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -381,7 +409,8 @@ class ProcurementService {
       fields['notes'] = notes;
     }
     if (image != null) {
-      final path = await ImageUploadService.upload(image, directory: 'images/PaymentReceipt');
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/PaymentReceipt');
       if (path == null) throw Exception('Gagal upload gambar ke img service.');
       fields['image'] = path;
     }
@@ -400,7 +429,8 @@ class ProcurementService {
   }
 
   Future<Map<String, dynamic>> getPaymentReceiptQris(int receiptId) async {
-    final body = await _api.getRaw('procurement/payment-receipts/$receiptId/qris');
+    final body =
+        await _api.getRaw('procurement/payment-receipts/$receiptId/qris');
     if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Gagal memuat QRIS payment.');
     }

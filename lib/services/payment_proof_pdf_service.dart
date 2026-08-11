@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../models/enums/order_mode.dart';
+import 'image_service.dart';
 import 'presence_service.dart';
 
 class PaymentProofPdfService {
@@ -52,7 +53,15 @@ class PaymentProofPdfService {
 
     for (final order in printableOrders) {
       try {
-        final imageBytes = await _downloadImageBytes(order['image_payment_url'].toString());
+        // Normalisasi URL via ImageService.buildUrl untuk menangani path
+        // relatif (legacy) maupun URL absolut secara konsisten.
+        final resolvedUrl =
+            ImageService.buildUrl(order['image_payment_url']?.toString());
+        if (resolvedUrl == null || resolvedUrl.isEmpty) {
+          failedReceipts.add(order['receipt_no']?.toString() ?? '-');
+          continue;
+        }
+        final imageBytes = await _downloadImageBytes(resolvedUrl);
         final image = pw.MemoryImage(imageBytes);
 
         document.addPage(

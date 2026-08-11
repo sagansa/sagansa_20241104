@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/enums/delivery_status.dart';
 import '../../models/enums/order_mode.dart';
 import '../../providers/delivery_provider.dart';
+import '../../services/image_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/status_mappers.dart';
@@ -481,11 +482,18 @@ class DirectOrderDetailView extends StatelessWidget {
 
   Widget _buildNetworkImage(
     BuildContext context, {
-    required String imageUrl,
+    required String? imageUrl,
     required String errorText,
     required ColorScheme colorScheme,
     required TextTheme textTheme,
   }) {
+    // Normalisasi URL: backend mungkin mengirim path relatif (mis. hasil
+    // decode JSON yang gagal) atau URL absolut. buildUrl menangani keduanya
+    // dan menjamin host img.sagansa.id yang benar. Null/empty → placeholder.
+    final resolvedUrl = ImageService.buildUrl(imageUrl);
+    if (resolvedUrl == null || resolvedUrl.isEmpty) {
+      return _buildImagePlaceholder(colorScheme, textTheme, errorText, 200);
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -498,7 +506,36 @@ class DirectOrderDetailView extends StatelessWidget {
                 alignment: Alignment.topRight,
                 children: [
                   InteractiveViewer(
-                    child: Image.network(imageUrl, fit: BoxFit.contain),
+                    child: Image.network(
+                      resolvedUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.cumulativeBytesLoaded /
+                                (progress.expectedTotalBytes ?? 1),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          padding: const EdgeInsets.all(32),
+                          color: Colors.black54,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.broken_image,
+                                  color: Colors.white70, size: 48),
+                              const SizedBox(height: 12),
+                              Text(errorText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white70)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close,
@@ -514,27 +551,13 @@ class DirectOrderDetailView extends StatelessWidget {
           alignment: Alignment.bottomCenter,
           children: [
             Image.network(
-              imageUrl,
+              resolvedUrl,
               height: 200,
               width: double.infinity,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 120,
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.broken_image,
-                          color: Colors.grey, size: 36),
-                      const SizedBox(height: 8),
-                      Text(errorText,
-                          style: textTheme.bodySmall),
-                    ],
-                  ),
-                );
+                return _buildImagePlaceholder(
+                    colorScheme, textTheme, errorText, 120);
               },
             ),
             Container(
@@ -559,6 +582,27 @@ class DirectOrderDetailView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    String errorText,
+    double height,
+  ) {
+    return Container(
+      height: height,
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+          const SizedBox(height: 8),
+          Text(errorText, style: textTheme.bodySmall),
+        ],
       ),
     );
   }

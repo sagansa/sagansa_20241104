@@ -6,13 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/shift_store_model.dart';
 import '../models/store_model.dart';
 import '../utils/constants.dart';
 import 'api_client.dart';
 import 'image_upload_service.dart';
+import 'token_store.dart';
 
 class PresenceService {
   final ApiClient _api = ApiClient();
@@ -370,9 +370,13 @@ class PresenceService {
   }
 
   /// Auth headers for multipart methods that need raw http responses.
+  ///
+  /// Token dibaca dari [TokenStore] (secure storage) — SAMA dengan [ApiClient].
+  /// Sebelumnya ini membaca SharedPreferences, yang menjadi sumber bug 401
+  /// saat check-in/check-out: `TokenStore.migrateFromPrefs()` menghapus token
+  /// dari prefs, sehingga request multipart terkirim tanpa header Authorization.
   Future<Map<String, String>> _getAuthHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppConstants.tokenKey);
+    final token = await TokenStore.instance.readToken();
     return {
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',

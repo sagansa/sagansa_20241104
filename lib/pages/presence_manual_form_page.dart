@@ -73,11 +73,8 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
     final p = widget.presence;
     if (p == null) return;
 
-    // Status
-    final rawStatus = p['status'];
-    if (rawStatus != null) {
-      _status = int.tryParse(rawStatus.toString()) ?? 1;
-    }
+    // Status selalu "hadir" untuk input manual; abaikan nilai dari server.
+    _status = 1;
 
     // Check-in (format: "YYYY-MM-DD HH:mm:ss" dari formatPresence()).
     final checkInStr = p['check_in'] as String?;
@@ -326,7 +323,6 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
                       AppSpacing.gapVerticalMD,
                       _buildCheckInSection(),
                       AppSpacing.gapVerticalMD,
-                      _buildStatusField(),
                       if (_selectedStore != null) ...[
                         AppSpacing.gapVerticalMD,
                         _buildCoordinateInfo(),
@@ -525,36 +521,6 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
               ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatusField() {
-    final options = <int, (String, IconData)>{
-      1: ('Hadir', Icons.check_circle_outline),
-      0: ('Tidak Hadir', Icons.cancel_outlined),
-      2: ('Izin', Icons.assignment_turned_in_outlined),
-    };
-    return SectionCard(
-      title: 'Status',
-      icon: Icons.flag_outlined,
-      child: Wrap(
-        spacing: AppSpacing.sm,
-        children: options.entries.map((e) {
-          final isSelected = _status == e.key;
-          return ChoiceChip(
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(e.value.$2, size: 16),
-                const SizedBox(width: 6),
-                Text(e.value.$1),
-              ],
-            ),
-            selected: isSelected,
-            onSelected: (_) => setState(() => _status = e.key),
-          );
-        }).toList(),
       ),
     );
   }

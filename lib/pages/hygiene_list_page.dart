@@ -209,12 +209,11 @@ class _HygieneListPageState extends State<HygieneListPage> {
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
-                      child: ListView.separated(
+                      child: ListView.builder(
                         controller: _scrollController,
-                        padding: AppSpacing.paddingMD,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: AppSpacing.md),
                         itemCount: _items.length + (_hasMore ? 1 : 0),
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1),
                         itemBuilder: (context, idx) {
                           if (idx == _items.length) {
                             return const Padding(
@@ -223,14 +222,12 @@ class _HygieneListPageState extends State<HygieneListPage> {
                             );
                           }
                           final item = _items[idx];
-                          final dirtyRooms = item.rooms
-                              .where((r) => r.condition == 3 || r.condition == 2)
-                              .length;
                           final photos = item.rooms
                               .where((r) => r.imageUrl != null)
                               .map((r) => r.imageUrl!)
                               .toList();
                           return Card(
+                            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(
                               onTap: () async {
@@ -244,7 +241,7 @@ class _HygieneListPageState extends State<HygieneListPage> {
                                 if (changed == true) _load();
                               },
                               child: Padding(
-                                padding: AppSpacing.paddingMD,
+                                padding: AppSpacing.paddingSM,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -295,29 +292,6 @@ class _HygieneListPageState extends State<HygieneListPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.end,
                                           children: [
-                                            if (dirtyRooms > 0)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.error
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      AppSpacing.borderRadiusXL,
-                                                ),
-                                                child: Text(
-                                                  '$dirtyRooms perlu perhatian',
-                                                  style: theme
-                                                      .textTheme.labelSmall
-                                                      ?.copyWith(
-                                                    color: AppColors.error,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
                                             AppSpacing.gapVerticalXS,
                                             Text(
                                               item.statusLabel,

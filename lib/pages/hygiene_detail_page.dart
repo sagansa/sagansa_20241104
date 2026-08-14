@@ -96,10 +96,6 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final dirtyCount = _hygiene.rooms
-        .where((r) => r.condition == 3 || r.condition == 2)
-        .length;
-
     return PopScope<bool>(
       // Saat user tekan back, kirim _dirty agar list tahu perlu refresh.
       canPop: false,
@@ -197,14 +193,6 @@ class _HygieneDetailPageState extends State<HygieneDetailPage> {
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                if (dirtyCount > 0)
-                  Text(
-                    '$dirtyCount perlu perhatian',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
               ],
             ),
             AppSpacing.gapVerticalSM,

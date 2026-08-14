@@ -602,7 +602,7 @@ class OnlineOrderDetailView extends StatelessWidget {
                 Expanded(
                   child: _buildLogisticField(
                       'STATUS CETAK LABEL',
-                      provider.paymentProofPrintStatusText(order),
+                      provider.stickerPrintStatusText(order),
                       textTheme,
                       colorScheme),
                 ),
@@ -827,7 +827,7 @@ class OnlineOrderDetailView extends StatelessWidget {
                     color: colorScheme.primary, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Resi',
+                  'Bukti Bayar',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,

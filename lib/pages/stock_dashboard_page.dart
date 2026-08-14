@@ -6,8 +6,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/dashboard_scaffold.dart';
 import 'asset_dashboard_page.dart';
+import 'employee_consumption_list_page.dart';
 import 'production_list_page.dart';
 import 'storage_stock_list_page.dart';
+import 'store_consumption_list_page.dart';
 import 'transfer_stock_list_page.dart';
 
 class StockDashboardPage extends StatefulWidget {
@@ -178,6 +180,30 @@ class _StockDashboardPageState extends State<StockDashboardPage> {
               context,
               MaterialPageRoute(
                   builder: (context) => const ProductionListPage()),
+            );
+          },
+        ),
+        DashboardMenuItem(
+          icon: Icons.point_of_sale_outlined,
+          title: 'Konsumsi Toko',
+          subtitle: 'Catat konsumsi bahan baku untuk operasional toko.',
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const StoreConsumptionListPage()),
+            );
+          },
+        ),
+        DashboardMenuItem(
+          icon: Icons.lunch_dining_outlined,
+          title: 'Sisa Stok Karyawan',
+          subtitle: 'Catat sisa stok yang belum terjual / dipakai karyawan.',
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const EmployeeConsumptionListPage()),
             );
           },
         ),

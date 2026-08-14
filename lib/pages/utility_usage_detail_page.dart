@@ -197,6 +197,14 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                         colorScheme: colorScheme,
                         theme: theme,
                       ),
+                      if (item.utilityNumber != null)
+                        _buildDetailRow(
+                          icon: Icons.numbers_rounded,
+                          label: 'Nomor Utility',
+                          value: item.utilityNumber!,
+                          colorScheme: colorScheme,
+                          theme: theme,
+                        ),
                       _buildDetailRow(
                         icon: Icons.speed_rounded,
                         label: 'Hasil',

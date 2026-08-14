@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../models/procurement_model.dart';
+import '../../models/store_model.dart';
 import '../../services/procurement_service.dart';
+import '../../services/store_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/filter_app_bar_action.dart';
+import '../../widgets/filter_bottom_sheet.dart';
 import '../../widgets/modern_bottom_nav.dart';
 import 'create_invoice_form_page.dart';
 import 'invoice_detail_page.dart';
@@ -18,6 +22,7 @@ class InvoiceDashboardPage extends StatefulWidget {
 class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     with SingleTickerProviderStateMixin {
   final ProcurementService _procurementService = ProcurementService();
+  final StoreService _storeService = StoreService();
   final List<ScrollController> _scrollControllers =
       List.generate(5, (_) => ScrollController());
 
@@ -28,11 +33,16 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
   int _currentPage = 1;
   String? _errorMessage;
   late TabController _tabController;
+  int? _selectedStoreId;
+  List<StoreModel> _stores = [];
+
+  bool get _hasActiveFilter => _selectedStoreId != null;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _loadFilterData();
     for (final c in _scrollControllers) {
       c.addListener(_onScroll);
     }
@@ -70,7 +80,8 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     });
 
     try {
-      final result = await _procurementService.getInvoices(page: 1);
+      final result =
+          await _procurementService.getInvoices(page: 1, storeId: _selectedStoreId);
       if (!mounted) return;
       setState(() {
         _invoices = result.items;
@@ -92,8 +103,8 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     setState(() => _loadingMore = true);
 
     try {
-      final result =
-          await _procurementService.getInvoices(page: _currentPage + 1);
+      final result = await _procurementService.getInvoices(
+          page: _currentPage + 1, storeId: _selectedStoreId);
       if (!mounted) return;
       setState(() {
         _invoices.addAll(result.items);
@@ -104,6 +115,41 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     } catch (_) {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  Future<void> _loadFilterData() async {
+    try {
+      final stores = await _storeService.getStores();
+      if (!mounted) return;
+      setState(() => _stores = stores);
+    } catch (_) {}
+  }
+
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter Invoice',
+      fields: [
+        DropdownFilterField<int>(
+          label: 'Toko',
+          value: _selectedStoreId,
+          options: _stores.map((s) => (s.id, s.nickname)).toList(),
+        ),
+      ],
+      onApply: (values) {
+        setState(() => _selectedStoreId = values['Toko'] as int?);
+        _fetchInvoices();
+      },
+      onReset: () {
+        setState(() => _selectedStoreId = null);
+        _fetchInvoices();
+      },
+    );
+  }
+
+  void _clearFilters() {
+    setState(() => _selectedStoreId = null);
+    _fetchInvoices();
   }
 
   List<InvoicePurchase> _getFilteredInvoices(int tabIndex) {
@@ -202,6 +248,18 @@ class _InvoiceDashboardPageState extends State<InvoiceDashboardPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invoice Purchase'),
+        actions: [
+          if (_hasActiveFilter)
+            IconButton(
+              icon: const Icon(Icons.filter_list_off),
+              onPressed: _clearFilters,
+              tooltip: 'Hapus Filter',
+            ),
+          FilterAppBarAction(
+            activeCount: _selectedStoreId != null ? 1 : 0,
+            onTap: _openFilterSheet,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: colorScheme.primary,

@@ -25,10 +25,11 @@ class ProcurementService {
   }
 
   Future<Map<String, dynamic>> getRequestsPaged(
-      {int page = 1, int perPage = 20}) async {
+      {int page = 1, int perPage = 20, int? storeId}) async {
     final body = await _api.getRaw('procurement/requests', queryParams: {
       'page': page.toString(),
       'per_page': perPage.toString(),
+      if (storeId != null) 'store_id': storeId.toString(),
     });
     if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Failed to load procurement requests');
@@ -190,7 +191,8 @@ class ProcurementService {
       final item = items[i];
       fields['items[$i][detail_request_id]'] =
           item['detail_request_id'].toString();
-      fields['items[$i][price]'] = item['price'].toString();
+      fields['items[$i][subtotal_invoice]'] =
+          item['subtotal_invoice'].toString();
       fields['items[$i][quantity]'] = item['quantity'].toString();
     }
     if (requestIds != null && requestIds.isNotEmpty) {
@@ -241,7 +243,8 @@ class ProcurementService {
         final item = items[i];
         fields['items[$i][detail_invoice_id]'] =
             item['detail_invoice_id'].toString();
-        fields['items[$i][price]'] = item['price'].toString();
+        fields['items[$i][subtotal_invoice]'] =
+            item['subtotal_invoice'].toString();
         fields['items[$i][quantity]'] = item['quantity'].toString();
       }
     }

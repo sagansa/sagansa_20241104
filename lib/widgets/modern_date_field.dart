@@ -36,12 +36,20 @@ class ModernDateField extends StatelessWidget {
       enabled: enabled,
       onTap: enabled
           ? () async {
+              final effectiveFirstDate = firstDate ?? DateTime.now();
+              final effectiveLastDate =
+                  lastDate ?? DateTime.now().add(const Duration(days: 365));
+              final initial = value ?? DateTime.now();
+              final clamped = initial.isBefore(effectiveFirstDate)
+                  ? effectiveFirstDate
+                  : initial.isAfter(effectiveLastDate)
+                      ? effectiveLastDate
+                      : initial;
               final date = await showDatePicker(
                 context: context,
-                initialDate: value ?? firstDate ?? DateTime.now(),
-                firstDate: firstDate ?? DateTime.now(),
-                lastDate:
-                    lastDate ?? DateTime.now().add(const Duration(days: 365)),
+                initialDate: clamped,
+                firstDate: effectiveFirstDate,
+                lastDate: effectiveLastDate,
               );
               if (date != null) {
                 onChanged(date);

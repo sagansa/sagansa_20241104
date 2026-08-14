@@ -68,13 +68,11 @@ class LeavePageState extends State<LeavePage> {
       final userData = json.decode(userString);
       final roles = List<String>.from(userData['roles'] ?? []);
       setState(() {
-        _isAdmin = roles.any((r) => [
-              'admin',
-              'super_admin',
-              'supervisor',
-              'owner',
-              'panel_user'
-            ].contains(r));
+        // Hanya role 'admin' yang melihat semua pengajuan + approve/reject.
+        // Role lain (super_admin/owner/supervisor/dst.) melihat milik sendiri —
+        // endpoint /leaves (LeaveController::index) sudah memfilter berdasarkan
+        // created_by_id untuk seluruh non-admin.
+        _isAdmin = roles.contains('admin');
       });
     }
     _loadLeaves();

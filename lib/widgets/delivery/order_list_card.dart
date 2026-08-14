@@ -209,21 +209,33 @@ class OrderListCard extends StatelessWidget {
   }
 
   List<Widget> _buildOnlineOrderExtras(ColorScheme colorScheme, TextTheme textTheme) {
-    return [
+    final list = <Widget>[
       AppSpacing.gapVerticalXS,
       _buildPaymentProofStatus(colorScheme, textTheme),
-          ...[
-        AppSpacing.gapVerticalSM,
-        _buildPrintStickerButton(colorScheme, textTheme),
-      ],
     ];
+    if (order['items'] != null && (order['items'] as List).isNotEmpty) {
+      list.addAll([
+        AppSpacing.gapVerticalSM,
+        _buildItemsPreview(colorScheme, textTheme),
+      ]);
+    }
+    list.addAll([
+      AppSpacing.gapVerticalSM,
+      _buildPrintStickerButton(colorScheme, textTheme),
+    ]);
+    return list;
   }
 
   Widget _buildPaymentProofStatus(ColorScheme colorScheme, TextTheme textTheme) {
-    final isPrinted = order['payment_proof_printed_at'] != null &&
-        order['payment_proof_printed_at'].toString().trim().isNotEmpty;
-    final hasProof = order['image_payment_url'] != null &&
-        order['image_payment_url'].toString().trim().isNotEmpty;
+    // Resi dianggap sudah dicetak bila:
+    // (a) pernah dicetak di perangkat ini (flag lokal), atau
+    // (b) order sudah lewat tahap "Belum Dikirim" (delivery_status != 1),
+    //     karena order tidak bisa maju dari pending tanpa resi.
+    // Sebelumnya badge hanya membaca flag lokal, sehingga order yang sudah
+    // dikirim tapi tidak dicetak via app ini terlihat "belum dicetak".
+    final deliveryCode =
+        int.tryParse(order['delivery_status']?.toString() ?? '1') ?? 1;
+    final isPrinted = isStickerPrinted || deliveryCode != 1;
     final color = isPrinted
         ? AppColors.success
         : (colorScheme.brightness == Brightness.dark ? AppColors.darkPrimary : AppColors.primary);
@@ -247,9 +259,7 @@ class OrderListCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Flexible(
             child: Text(
-              !hasProof
-                  ? 'Bukti bayar belum ada'
-                  : (isPrinted ? 'Bukti bayar sudah dicetak' : 'Bukti bayar belum dicetak'),
+              isPrinted ? 'Resi sudah dicetak' : 'Resi belum dicetak',
               style: TextStyle(
                 color: color,
                 fontSize: 11,

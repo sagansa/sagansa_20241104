@@ -25,6 +25,41 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Force Java 17 + Kotlin JVM target 17 on every plugin subproject so AGP 8.x
+// stops emitting "source/target value 8 is obsolete" warnings. The :app module
+// pins these explicitly (android/app/build.gradle); plugins (e.g.
+// workmanager_android, firebase_messaging) set Java 8 in their own build.gradle
+// during evaluation, so we override AFTER evaluation. The earlier
+// evaluationDependsOn(":app") eagerly evaluates all subprojects, so a plain
+// afterEvaluate {} would throw — apply directly if already evaluated.
+// Also inject a compileSdk fallback (AGP 8.x fails the build otherwise, e.g.
+// android_intent_plus 6.1.0 omits it). Deprecated-API detail is left at javac's
+// default (summary line) — the per-call warnings all originate inside plugin
+// source we don't control (firebase_messaging's FlutterShellArgs/getToken/etc).
+def configureForJava17 = { project ->
+    if (project.name == 'app') return
+    if (!project.plugins.hasPlugin('com.android.library')) return
+    project.android {
+        if (compileSdk == null) {
+            compileSdk = 37
+        }
+        compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions { jvmTarget = "17" }
+    }
+}
+subprojects {
+    if (state.executed) {
+        configureForJava17(it)
+    } else {
+        afterEvaluate(configureForJava17)
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

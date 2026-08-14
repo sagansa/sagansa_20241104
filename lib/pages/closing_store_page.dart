@@ -10,6 +10,7 @@ import '../services/fuel_service_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/format_utils.dart';
 import '../widgets/add_fab.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/modern_bottom_nav.dart';
@@ -307,7 +308,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
         // Pre-fill controllers
         _cashForTomorrowController.text = (draft['cash_for_tomorrow'] ?? 0).toString();
         _totalCashTransferController.text = (draft['total_cash_transfer'] ?? 0).toString();
-        _notesController.text = draft['notes'] ?? '';
+        _notesController.text = FormatUtils.stripHtml(draft['notes'] ?? '');
 
         for (var c in _cashlessList) {
           final id = c['id'] as int;
@@ -404,7 +405,7 @@ class _ClosingStorePageState extends State<ClosingStorePage> {
         // Pre-fill controllers
         _cashForTomorrowController.text = (draft['cash_for_tomorrow'] ?? 0).toString();
         _totalCashTransferController.text = (draft['total_cash_transfer'] ?? 0).toString();
-        _notesController.text = draft['notes'] ?? '';
+        _notesController.text = FormatUtils.stripHtml(draft['notes'] ?? '');
 
         _cashlessControllers.clear();
         for (var c in _cashlessList) {

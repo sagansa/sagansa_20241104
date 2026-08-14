@@ -272,6 +272,12 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
       );
       return;
     }
+    if (!_isAdmin && _imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto invoice wajib diunggah.')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     try {
@@ -664,7 +670,9 @@ class _CreateInvoiceFormPageState extends State<CreateInvoiceFormPage> {
 
                               // Bukti/Foto Invoice
                               Text(
-                                'Bukti/Foto Invoice (Opsional)',
+                                _isAdmin
+                                    ? 'Bukti/Foto Invoice'
+                                    : 'Bukti/Foto Invoice (Wajib)',
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),

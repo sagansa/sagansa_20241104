@@ -40,6 +40,16 @@ class ApiClient {
     return http.put(uri, headers: headers, body: body).timeout(_requestTimeout);
   }
 
+  Future<http.Response> _patch(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
+    return http
+        .patch(uri, headers: headers, body: body)
+        .timeout(_requestTimeout);
+  }
+
   Future<http.Response> _delete(
     Uri uri, {
     Map<String, String>? headers,
@@ -195,6 +205,18 @@ class ApiClient {
     final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
     AppLogger.debug('ApiClient PUT: $uri');
     final response = await _put(
+      uri,
+      headers: await _headers(),
+      body: body != null ? jsonEncode(body) : null,
+    );
+    return _handleResponse(response, path: path);
+  }
+
+  /// Sends a PATCH request to the specified endpoint path.
+  Future<dynamic> patch(String path, {dynamic body}) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}/$path');
+    AppLogger.debug('ApiClient PATCH: $uri');
+    final response = await _patch(
       uri,
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,

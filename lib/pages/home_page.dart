@@ -17,6 +17,7 @@ import '../widgets/home/cards/home_loan_card.dart';
 import '../widgets/home/cards/home_presence_summary_card.dart';
 import '../widgets/home/cards/home_salary_slip_card.dart';
 import '../widgets/home/cards/home_shopping_card.dart';
+import '../widgets/home/cards/home_specific_gravity_card.dart';
 import '../widgets/home/cards/home_stock_report_card.dart';
 import '../widgets/home/cards/home_stock_warehouse_card.dart';
 import '../widgets/home/cards/home_yesterday_omzet_card.dart';
@@ -335,6 +336,7 @@ class HomePageState extends State<HomePage> {
             if (isStorageStaff) ...[
               const HomeStockWarehouseCard(),
               const HomeDeliveryCard(),
+              const HomeSpecificGravityCard(),
             ],
             // Manajemen Aset: tampilkan untuk SEMUA user. Backend otomatis
             // memfilter agar user hanya melihat aset di mana dia PIC/creator

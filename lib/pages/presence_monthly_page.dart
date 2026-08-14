@@ -316,10 +316,9 @@ class _PresenceMonthlyPageState extends State<PresenceMonthlyPage> {
         ],
       ),
       floatingActionButton: _isAdmin
-          ? FloatingActionButton.extended(
-              icon: const Icon(Icons.add),
-              label: const Text('Input Manual'),
+          ? FloatingActionButton(
               onPressed: _openCreateForm,
+              child: const Icon(Icons.add),
             )
           : null,
       body: RefreshIndicator(

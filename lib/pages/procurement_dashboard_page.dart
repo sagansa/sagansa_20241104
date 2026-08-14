@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/procurement_model.dart';
+import '../../models/store_model.dart';
 import '../../services/procurement_service.dart';
+import '../../services/store_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/add_fab.dart';
+import '../../widgets/filter_app_bar_action.dart';
+import '../../widgets/filter_bottom_sheet.dart';
 import '../../widgets/modern_bottom_nav.dart';
 import 'create_procurement_page.dart';
 import 'procurement_detail_page.dart';
@@ -21,6 +25,7 @@ class ProcurementDashboardPage extends StatefulWidget {
 
 class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> with SingleTickerProviderStateMixin {
   final ProcurementService _procurementService = ProcurementService();
+  final StoreService _storeService = StoreService();
   final ScrollController _scrollController = ScrollController();
   List<RequestPurchase> _requests = [];
   bool _isLoading = true;
@@ -30,11 +35,16 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
   String? _errorMessage;
   late TabController _tabController;
   bool _isAdmin = false;
+  int? _selectedStoreId;
+  List<StoreModel> _stores = [];
+
+  bool get _hasActiveFilter => _selectedStoreId != null;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _loadFilterData();
     _loadUserRoleAndRequests();
     _scrollController.addListener(_onScroll);
   }
@@ -82,7 +92,8 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
     });
 
     try {
-      final result = await _procurementService.getRequestsPaged(page: _page);
+      final result = await _procurementService.getRequestsPaged(
+          page: _page, storeId: _selectedStoreId);
       if (!mounted) return;
       setState(() {
         _requests = result['data'] as List<RequestPurchase>;
@@ -103,7 +114,8 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
     setState(() => _isLoadingMore = true);
 
     try {
-      final result = await _procurementService.getRequestsPaged(page: _page + 1);
+      final result = await _procurementService.getRequestsPaged(
+          page: _page + 1, storeId: _selectedStoreId);
       if (!mounted) return;
       setState(() {
         _page++;
@@ -115,6 +127,43 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
       if (!mounted) return;
       setState(() => _isLoadingMore = false);
     }
+  }
+
+  Future<void> _loadFilterData() async {
+    try {
+      final stores = await _storeService.getStores();
+      if (!mounted) return;
+      setState(() => _stores = stores);
+    } catch (_) {}
+  }
+
+  void _openFilterSheet() {
+    FilterBottomSheet.show(
+      context,
+      title: 'Filter Request',
+      fields: [
+        DropdownFilterField<int>(
+          label: 'Toko',
+          value: _selectedStoreId,
+          options: _stores
+              .map((s) => (s.id, s.nickname))
+              .toList(),
+        ),
+      ],
+      onApply: (values) {
+        setState(() => _selectedStoreId = values['Toko'] as int?);
+        _fetchRequests();
+      },
+      onReset: () {
+        setState(() => _selectedStoreId = null);
+        _fetchRequests();
+      },
+    );
+  }
+
+  void _clearFilters() {
+    setState(() => _selectedStoreId = null);
+    _fetchRequests();
   }
 
   List<RequestPurchase> _getFilteredRequests(int tabIndex) {
@@ -157,6 +206,18 @@ class _ProcurementDashboardPageState extends State<ProcurementDashboardPage> wit
     return Scaffold(
       appBar: AppBar(
         title: const Text('Request & Purchase'),
+        actions: [
+          if (_hasActiveFilter)
+            IconButton(
+              icon: const Icon(Icons.filter_list_off),
+              onPressed: _clearFilters,
+              tooltip: 'Hapus Filter',
+            ),
+          FilterAppBarAction(
+            activeCount: _selectedStoreId != null ? 1 : 0,
+            onTap: _openFilterSheet,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: colorScheme.primary,

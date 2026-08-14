@@ -309,11 +309,15 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     ),
                   ),
                 )
-              : RefreshIndicator(
+              : SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: RefreshIndicator(
                   onRefresh: _fetchDetail,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 200),
+                    padding: EdgeInsets.fromLTRB(
+                        12, 12, 12, 200 + MediaQuery.viewPaddingOf(context).bottom),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1027,6 +1031,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                       ],
                     ),
                   ),
+                ),
                 ),
       bottomSheet: (_invoice != null &&
                   _invoice!.paymentStatus == '1' &&

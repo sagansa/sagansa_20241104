@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../theme/app_colors.dart';
 import '../models/supplier_model.dart';
-import '../services/supplier_service.dart';
+import '../providers/supplier_provider.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../widgets/app_dialogs.dart';
@@ -12,101 +13,70 @@ import '../widgets/modern_bottom_nav.dart';
 import '../widgets/status_badge.dart';
 import 'supplier_form_page.dart';
 
-class SupplierDetailPage extends StatefulWidget {
+class SupplierDetailPage extends StatelessWidget {
   final int supplierId;
 
   const SupplierDetailPage({super.key, required this.supplierId});
 
   @override
-  State<SupplierDetailPage> createState() => _SupplierDetailPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => SupplierProvider()..fetchDetail(supplierId),
+      child: _SupplierDetailScaffold(supplierId: supplierId),
+    );
+  }
 }
 
-class _SupplierDetailPageState extends State<SupplierDetailPage>
-    with SingleTickerProviderStateMixin {
-  final SupplierService _service = SupplierService();
-  SupplierModel? _supplier;
-  bool _isLoading = true;
-  String? _errorMessage;
+class _SupplierDetailScaffold extends StatelessWidget {
+  final int supplierId;
 
-  late AnimationController _animController;
-  late Animation<double> _fadeAnim;
+  const _SupplierDetailScaffold({required this.supplierId});
 
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
-    _fetch();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetch() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      final data = await _service.getSupplier(widget.supplierId);
-      if (!mounted) return;
-      setState(() {
-        _supplier = data;
-        _isLoading = false;
-      });
-      _animController.forward(from: 0);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _delete() async {
+  Future<void> _delete(BuildContext context) async {
+    final provider = context.read<SupplierProvider>();
+    final supplier = provider.detail.supplier;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Hapus Supplier?',
-      content: 'Supplier "${_supplier?.name}" akan dihapus permanen.',
+      content: 'Supplier "${supplier?.name}" akan dihapus permanen.',
       confirmText: 'Hapus',
       isDestructive: true,
     );
     if (!confirmed) return;
     try {
-      await _service.deleteSupplier(widget.supplierId);
-      if (!mounted) return;
+      await provider.deleteSupplier(supplierId);
+      if (!context.mounted) return;
       showSuccessSnackBar(context, 'Supplier berhasil dihapus.');
       Navigator.pop(context, true);
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       showErrorSnackBar(context, e.toString().replaceAll('Exception: ', ''));
     }
   }
 
-  void _openEdit() async {
+  void _openEdit(BuildContext context) async {
+    final provider = context.read<SupplierProvider>();
+    final supplier = provider.detail.supplier;
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => SupplierFormPage(supplier: _supplier)),
+      MaterialPageRoute(builder: (_) => SupplierFormPage(supplier: supplier)),
     );
-    if (result == true) _fetch();
+    if (result == true) provider.fetchDetail(supplierId);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final provider = context.watch<SupplierProvider>();
+    final detail = provider.detail;
 
     return Scaffold(
-      body: _isLoading
+      body: detail.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildError()
-              : _buildContent(colorScheme, theme),
+          : detail.errorMessage != null
+              ? _buildError(context, colorScheme, detail.errorMessage!)
+              : _buildContent(context, provider, colorScheme, theme),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {
@@ -118,8 +88,9 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
     );
   }
 
-  Widget _buildContent(ColorScheme colorScheme, ThemeData theme) {
-    final s = _supplier!;
+  Widget _buildContent(BuildContext context, SupplierProvider provider,
+      ColorScheme colorScheme, ThemeData theme) {
+    final s = provider.detail.supplier!;
     final imageUrl = s.image != null && s.image!.isNotEmpty
         ? _buildImageUrl(s.image!)
         : null;
@@ -132,12 +103,12 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
           actions: [
             IconButton(
               icon: const Icon(Icons.edit_rounded),
-              onPressed: _openEdit,
+              onPressed: () => _openEdit(context),
               tooltip: 'Edit',
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              onPressed: _delete,
+              onPressed: () => _delete(context),
               tooltip: 'Hapus',
               color: colorScheme.error,
             ),
@@ -160,8 +131,8 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
           ),
         ),
         SliverToBoxAdapter(
-          child: FadeTransition(
-            opacity: _fadeAnim,
+          child: _FadeInDetail(
+            key: ObjectKey(s),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               child: Column(
@@ -196,7 +167,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                           value: s.noTelp!,
                           colorScheme: colorScheme,
                           theme: theme,
-                          onTap: () => _copyToClipboard(s.noTelp!),
+                          onTap: () => _copyToClipboard(context, s.noTelp!),
                         ),
                       ],
                     ),
@@ -227,7 +198,8 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                             value: s.bankAccountName!,
                             colorScheme: colorScheme,
                             theme: theme,
-                            onTap: () => _copyToClipboard(s.bankAccountName!),
+                            onTap: () =>
+                                _copyToClipboard(context, s.bankAccountName!),
                           ),
                         if (s.bankAccountNo != null)
                           _buildDetailRow(
@@ -236,7 +208,8 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                             value: s.bankAccountNo!,
                             colorScheme: colorScheme,
                             theme: theme,
-                            onTap: () => _copyToClipboard(s.bankAccountNo!),
+                            onTap: () =>
+                                _copyToClipboard(context, s.bankAccountNo!),
                             isLast: true,
                           ),
                       ],
@@ -257,7 +230,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                           value: 'Tersedia',
                           colorScheme: colorScheme,
                           theme: theme,
-                          onTap: () => _copyToClipboard(s.qris!),
+                          onTap: () => _copyToClipboard(context, s.qris!),
                           isLast: true,
                         ),
                       ],
@@ -485,8 +458,9 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
     );
   }
 
-  Widget _buildError() {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildError(
+      BuildContext context, ColorScheme colorScheme, String message) {
+    final provider = context.read<SupplierProvider>();
     return Center(
       child: Padding(
         padding: AppSpacing.paddingLG,
@@ -497,12 +471,12 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
                 size: 48, color: colorScheme.error),
             AppSpacing.gapVerticalMD,
             Text(
-              _errorMessage!,
+              message,
               style: TextStyle(color: colorScheme.error),
             ),
             AppSpacing.gapVerticalMD,
             ElevatedButton.icon(
-              onPressed: _fetch,
+              onPressed: () => provider.fetchDetail(supplierId),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Coba Lagi'),
             ),
@@ -512,12 +486,48 @@ class _SupplierDetailPageState extends State<SupplierDetailPage>
     );
   }
 
-  void _copyToClipboard(String text) {
+  void _copyToClipboard(BuildContext context, String text) {
     Clipboard.setData(ClipboardData(text: text));
     showInfoSnackBar(context, '"$text" disalin ke clipboard.');
   }
 
   String _buildImageUrl(String imagePath) {
     return '${ApiConstants.baseUrl}/media/$imagePath';
+  }
+}
+
+/// Animasi fade-in konten detail setiap kali supplier berhasil dimuat ulang.
+class _FadeInDetail extends StatefulWidget {
+  final Widget child;
+
+  const _FadeInDetail({super.key, required this.child});
+
+  @override
+  State<_FadeInDetail> createState() => _FadeInDetailState();
+}
+
+class _FadeInDetailState extends State<_FadeInDetail>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _fade, child: widget.child);
   }
 }

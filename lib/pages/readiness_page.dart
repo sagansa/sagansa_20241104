@@ -118,9 +118,9 @@ class _ReadinessPageState extends State<ReadinessPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Padding(
-        padding: AppSpacing.paddingMD,
+        padding: AppSpacing.paddingSM,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -135,13 +135,13 @@ class _ReadinessPageState extends State<ReadinessPage> {
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-            AppSpacing.gapVerticalMD,
+            AppSpacing.gapVerticalXS,
             Center(
               child: GestureDetector(
                 onTap: () => _pickImage(type),
                 child: Container(
                   width: double.infinity,
-                  height: 200,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest.withValues(alpha:0.3),
                     borderRadius: AppSpacing.borderRadiusSM,
@@ -257,7 +257,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
                           ],
                         ),
                       ),
-                      AppSpacing.gapVerticalLG,
+                      AppSpacing.gapVerticalSM,
                       _buildImagePickerCard(
                         'Foto Selfie',
                         'Tampilkan wajah dan rambut dengan jelas untuk melihat kerapihan.',
@@ -276,7 +276,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
                         _rightHandImage,
                         'right_hand',
                       ),
-                      AppSpacing.gapVerticalMD,
+                      AppSpacing.gapVerticalSM,
                       ElevatedButton(
                         onPressed: _submit,
                         child: Text(
@@ -284,7 +284,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
                           style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      AppSpacing.gapVerticalXL,
+                      AppSpacing.gapVerticalSM,
                     ],
                   ),
                 ),

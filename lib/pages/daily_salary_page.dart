@@ -527,9 +527,9 @@ class _DailySalaryPageState extends State<DailySalaryPage>
         ],
       ),
       bottomNavigationBar: ModernBottomNav(
-        currentIndex: 3,
+        currentIndex: 1,
         onTap: (index) {
-          if (index != 3) {
+          if (index != 1) {
             Navigator.pop(context);
           }
         },

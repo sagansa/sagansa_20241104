@@ -606,11 +606,11 @@ class DeliveryProvider extends ChangeNotifier {
         !isPaymentProofPrinted(order);
   }
 
-  String paymentProofPrintStatusText(Map<String, dynamic> order) {
-    if (!hasPaymentProof(order)) return 'Bukti bayar belum ada';
-    return isPaymentProofPrinted(order)
-        ? 'Bukti bayar sudah dicetak'
-        : 'Bukti bayar belum dicetak';
+  String stickerPrintStatusText(Map<String, dynamic> order) {
+    final orderId = int.tryParse(order['id']?.toString() ?? '') ?? -1;
+    return isStickerPrinted(orderId)
+        ? 'Resi sudah dicetak'
+        : 'Resi belum dicetak';
   }
 
   String formatPrice(dynamic price) {

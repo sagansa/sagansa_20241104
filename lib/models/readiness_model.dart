@@ -27,6 +27,24 @@ class ReadinessModel {
   String? get leftHandUrl => ImageService.buildUrl(leftHand);
   String? get rightHandUrl => ImageService.buildUrl(rightHand);
 
+  String get statusLabel => switch (status) {
+        1 => 'Belum Diperiksa',
+        2 => 'Sudah Diperiksa',
+        _ => 'Tidak Diketahui',
+      };
+
+  ReadinessModel copyWith({int? status}) => ReadinessModel(
+        id: id,
+        storeId: storeId,
+        storeName: storeName,
+        createdByName: createdByName,
+        createdAt: createdAt,
+        imageSelfie: imageSelfie,
+        leftHand: leftHand,
+        rightHand: rightHand,
+        status: status ?? this.status,
+      );
+
   factory ReadinessModel.fromJson(Map<String, dynamic> json) {
     return ReadinessModel(
       id: json['id'] ?? 0,

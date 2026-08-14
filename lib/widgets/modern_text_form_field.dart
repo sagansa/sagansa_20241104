@@ -10,9 +10,12 @@ class ModernTextFormField extends StatelessWidget {
   final bool autocorrect;
   final bool enableSuggestions;
   final List<TextInputFormatter>? inputFormatters;
+  final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final String? hintText;
   final int? maxLines;
   final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
   final bool? enabled;
 
   const ModernTextFormField({
@@ -25,9 +28,12 @@ class ModernTextFormField extends StatelessWidget {
     this.autocorrect = false,
     this.enableSuggestions = false,
     this.inputFormatters,
+    this.prefixIcon,
     this.suffixIcon,
+    this.hintText,
     this.maxLines = 1,
     this.validator,
+    this.onChanged,
     this.enabled,
   });
 
@@ -41,6 +47,8 @@ class ModernTextFormField extends StatelessWidget {
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: labelText,
+        hintText: hintText,
+        prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
       ),
       keyboardType: keyboardType,
@@ -51,6 +59,7 @@ class ModernTextFormField extends StatelessWidget {
       inputFormatters: inputFormatters,
       maxLines: maxLines,
       validator: validator,
+      onChanged: onChanged,
     );
   }
 }

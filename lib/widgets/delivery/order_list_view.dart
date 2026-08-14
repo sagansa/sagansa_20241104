@@ -244,8 +244,8 @@ class OrderListView extends StatelessWidget {
           : Icon(Icons.print, color: colorScheme.onPrimary),
       label: Text(
         listState.isPrintingPaymentProof
-            ? 'Menyiapkan Resi...'
-            : 'Cetak Resi Belum Dikirim Seluruhnya',
+            ? 'Menyiapkan Bukti Bayar...'
+            : 'Cetak Bukti Bayar Belum Dikirim Seluruhnya',
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: colorScheme.onPrimary,

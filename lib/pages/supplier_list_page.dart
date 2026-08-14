@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../models/supplier_model.dart';
 import '../providers/auth_provider.dart';
-import '../services/supplier_service.dart';
+import '../providers/supplier_provider.dart';
 import '../theme/app_spacing.dart';
 import '../utils/constants.dart';
 import '../widgets/add_fab.dart';
@@ -17,120 +17,42 @@ import '../widgets/status_badge.dart';
 import 'supplier_detail_page.dart';
 import 'supplier_form_page.dart';
 
-class SupplierListPage extends StatefulWidget {
+class SupplierListPage extends StatelessWidget {
   const SupplierListPage({super.key});
 
   @override
-  State<SupplierListPage> createState() => _SupplierListPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => SupplierProvider(),
+      child: const _SupplierListScaffold(),
+    );
+  }
 }
 
-class _SupplierListPageState extends State<SupplierListPage> {
-  final SupplierService _service = SupplierService();
-  final ScrollController _scrollController = ScrollController();
+class _SupplierListScaffold extends StatelessWidget {
+  const _SupplierListScaffold();
 
-  List<SupplierModel> _suppliers = [];
-  bool _isLoading = false;
-  bool _isLoadingMore = false;
-  bool _hasMore = true;
-  bool _hasSearched = false;
-  bool _canManage = false;
-  bool _searchVisible = false;
-  String? _errorMessage;
-  int? _selectedStatus;
-  int _page = 1;
-  String _searchQuery = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUser();
-    _scrollController.addListener(_onScroll);
+  void _openDetail(BuildContext context, SupplierModel supplier) async {
+    final provider = context.read<SupplierProvider>();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => SupplierDetailPage(supplierId: supplier.id)),
+    );
+    if (result == true) provider.loadInitialSuppliers();
   }
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
+  void _openForm(BuildContext context, {SupplierModel? supplier}) async {
+    final provider = context.read<SupplierProvider>();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SupplierFormPage(supplier: supplier)),
+    );
+    if (result == true) provider.loadInitialSuppliers();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        _hasMore) {
-      _loadMore();
-    }
-  }
-
-  void _loadUser() {
-    _canManage = context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor']);
-  }
-
-  Future<void> _fetchSuppliers() async {
-    final query = _searchQuery;
-    if (query.isEmpty && _selectedStatus == null) {
-      setState(() {
-        _suppliers = [];
-        _hasSearched = false;
-        _errorMessage = null;
-      });
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _page = 1;
-      _suppliers = [];
-      _hasMore = true;
-    });
-    try {
-      final result = await _service.getSuppliersPaged(
-        page: _page,
-        search: query.isEmpty ? null : query,
-        status: _selectedStatus,
-      );
-      if (!mounted) return;
-      setState(() {
-        _suppliers = result['data'] as List<SupplierModel>;
-        _hasMore = result['has_more'] as bool;
-        _isLoading = false;
-        _hasSearched = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-        _hasSearched = true;
-      });
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_isLoadingMore || !_hasMore) return;
-    setState(() => _isLoadingMore = true);
-
-    try {
-      final query = _searchQuery;
-      final result = await _service.getSuppliersPaged(
-        page: _page + 1,
-        search: query.isEmpty ? null : query,
-        status: _selectedStatus,
-      );
-      if (!mounted) return;
-      setState(() {
-        _page++;
-        _suppliers.addAll(result['data'] as List<SupplierModel>);
-        _hasMore = result['has_more'] as bool;
-        _isLoadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingMore = false);
-    }
+  String _mediaUrl(String imagePath) {
+    return '${ApiConstants.baseUrl}/media/$imagePath';
   }
 
   StatusType _statusType(int status) {
@@ -144,36 +66,45 @@ class _SupplierListPageState extends State<SupplierListPage> {
     }
   }
 
-  void _openDetail(SupplierModel supplier) async {
-    final result = await Navigator.push(
+  void _openFilterSheet(BuildContext context) {
+    final provider = context.read<SupplierProvider>();
+    FilterBottomSheet.show(
       context,
-      MaterialPageRoute(
-          builder: (_) => SupplierDetailPage(supplierId: supplier.id)),
+      title: 'Filter Status',
+      fields: [
+        DropdownFilterField<int?>(
+          label: 'Status',
+          value: provider.list.selectedStatus,
+          options: const [
+            (null, 'Semua'),
+            (1, 'Belum Diperiksa'),
+            (2, 'Valid'),
+            (3, 'Blacklist'),
+          ],
+        ),
+      ],
+      onApply: (values) {
+        provider.setStatusFilter(values['Status'] as int?);
+      },
+      onReset: () {
+        provider.setStatusFilter(null);
+      },
     );
-    if (result == true) _fetchSuppliers();
-  }
-
-  void _openForm({SupplierModel? supplier}) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => SupplierFormPage(supplier: supplier)),
-    );
-    if (result == true) _fetchSuppliers();
-  }
-
-  String _mediaUrl(String imagePath) {
-    return '${ApiConstants.baseUrl}/media/$imagePath';
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final provider = context.watch<SupplierProvider>();
+    final list = provider.list;
+    final canManage =
+        context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor']);
 
     return Scaffold(
       appBar: AppBar(
-        title: _searchVisible ? null : const Text('Supplier'),
-        bottom: _searchVisible
+        title: list.isSearchVisible ? null : const Text('Supplier'),
+        bottom: list.isSearchVisible
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(56),
                 child: Padding(
@@ -183,65 +114,49 @@ class _SupplierListPageState extends State<SupplierListPage> {
                     decoration: InputDecoration(
                       hintText: 'Cari nama, bank, no rekening...',
                       prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _searchQuery.isNotEmpty
+                      suffixIcon: list.searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear_rounded),
-                              onPressed: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                  _hasSearched = false;
-                                  _suppliers = [];
-                                });
-                              },
+                              onPressed: () => provider.clearSearch(),
                             )
                           : null,
                       filled: true,
                       fillColor: colorScheme.surfaceContainerHighest,
                     ),
-                    onChanged: (v) {
-                      setState(() => _searchQuery = v);
-                      if (v.length >= 3 || v.isEmpty) {
-                        _fetchSuppliers();
-                      }
-                    },
+                    onChanged: (v) => provider.setSearchQuery(v),
                   ),
                 ),
               )
             : null,
         actions: [
-          if (!_searchVisible)
+          if (!list.isSearchVisible)
             SearchAppBarAction(
               isSearchActive: false,
-              onTap: () => setState(() => _searchVisible = true),
+              onTap: () => provider.setSearchVisible(true),
             ),
-          if (_searchVisible)
+          if (list.isSearchVisible)
             IconButton(
               icon: const Icon(Icons.close_rounded),
-              onPressed: () => setState(() {
-                _searchVisible = false;
-                _searchQuery = '';
-                _hasSearched = false;
-                _suppliers = [];
-              }),
+              onPressed: () => provider.closeSearch(),
             ),
           FilterAppBarAction(
-            activeCount: _activeFilterCount,
-            onTap: _openFilterSheet,
+            activeCount: list.activeFilterCount,
+            onTap: () => _openFilterSheet(context),
           ),
         ],
       ),
-      floatingActionButton: _canManage
-          ? AddFab(onPressed: () => _openForm())
+      floatingActionButton: canManage
+          ? AddFab(onPressed: () => _openForm(context))
           : null,
-      body: _isLoading
+      body: list.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildError(colorScheme, textTheme)
-              : !_hasSearched
+          : list.errorMessage != null
+              ? _buildError(context, colorScheme, list.errorMessage!)
+              : !list.hasSearched
                   ? _buildPromptSearch(colorScheme)
-                  : _suppliers.isEmpty
+                  : list.suppliers.isEmpty
                       ? _buildEmpty(colorScheme)
-                      : _buildList(colorScheme, textTheme),
+                      : _buildList(context, list, colorScheme, textTheme),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {
@@ -253,65 +168,31 @@ class _SupplierListPageState extends State<SupplierListPage> {
     );
   }
 
-  int get _activeFilterCount => _selectedStatus != null ? 1 : 0;
-  void _openFilterSheet() {
-    FilterBottomSheet.show(
-      context,
-      title: 'Filter Status',
-      fields: [
-        DropdownFilterField<int?>(
-          label: 'Status',
-          value: _selectedStatus,
-          options: const [
-            (null, 'Semua'),
-            (1, 'Belum Diperiksa'),
-            (2, 'Valid'),
-            (3, 'Blacklist'),
-          ],
-        ),
-      ],
-      onApply: (values) {
-        setState(() {
-          _selectedStatus = values['Status'] as int?;
-        });
-        _fetchSuppliers();
-      },
-      onReset: () {
-        setState(() => _selectedStatus = null);
-        _fetchSuppliers();
-      },
-    );
-  }
-
-  Widget _buildPromptSearch(ColorScheme colorScheme) {
-    return EmptyState(
-      icon: Icons.search_rounded,
-      title: 'Cari supplier menggunakan ikon search\ndi pojok kanan atas.',
-    );
-  }
-
-  Widget _buildList(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildList(BuildContext context, SupplierListState list,
+      ColorScheme colorScheme, TextTheme textTheme) {
+    final provider = context.read<SupplierProvider>();
     return RefreshIndicator(
-      onRefresh: _fetchSuppliers,
+      onRefresh: provider.loadInitialSuppliers,
       child: ListView.builder(
-        controller: _scrollController,
+        controller: provider.scrollController,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-        itemCount: _suppliers.length + (_hasMore ? 1 : 0),
+        itemCount: list.suppliers.length + (list.hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
-          if (idx == _suppliers.length) {
+          if (idx == list.suppliers.length) {
             return const Padding(
               padding: EdgeInsets.all(AppSpacing.md),
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          return _buildSupplierCard(_suppliers[idx], colorScheme, textTheme);
+          return _buildSupplierCard(
+              context, list.suppliers[idx], colorScheme, textTheme);
         },
       ),
     );
   }
 
-  Widget _buildSupplierCard(
-      SupplierModel s, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildSupplierCard(BuildContext context, SupplierModel s,
+      ColorScheme colorScheme, TextTheme textTheme) {
     final statusType = _statusType(s.status);
 
     return Container(
@@ -333,7 +214,7 @@ class _SupplierListPageState extends State<SupplierListPage> {
       ),
       child: InkWell(
         borderRadius: AppSpacing.borderRadiusLG,
-        onTap: () => _openDetail(s),
+        onTap: () => _openDetail(context, s),
         child: Padding(
           padding: AppSpacing.cardPadding,
           child: Row(
@@ -438,7 +319,8 @@ class _SupplierListPageState extends State<SupplierListPage> {
     return Center(
       child: Text(
         s.name.isNotEmpty ? s.name[0].toUpperCase() : 'S',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        style: TextStyle(
+          fontSize: 18,
           fontWeight: FontWeight.bold,
           color: colorScheme.primary,
         ),
@@ -446,13 +328,22 @@ class _SupplierListPageState extends State<SupplierListPage> {
     );
   }
 
-  Widget _buildError(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildPromptSearch(ColorScheme colorScheme) {
+    return EmptyState(
+      icon: Icons.search_rounded,
+      title: 'Cari supplier menggunakan ikon search\ndi pojok kanan atas.',
+    );
+  }
+
+  Widget _buildError(
+      BuildContext context, ColorScheme colorScheme, String message) {
+    final provider = context.read<SupplierProvider>();
     return EmptyState(
       icon: Icons.error_outline_rounded,
-      title: _errorMessage!,
+      title: message,
       subtitle: 'Terjadi kesalahan saat memuat data',
       action: ElevatedButton.icon(
-        onPressed: _fetchSuppliers,
+        onPressed: provider.loadInitialSuppliers,
         icon: const Icon(Icons.refresh_rounded),
         label: const Text('Coba Lagi'),
       ),

@@ -14,26 +14,56 @@ class ReadinessService {
     return data as Map<String, dynamic>;
   }
 
-  Future<List<ReadinessModel>> getHistory() async {
-    final data = await _api.get('$_endpoint/history');
-    final list = data as List<dynamic>? ?? [];
-    return list.map((item) => ReadinessModel.fromJson(item)).toList();
+  /// Riwayat kesiapan diri milik sendiri (terpaginasi).
+  Future<Map<String, dynamic>> getHistory({int page = 1, int perPage = 15}) async {
+    final json = await _api.getRaw('$_endpoint/history', queryParams: {
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    });
+    return _parsePaged(json);
   }
 
-  /// List kesiapan diri seluruh user (khusus admin/super_admin).
-  /// [date] opsional format YYYY-MM-DD (default hari ini di backend).
-  Future<List<ReadinessModel>> getAdminList({String? date}) async {
-    final queryParams = <String, String>{};
-    if (date != null && date.isNotEmpty) {
-      queryParams['date'] = date;
-    }
+  /// Daftar kesiapan diri seluruh karyawan (admin/super_admin, terpaginasi).
+  /// [date] opsional format YYYY-MM-DD.
+  Future<Map<String, dynamic>> getAdminList({
+    int page = 1,
+    int perPage = 15,
+    String? date,
+  }) async {
+    final qp = <String, String>{
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+    if (date != null && date.isNotEmpty) qp['date'] = date;
+    final json = await _api.getRaw('$_endpoint/admin', queryParams: qp);
+    return _parsePaged(json);
+  }
 
-    final data = await _api.get(
-      '$_endpoint/admin',
-      queryParams: queryParams.isNotEmpty ? queryParams : null,
-    );
-    final list = data as List<dynamic>? ?? [];
-    return list.map((item) => ReadinessModel.fromJson(item)).toList();
+  Map<String, dynamic> _parsePaged(dynamic json) {
+    final map = json as Map<String, dynamic>;
+    final ok = map['success'] == true || map['status'] == 'success';
+    if (!ok) {
+      throw Exception(map['message'] ?? 'Gagal memuat kesiapan diri.');
+    }
+    final list = (map['data'] as List? ?? [])
+        .map((e) => ReadinessModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final meta = (map['meta'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final currentPage = (meta['current_page'] ?? 1) as num;
+    final lastPage = (meta['last_page'] ?? 1) as num;
+    return {
+      'data': list,
+      'has_more': currentPage < lastPage,
+    };
+  }
+
+  /// Ubah status kesiapan diri (admin/super_admin).
+  /// Status: 1 = belum diperiksa, 2 = sudah diperiksa.
+  Future<ReadinessModel> updateStatus(int id, int status) async {
+    final data = await _api.patch('$_endpoint/$id/status', body: {
+      'status': status,
+    });
+    return ReadinessModel.fromJson(data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> submitReadiness({

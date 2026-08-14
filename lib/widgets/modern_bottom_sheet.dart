@@ -50,6 +50,14 @@ class ModernBottomSheet extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    // Tambahkan bottom system inset (nav bar / gesture bar) secara sentral.
+    // Pakai viewPaddingOf (bukan SafeArea/useSafeArea) agar konsisten dengan
+    // idiom terpercaya codebase (lihat invoice_detail_page.dart) — SafeArea
+    // biasa bisa kalah dikonsumsi ancestor pada mode edge-to-edge Android 15
+    // (targetSdk 35) sehingga konten/aksi di bawah bottom sheet tertutup nav
+    // bar. Caller tetap menangani keyboard via viewInsets.bottom pada child.
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: BackdropFilter(
@@ -58,7 +66,9 @@ class ModernBottomSheet extends StatelessWidget {
           color: colorScheme.surface.withValues(alpha: 0.85),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: Padding(
-            padding: padding ?? AppSpacing.paddingMD,
+            padding: (padding ?? AppSpacing.paddingMD).copyWith(
+              bottom: (padding?.bottom ?? AppSpacing.md) + safeBottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

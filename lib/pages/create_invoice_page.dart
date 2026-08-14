@@ -202,15 +202,20 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       );
       return;
     }
+    if (_imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto invoice wajib diunggah.')),
+      );
+      return;
+    }
 
     final items = selectedStates.map((s) {
       final totalPrice = double.tryParse(s.priceController.text) ?? 0;
       final qty = double.tryParse(s.qtyCtrl.text) ?? 0;
-      final unitPrice = qty > 0 ? (totalPrice / qty).round() : 0;
 
       return {
         'detail_request_id': s.detailRequest.id,
-        'price': unitPrice,
+        'subtotal_invoice': totalPrice.round(),
         'quantity': qty.toInt(),
       };
     }).toList();
@@ -361,7 +366,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
                           // Bukti/Foto Invoice
                           Text(
-                            'Bukti/Foto Invoice (Opsional)',
+                            'Bukti/Foto Invoice (Wajib)',
                             style: textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

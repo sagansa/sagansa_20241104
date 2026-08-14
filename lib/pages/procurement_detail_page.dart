@@ -284,7 +284,10 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
                     ),
                   ),
                 )
-              : Stack(
+              : SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: Stack(
                   children: [
                     Column(
                       children: [
@@ -508,6 +511,7 @@ class _ProcurementDetailPageState extends State<ProcurementDetailPage> {
                         child: const Center(child: CircularProgressIndicator()),
                       ),
                   ],
+                ),
                 ),
       bottomSheet: hasApprovedItems
           ? SafeArea(

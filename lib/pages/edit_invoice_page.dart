@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/procurement_model.dart';
 import '../../services/image_service.dart';
 import '../../services/procurement_service.dart';
@@ -27,6 +29,7 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
     decimalDigits: 0,
   );
   bool _isSubmitting = false;
+  bool _isAdmin = false;
 
   int? _selectedSupplierId;
   String _selectedSupplierName = '';
@@ -63,6 +66,20 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       };
     }).toList();
     _loadSupplierPaymentInfo();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      final roles = List<String>.from(json.decode(userString)['roles'] ?? []);
+      if (mounted) {
+        setState(() {
+          _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+        });
+      }
+    }
   }
 
   /// Pre-populate [_selectedSupplier] dari supplier invoice saat ini agar
@@ -181,6 +198,15 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
       return;
     }
 
+    final hasExistingImage =
+        widget.invoice.imageUrl != null && widget.invoice.imageUrl!.isNotEmpty;
+    if (!_isAdmin && _imageFile == null && !hasExistingImage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto invoice wajib diunggah.')),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       final updated = await _procurementService.updateInvoice(
@@ -199,10 +225,9 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
           final qty = double.tryParse(
                   (s['qtyController'] as TextEditingController).text) ??
               0;
-          final unitPrice = qty > 0 ? (total / qty).round() : 0;
           return {
             'detail_invoice_id': detail.id,
-            'price': unitPrice,
+            'subtotal_invoice': total.round(),
             'quantity': qty.toInt(),
           };
         }).toList(),
@@ -412,7 +437,9 @@ class _EditInvoicePageState extends State<EditInvoicePage> {
 
                       // Bukti/Foto Invoice
                       Text(
-                        'Bukti/Foto Invoice (Opsional)',
+                        _isAdmin
+                            ? 'Bukti/Foto Invoice'
+                            : 'Bukti/Foto Invoice (Wajib)',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

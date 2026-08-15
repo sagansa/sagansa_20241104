@@ -12,8 +12,10 @@ import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/glass_container.dart';
+import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class UtilityBillFormPage extends StatefulWidget {
   final UtilityBillModel? bill;
@@ -246,15 +248,19 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Tagihan Utility' : 'Tambah Tagihan Utility'),
+        title:
+            Text(isEditing ? 'Edit Tagihan Utility' : 'Tambah Tagihan Utility'),
       ),
       body: _isLoadingLookups
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.md, AppSpacing.md, 100),
+                padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    ModernBottomNav.height + context.systemBottomInset),
                 children: [
                   _buildSectionHeader('Toko', Icons.store_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
@@ -275,7 +281,8 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
                     ),
                   ),
                   AppSpacing.gapVerticalMD,
-                  _buildSectionHeader('Utility', Icons.electrical_services_rounded, colorScheme),
+                  _buildSectionHeader('Utility',
+                      Icons.electrical_services_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
                   _buildFieldContainer(
                     colorScheme: colorScheme,
@@ -292,20 +299,23 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
                       items: _filteredUtilities,
                       getLabel: (u) =>
                           '${u['utility_name'] ?? 'Utility #${u['id']}'}${u['unit'] != null ? ' (${u['unit']})' : ''}',
-                      onChanged: (val) => setState(() => _selectedUtility = val),
+                      onChanged: (val) =>
+                          setState(() => _selectedUtility = val),
                       validator: (v) =>
                           v == null ? 'Utility wajib dipilih' : null,
                     ),
                   ),
                   AppSpacing.gapVerticalMD,
-                  _buildSectionHeader('Tanggal', Icons.calendar_today_rounded, colorScheme),
+                  _buildSectionHeader(
+                      'Tanggal', Icons.calendar_today_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
                   _buildFieldContainer(
                     colorScheme: colorScheme,
                     child: _buildDateField(colorScheme),
                   ),
                   AppSpacing.gapVerticalMD,
-                  _buildSectionHeader('Nominal Tagihan', Icons.payments_rounded, colorScheme),
+                  _buildSectionHeader(
+                      'Nominal Tagihan', Icons.payments_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
                   _buildFieldContainer(
                     colorScheme: colorScheme,
@@ -317,12 +327,14 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
                         prefixText: 'Rp ',
                         hintText: '0',
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Wajib diisi'
+                          : null,
                     ),
                   ),
                   AppSpacing.gapVerticalMD,
-                  _buildSectionHeader('Indikator Meter', Icons.speed_rounded, colorScheme),
+                  _buildSectionHeader(
+                      'Indikator Meter', Icons.speed_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
                   _buildFieldContainer(
                     colorScheme: colorScheme,
@@ -365,7 +377,8 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
                     ),
                   ),
                   AppSpacing.gapVerticalMD,
-                  _buildSectionHeader('Foto Tagihan', Icons.camera_alt_rounded, colorScheme),
+                  _buildSectionHeader(
+                      'Foto Tagihan', Icons.camera_alt_rounded, colorScheme),
                   AppSpacing.gapVerticalSM,
                   _buildPhotoSection(colorScheme),
                 ],
@@ -420,8 +433,18 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
 
   String _monthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return months[month - 1];
   }
@@ -460,7 +483,8 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
                   errorBuilder: (_, __, ___) => Container(
                     height: 160,
                     color: colorScheme.surfaceContainerHighest,
-                    child: const Center(child: Icon(Icons.broken_image_rounded)),
+                    child:
+                        const Center(child: Icon(Icons.broken_image_rounded)),
                   ),
                 ),
               ),
@@ -531,13 +555,11 @@ class _UtilityBillFormPageState extends State<UtilityBillFormPage> {
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: isEditing ? 'Simpan Perubahan' : 'Tambah Tagihan',
-          icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
-          onPressed: _isSaving ? null : _submit,
-          isLoading: _isSaving,
-        ),
+      child: ModernButton(
+        text: isEditing ? 'Simpan Perubahan' : 'Tambah Tagihan',
+        icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
+        onPressed: _isSaving ? null : _submit,
+        isLoading: _isSaving,
       ),
     );
   }

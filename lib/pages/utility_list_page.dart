@@ -1,14 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/utility_model.dart';
 import '../services/utility_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/add_fab.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
+import 'utility_form_page.dart';
 
 class UtilityListPage extends StatefulWidget {
   const UtilityListPage({super.key});
@@ -30,6 +36,9 @@ class _UtilityListPageState extends State<UtilityListPage> {
   int? _selectedCategory;
   List<Map<String, dynamic>> _stores = [];
 
+  // Admin (create/edit/ubah status); role lain hanya lihat aktif.
+  bool _isAdmin = false;
+
   List<Map<String, dynamic>> get _filteredCategories => const [
         {'id': 1, 'label': 'Listrik'},
         {'id': 2, 'label': 'Air'},
@@ -50,6 +59,17 @@ class _UtilityListPageState extends State<UtilityListPage> {
   void initState() {
     super.initState();
     _loadStores();
+    _loadRoleAndFetch();
+  }
+
+  Future<void> _loadRoleAndFetch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      final roles = List<String>.from(json.decode(userString)['roles'] ?? []);
+      _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+    }
+    if (!mounted) return;
     _fetch();
   }
 
@@ -68,7 +88,10 @@ class _UtilityListPageState extends State<UtilityListPage> {
       _errorMessage = null;
     });
     try {
-      final items = await _service.getUtilities(storeId: _selectedStoreId);
+      final items = await _service.getUtilities(
+        storeId: _selectedStoreId,
+        includeInactive: _isAdmin,
+      );
       if (!mounted) return;
       setState(() {
         _items = items;
@@ -87,9 +110,7 @@ class _UtilityListPageState extends State<UtilityListPage> {
 
   List<UtilityModel> get _filteredItems {
     if (_selectedCategory == null) return _items;
-    return _items
-        .where((u) => u.category == _selectedCategory)
-        .toList();
+    return _items.where((u) => u.category == _selectedCategory).toList();
   }
 
   void _clearFilters() {
@@ -151,6 +172,31 @@ class _UtilityListPageState extends State<UtilityListPage> {
     return status == 1 ? StatusType.success : StatusType.neutral;
   }
 
+  Future<void> _openForm({UtilityModel? utility}) async {
+    final changed = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => UtilityFormPage(utility: utility)),
+    );
+    if (changed == true) _fetch();
+  }
+
+  Future<void> _toggleStatus(UtilityModel item) async {
+    final newStatus = item.status == 1 ? 2 : 1;
+    try {
+      await _service.updateUtilityStatus(item.id, newStatus);
+      if (!mounted) return;
+      setState(() {
+        final idx = _items.indexWhere((u) => u.id == item.id);
+        if (idx >= 0) _items[idx] = item.copyWith(status: newStatus);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e'.replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -172,6 +218,9 @@ class _UtilityListPageState extends State<UtilityListPage> {
           ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? AddFab(onPressed: () => _openForm())
+          : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2, // Ops tab
         onTap: (index) {},
@@ -199,7 +248,8 @@ class _UtilityListPageState extends State<UtilityListPage> {
     return RefreshIndicator(
       onRefresh: _fetch,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: items.length,
         itemBuilder: (context, idx) => _buildCard(
           items[idx],
@@ -311,6 +361,30 @@ class _UtilityListPageState extends State<UtilityListPage> {
                   ),
               ],
             ),
+            if (_isAdmin) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _openForm(utility: item),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit'),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  TextButton.icon(
+                    onPressed: () => _toggleStatus(item),
+                    icon: Icon(
+                      item.status == 1
+                          ? Icons.toggle_off_outlined
+                          : Icons.toggle_on_outlined,
+                      size: 18,
+                    ),
+                    label: Text(
+                        item.status == 1 ? 'Nonaktifkan' : 'Aktifkan'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -382,7 +456,8 @@ class _Chip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 13, color: textColor ?? colorScheme.onSurfaceVariant),
+            Icon(icon,
+                size: 13, color: textColor ?? colorScheme.onSurfaceVariant),
             const SizedBox(width: 4),
           ],
           Text(

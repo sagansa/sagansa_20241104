@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 /// Form create produksi.
 ///
@@ -149,7 +150,7 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
                 AppSpacing.md,
                 AppSpacing.md,
                 AppSpacing.md,
-                AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                AppSpacing.md + context.systemBottomInset,
               ),
               child: Form(
                 key: _formKey,
@@ -177,7 +178,12 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
                       prefixIcon: const Icon(Icons.storefront, size: 20),
                       items: _stores.map((s) => s.id).toList(),
                       getLabel: (v) {
-                        final s = _stores.firstWhere((e) => e.id == v, orElse: () => StoreModel(id: 0, nickname: '', latitude: 0, longitude: 0));
+                        final s = _stores.firstWhere((e) => e.id == v,
+                            orElse: () => StoreModel(
+                                id: 0,
+                                nickname: '',
+                                latitude: 0,
+                                longitude: 0));
                         return s.nickname;
                       },
                       onChanged: (v) => setState(() => _storeId = v),
@@ -268,7 +274,9 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
     return Container(
       padding: AppSpacing.paddingSM,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
             .withValues(alpha: 0.4),
         borderRadius: AppSpacing.borderRadiusSM,
       ),
@@ -305,7 +313,8 @@ class _ProductionFormPageState extends State<ProductionFormPage> {
 
   String _fmtQty(double q) {
     // Trim trailing zeros untuk tampilan cantik.
-    return q.toStringAsFixed(q == q.roundToDouble() ? 0 : 3)
+    return q
+        .toStringAsFixed(q == q.roundToDouble() ? 0 : 3)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
   }

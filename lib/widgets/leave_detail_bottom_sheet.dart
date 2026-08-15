@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../models/leave_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'approval_action_buttons.dart';
 
 class LeaveDetailBottomSheet extends StatelessWidget {
@@ -61,7 +63,7 @@ class LeaveDetailBottomSheet extends StatelessWidget {
         top: 12,
         left: 20,
         right: 20,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
+        bottom: context.systemBottomInset + 20,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -116,7 +118,8 @@ class LeaveDetailBottomSheet extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -141,7 +144,8 @@ class LeaveDetailBottomSheet extends StatelessWidget {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerLow,
               borderRadius: AppSpacing.borderRadiusMD,
-              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+              border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
             ),
             child: Row(
               children: [
@@ -177,7 +181,8 @@ class LeaveDetailBottomSheet extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -229,7 +234,8 @@ class LeaveDetailBottomSheet extends StatelessWidget {
                   label: 'Tanggal Selesai',
                   value: _formatDate(leave.untilDate),
                 ),
-                if (leave.notes != null && leave.notes.toString().isNotEmpty) ...[
+                if (leave.notes != null &&
+                    leave.notes.toString().isNotEmpty) ...[
                   const Divider(height: 20),
                   _buildInfoRow(
                     theme: theme,
@@ -245,7 +251,8 @@ class LeaveDetailBottomSheet extends StatelessWidget {
                     theme: theme,
                     colorScheme: colorScheme,
                     icon: Icons.verified_user_rounded,
-                    label: leave.status == 2 ? 'Disetujui Oleh' : 'Ditolak Oleh',
+                    label:
+                        leave.status == 2 ? 'Disetujui Oleh' : 'Ditolak Oleh',
                     value: leave.approvedByName!,
                   ),
                 ],

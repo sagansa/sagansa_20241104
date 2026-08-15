@@ -28,8 +28,7 @@ class _SpecificGravityCalculatorPageState
   List<SpecificGravityRecord> _records = [];
   bool _isSaving = false;
 
-  final DateFormat _dateFormat =
-      DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
+  final DateFormat _dateFormat = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
 
   @override
   void initState() {
@@ -256,13 +255,11 @@ class _SpecificGravityCalculatorPageState
         AppSpacing.md,
         AppSpacing.lg,
       ),
-      child: SafeArea(
-        child: ModernButton(
-          text: 'Simpan',
-          onPressed: _isSaving ? null : _save,
-          isLoading: _isSaving,
-          icon: Icons.save_outlined,
-        ),
+      child: ModernButton(
+        text: 'Simpan',
+        onPressed: _isSaving ? null : _save,
+        isLoading: _isSaving,
+        icon: Icons.save_outlined,
       ),
     );
   }

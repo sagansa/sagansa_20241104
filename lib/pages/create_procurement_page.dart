@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../widgets/modern_bottom_sheet.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class CreateProcurementPage extends StatefulWidget {
   const CreateProcurementPage({super.key});
@@ -26,7 +27,8 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
   String? _errorMessage;
 
   StoreModel? _selectedStore;
-  final List<Map<String, dynamic>> _selectedItems = []; // Contains product_id, productName, unitName, quantity_plan
+  final List<Map<String, dynamic>> _selectedItems =
+      []; // Contains product_id, productName, unitName, quantity_plan
   bool _isSubmitting = false;
 
   @override
@@ -73,96 +75,103 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                      // Product (searchable)
-                      InkWell(
-                        onTap: () async {
-                          final result = await _showProductSearchDialog();
-                          if (result != null) {
-                            setModalState(() {
-                              selectedProduct = result;
-                              selectedPaymentType = result.paymentTypeId ?? 1;
-                            });
-                          }
-                        },
-                        borderRadius: AppSpacing.borderRadiusXS,
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Pilih Produk',
-                            suffixIcon: Icon(Icons.search),
-                          ),
-                          child: Text(
-                            selectedProduct != null
-                                ? selectedProduct!.name
-                                : '',
-                          ),
-                        ),
+                  // Product (searchable)
+                  InkWell(
+                    onTap: () async {
+                      final result = await _showProductSearchDialog();
+                      if (result != null) {
+                        setModalState(() {
+                          selectedProduct = result;
+                          selectedPaymentType = result.paymentTypeId ?? 1;
+                        });
+                      }
+                    },
+                    borderRadius: AppSpacing.borderRadiusXS,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Pilih Produk',
+                        suffixIcon: Icon(Icons.search),
                       ),
-                      AppSpacing.gapVerticalMD,
-                      ModernDropdown<int>(
-                        labelText: 'Rencana Pembayaran',
-                        hint: 'Pilih pembayaran...',
-                        value: selectedPaymentType,
-                        items: const [1, 2],
-                        getLabel: (val) => val == 1 ? 'Transfer' : 'Tunai / Cash',
-                        onChanged: (val) {
-                          setModalState(() {
-                            selectedPaymentType = val;
-                          });
-                        },
-                        validator: (val) => val == null ? 'Pilih rencana pembayaran' : null,
+                      child: Text(
+                        selectedProduct != null ? selectedProduct!.name : '',
                       ),
-                      AppSpacing.gapVerticalMD,
-                      TextFormField(
-                        controller: qtyController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'Jumlah / Quantity',
-                          suffixText: selectedProduct?.unitName ?? '',
-                        ),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Jumlah wajib diisi';
-                          final num = double.tryParse(val);
-                          if (num == null || num <= 0) return 'Jumlah harus lebih besar dari 0';
-                          return null;
-                        },
-                      ),
-                      AppSpacing.gapVerticalLG,
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (formKey.currentState!.validate() && selectedProduct != null) {
-                              final duplicateIndex = _selectedItems.indexWhere((item) => 
-                                item['product_id'] == selectedProduct!.id && 
-                                item['payment_type_id'] == selectedPaymentType
-                              );
-                               
-                              setState(() {
-                                if (duplicateIndex != -1) {
-                                  _selectedItems[duplicateIndex]['quantity_plan'] += double.parse(qtyController.text);
-                                } else {
-                                  _selectedItems.add({
-                                    'product_id': selectedProduct!.id,
-                                    'productName': selectedProduct!.name,
-                                    'unitName': selectedProduct!.unitName,
-                                    'quantity_plan': double.parse(qtyController.text),
-                                    'payment_type_id': selectedPaymentType,
-                                  });
-                                }
-                              });
-                              Navigator.pop(context);
-                            }
-                          },
-                          child: const Text('Tambah ke List'),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
+                  AppSpacing.gapVerticalMD,
+                  ModernDropdown<int>(
+                    labelText: 'Rencana Pembayaran',
+                    hint: 'Pilih pembayaran...',
+                    value: selectedPaymentType,
+                    items: const [1, 2],
+                    getLabel: (val) => val == 1 ? 'Transfer' : 'Tunai / Cash',
+                    onChanged: (val) {
+                      setModalState(() {
+                        selectedPaymentType = val;
+                      });
+                    },
+                    validator: (val) =>
+                        val == null ? 'Pilih rencana pembayaran' : null,
+                  ),
+                  AppSpacing.gapVerticalMD,
+                  TextFormField(
+                    controller: qtyController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Jumlah / Quantity',
+                      suffixText: selectedProduct?.unitName ?? '',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.isEmpty) {
+                        return 'Jumlah wajib diisi';
+                      }
+                      final num = double.tryParse(val);
+                      if (num == null || num <= 0) {
+                        return 'Jumlah harus lebih besar dari 0';
+                      }
+                      return null;
+                    },
+                  ),
+                  AppSpacing.gapVerticalLG,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate() &&
+                            selectedProduct != null) {
+                          final duplicateIndex = _selectedItems.indexWhere(
+                              (item) =>
+                                  item['product_id'] == selectedProduct!.id &&
+                                  item['payment_type_id'] ==
+                                      selectedPaymentType);
+
+                          setState(() {
+                            if (duplicateIndex != -1) {
+                              _selectedItems[duplicateIndex]['quantity_plan'] +=
+                                  double.parse(qtyController.text);
+                            } else {
+                              _selectedItems.add({
+                                'product_id': selectedProduct!.id,
+                                'productName': selectedProduct!.name,
+                                'unitName': selectedProduct!.unitName,
+                                'quantity_plan':
+                                    double.parse(qtyController.text),
+                                'payment_type_id': selectedPaymentType,
+                              });
+                            }
+                          });
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('Tambah ke List'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _submitRequest() async {
@@ -227,7 +236,9 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_errorMessage!, style: textTheme.bodyLarge?.copyWith(color: colorScheme.error)),
+                        Text(_errorMessage!,
+                            style: textTheme.bodyLarge
+                                ?.copyWith(color: colorScheme.error)),
                         AppSpacing.gapVerticalMD,
                         ElevatedButton(
                           onPressed: _loadInitialData,
@@ -244,7 +255,7 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +298,8 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                                     child: Text(
                                       'Belum ada item belanja ditambahkan.',
                                       style: textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                        color: colorScheme.onSurfaceVariant
+                                            .withValues(alpha: 0.6),
                                       ),
                                     ),
                                   )
@@ -296,18 +308,26 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                                     itemBuilder: (context, idx) {
                                       final item = _selectedItems[idx];
                                       return Card(
-                                        margin: EdgeInsets.only(bottom: AppSpacing.sm),
+                                        margin: EdgeInsets.only(
+                                            bottom: AppSpacing.sm),
                                         child: ListTile(
                                           title: Text(
                                             item['productName'],
-                                            style: textTheme.bodyMedium?.copyWith(
+                                            style:
+                                                textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                           subtitle: Text(
-                                            item['payment_type_id'] == 2 ? 'Rencana: Tunai' : 'Rencana: Transfer',
-                                            style: textTheme.bodySmall?.copyWith(
-                                              color: item['payment_type_id'] == 2 ? AppColors.warning : AppColors.success,
+                                            item['payment_type_id'] == 2
+                                                ? 'Rencana: Tunai'
+                                                : 'Rencana: Transfer',
+                                            style:
+                                                textTheme.bodySmall?.copyWith(
+                                              color:
+                                                  item['payment_type_id'] == 2
+                                                      ? AppColors.warning
+                                                      : AppColors.success,
                                             ),
                                           ),
                                           trailing: Row(
@@ -315,17 +335,20 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                                             children: [
                                               Text(
                                                 '${item['quantity_plan'].toStringAsFixed(0)} ${item['unitName']}',
-                                                style: textTheme.bodyMedium?.copyWith(
+                                                style: textTheme.bodyMedium
+                                                    ?.copyWith(
                                                   fontWeight: FontWeight.bold,
                                                   color: colorScheme.primary,
                                                 ),
                                               ),
                                               AppSpacing.gapHorizontalSM,
                                               IconButton(
-                                                icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                                                icon: Icon(Icons.delete_outline,
+                                                    color: colorScheme.error),
                                                 onPressed: () {
                                                   setState(() {
-                                                    _selectedItems.removeAt(idx);
+                                                    _selectedItems
+                                                        .removeAt(idx);
                                                   });
                                                 },
                                               ),
@@ -346,14 +369,11 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                       ),
                   ],
                 ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: ModernButton(
-            text: 'Kirim Request Belanja',
-            onPressed: _isSubmitting ? null : _submitRequest,
-            isLoading: _isSubmitting,
-          ),
+      bottomNavigationBar: SafeBottomBar(
+        child: ModernButton(
+          text: 'Kirim Request Belanja',
+          onPressed: _isSubmitting ? null : _submitRequest,
+          isLoading: _isSubmitting,
         ),
       ),
     );
@@ -396,7 +416,8 @@ class _CreateProcurementPageState extends State<CreateProcurementPage> {
                         ? const Center(child: Text('Tidak ada produk'))
                         : ListView.separated(
                             itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (_, i) => ListTile(
                               title: Text(filtered[i].name),
                               subtitle: Text('Satuan: ${filtered[i].unitName}'),

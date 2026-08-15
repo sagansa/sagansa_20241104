@@ -143,8 +143,9 @@ class _SupplierFormView extends StatelessWidget {
                           label: 'Nama Supplier *',
                           hint: 'Nama supplier',
                           icon: Icons.store_rounded,
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Nama wajib diisi'
+                              : null,
                         ),
                         AppSpacing.gapVerticalSM,
                         _buildTextField(
@@ -210,7 +211,8 @@ class _SupplierFormView extends StatelessWidget {
                                 controller: provider.qrisController,
                                 labelText: 'QRIS Payload',
                                 hintText: 'Tempel hasil scan QRIS supplier',
-                                prefixIcon: const Icon(Icons.qr_code_rounded, size: 20),
+                                prefixIcon:
+                                    const Icon(Icons.qr_code_rounded, size: 20),
                                 maxLines: 2,
                                 onChanged: (_) => _validateQris(context),
                               ),
@@ -241,7 +243,8 @@ class _SupplierFormView extends StatelessWidget {
                                 const SizedBox(
                                     width: 14,
                                     height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2)),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)),
                                 AppSpacing.gapHorizontalSM,
                                 Text('Memvalidasi QRIS...',
                                     style: theme.textTheme.bodySmall),
@@ -287,8 +290,9 @@ class _SupplierFormView extends StatelessWidget {
                           hint: 'Jalan, nomor, RT/RW, dll.',
                           icon: Icons.home_rounded,
                           maxLines: 3,
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Alamat wajib diisi'
+                              : null,
                         ),
                         AppSpacing.gapVerticalSM,
                         _buildDropdown<ProvinceModel>(
@@ -310,7 +314,9 @@ class _SupplierFormView extends StatelessWidget {
                           label: 'Kota/Kabupaten *',
                           hint: form.selectedProvince == null
                               ? 'Pilih provinsi dulu'
-                              : (form.isLoadingCities ? 'Memuat...' : 'Pilih kota'),
+                              : (form.isLoadingCities
+                                  ? 'Memuat...'
+                                  : 'Pilih kota'),
                           icon: Icons.location_on_rounded,
                           value: form.selectedCity,
                           items: form.cities,
@@ -330,7 +336,9 @@ class _SupplierFormView extends StatelessWidget {
                           label: 'Kecamatan',
                           hint: form.selectedCity == null
                               ? 'Pilih kota dulu'
-                              : (form.isLoadingDistricts ? 'Memuat...' : 'Pilih kecamatan'),
+                              : (form.isLoadingDistricts
+                                  ? 'Memuat...'
+                                  : 'Pilih kecamatan'),
                           icon: Icons.map_rounded,
                           value: form.selectedDistrict,
                           items: form.districts,
@@ -349,7 +357,9 @@ class _SupplierFormView extends StatelessWidget {
                           label: 'Kelurahan',
                           hint: form.selectedDistrict == null
                               ? 'Pilih kecamatan dulu'
-                              : (form.isLoadingSubdistricts ? 'Memuat...' : 'Pilih kelurahan'),
+                              : (form.isLoadingSubdistricts
+                                  ? 'Memuat...'
+                                  : 'Pilih kelurahan'),
                           icon: Icons.location_city_rounded,
                           value: form.selectedSubdistrict,
                           items: form.subdistricts,
@@ -368,7 +378,9 @@ class _SupplierFormView extends StatelessWidget {
                           label: 'Kode Pos',
                           hint: form.selectedSubdistrict == null
                               ? 'Pilih kelurahan dulu'
-                              : (form.isLoadingPostalCodes ? 'Memuat...' : 'Pilih kode pos'),
+                              : (form.isLoadingPostalCodes
+                                  ? 'Memuat...'
+                                  : 'Pilih kode pos'),
                           icon: Icons.markunread_mailbox_rounded,
                           value: form.selectedPostalCode,
                           items: form.postalCodes,
@@ -395,12 +407,10 @@ class _SupplierFormView extends StatelessWidget {
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: isEditing ? 'Simpan Perubahan' : 'Tambah Supplier',
-          onPressed: isSaving ? null : () => _submit(context),
-          isLoading: isSaving,
-        ),
+      child: ModernButton(
+        text: isEditing ? 'Simpan Perubahan' : 'Tambah Supplier',
+        onPressed: isSaving ? null : () => _submit(context),
+        isLoading: isSaving,
       ),
     );
   }
@@ -448,7 +458,8 @@ class _SupplierFormView extends StatelessWidget {
                     bottom: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                       decoration: BoxDecoration(
                         color: colorScheme.onSurface.withValues(alpha: 0.6),
                         borderRadius: AppSpacing.borderRadiusXL,
@@ -483,10 +494,10 @@ class _SupplierFormView extends StatelessWidget {
                         right: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.xs),
                           decoration: BoxDecoration(
-                            color:
-                                colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
                             borderRadius: AppSpacing.borderRadiusXL,
                           ),
                           child: Row(

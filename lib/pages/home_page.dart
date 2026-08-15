@@ -1,9 +1,11 @@
+import 'package:badges/badges.dart' as badges;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/home_dashboard_provider.dart';
+import '../services/notification_service.dart';
 import '../services/version_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/home/cards/home_anomaly_card.dart';
@@ -28,6 +30,7 @@ import '../widgets/home/sections/today_presences_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/theme_toggle_button.dart';
 import 'hrd_dashboard_page.dart';
+import 'notification_list_page.dart';
 import 'presence_page.dart';
 import 'stock_dashboard_page.dart';
 import 'transaction_dashboard_page.dart';
@@ -45,10 +48,14 @@ class HomePageState extends State<HomePage> {
   bool isLoading = false;
   final int _selectedIndex = 0;
 
+  /// Jumlah notifikasi belum dibaca (badge bell).
+  int _unreadCount = 0;
+
   @override
   void initState() {
     super.initState();
     _initData();
+    _refreshUnreadCount();
 
     // Check for app updates. Data loading is started after authentication in
     // _initData; starting it here as well caused duplicate unauthenticated
@@ -56,6 +63,24 @@ class HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       VersionService().checkForUpdate(context);
     });
+  }
+
+  /// Ambil jumlah notifikasi belum dibaca untuk badge bell (polling manual).
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final count = await NotificationService.instance.getUnreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {
+      // Abaikan kegagalan (mis. token expired); badge cukup tidak tampil.
+    }
+  }
+
+  /// Buka halaman notifikasi, lalu refresh badge saat kembali.
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationListPage()),
+    );
+    if (mounted) _refreshUnreadCount();
   }
 
   Future<void> _initData() async {
@@ -241,6 +266,22 @@ class HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          badges.Badge(
+            showBadge: _unreadCount > 0,
+            position: badges.BadgePosition.topEnd(top: 2, end: 2),
+            badgeContent: Text(
+              _unreadCount > 99 ? '99+' : '$_unreadCount',
+              style: const TextStyle(color: Colors.white, fontSize: 10),
+            ),
+            badgeStyle: const badges.BadgeStyle(
+              padding: EdgeInsets.all(5),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.notifications),
+              tooltip: 'Notifikasi',
+              onPressed: _openNotifications,
+            ),
+          ),
           const ThemeToggleButton(),
           AppSpacing.gapHorizontalSM,
         ],

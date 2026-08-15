@@ -10,6 +10,7 @@ import '../utils/constants.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'supplier_form_page.dart';
 
@@ -134,7 +135,8 @@ class _SupplierDetailScaffold extends StatelessWidget {
           child: _FadeInDetail(
             key: ObjectKey(s),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: EdgeInsets.fromLTRB(16, 16, 16,
+                  ModernBottomNav.height + context.systemBottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -441,8 +443,7 @@ class _SupplierDetailScaffold extends StatelessWidget {
                 ),
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  Icon(Icons.copy_rounded,
-                      size: 14, color: AppColors.info),
+                  Icon(Icons.copy_rounded, size: 14, color: AppColors.info),
                 ],
               ],
             ),

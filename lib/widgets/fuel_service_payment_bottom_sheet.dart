@@ -8,6 +8,7 @@ import '../services/procurement_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 /// Bottom sheet untuk upload bukti transfer + catatan + submit
 /// payment receipt bensin/servis.
@@ -96,7 +97,8 @@ class _FuelServicePaymentBottomSheetState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final provider = context.watch<FuelServicePaymentProvider>();
-    final paddingBottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
+    final paddingBottom =
+        MediaQuery.of(context).viewInsets.bottom + context.systemBottomInset;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -109,161 +111,163 @@ class _FuelServicePaymentBottomSheetState
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Bukti Transfer Bensin/Servis',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context, false),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Summary
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Bukti Transfer Bensin/Servis',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context, false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Summary
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${provider.selectedCount} item dipilih',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          FormatUtils.formatCurrency(provider.totalAmount),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Bukti transfer image
                   Text(
-                    '${provider.selectedCount} item dipilih',
+                    'Bukti Pembayaran (Opsional)',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    FormatUtils.formatCurrency(provider.totalAmount),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                  const SizedBox(height: 6),
+                  if (provider.imageFile != null) ...[
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            provider.imageFile!,
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: CircleAvatar(
+                            backgroundColor:
+                                Colors.black.withValues(alpha: 0.6),
+                            radius: 18,
+                            child: IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  size: 18, color: Colors.white),
+                              onPressed: () => provider.setImageFile(null),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Bukti transfer image
-            Text(
-              'Bukti Pembayaran (Opsional)',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (provider.imageFile != null) ...[
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      provider.imageFile!,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.6),
-                      radius: 18,
-                      child: IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            size: 18, color: Colors.white),
-                        onPressed: () => provider.setImageFile(null),
+                    const SizedBox(height: 8),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: Icon(
+                        provider.imageFile == null
+                            ? Icons.add_a_photo_rounded
+                            : Icons.edit_rounded,
+                        size: 18,
+                      ),
+                      label: Text(
+                        provider.imageFile == null
+                            ? 'Unggah Bukti Transfer'
+                            : 'Ganti Foto Bukti',
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: Icon(
-                  provider.imageFile == null
-                      ? Icons.add_a_photo_rounded
-                      : Icons.edit_rounded,
-                  size: 18,
-                ),
-                label: Text(
-                  provider.imageFile == null
-                      ? 'Unggah Bukti Transfer'
-                      : 'Ganti Foto Bukti',
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-            // Notes
-            TextField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-              onChanged: (v) => provider.setNotes(v),
-            ),
-            const SizedBox(height: 20),
-
-            // Submit
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: provider.canSubmit ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.gold,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                  // Notes
+                  TextField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Catatan (opsional)',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                    onChanged: (v) => provider.setNotes(v),
                   ),
-                ),
-                child: provider.isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.gold,
-                        ),
-                      )
-                    : Text(
-                        'Buat Payment Receipt (${FormatUtils.formatCurrency(provider.totalAmount)})',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(height: 20),
+
+                  // Submit
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: provider.canSubmit ? _submit : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.gold,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMD),
                         ),
                       ),
+                      child: provider.isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.gold,
+                              ),
+                            )
+                          : Text(
+                              'Buat Payment Receipt (${FormatUtils.formatCurrency(provider.totalAmount)})',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-          ],
+          ),
         ),
-      ),
-      ),
-      ),
       ),
     );
   }

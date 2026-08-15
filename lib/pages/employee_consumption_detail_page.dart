@@ -8,14 +8,14 @@ import '../theme/app_spacing.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/modern_button.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'create_employee_consumption_page.dart';
 
 class EmployeeConsumptionDetailPage extends StatefulWidget {
   final int consumptionId;
 
-  const EmployeeConsumptionDetailPage(
-      {super.key, required this.consumptionId});
+  const EmployeeConsumptionDetailPage({super.key, required this.consumptionId});
 
   @override
   State<EmployeeConsumptionDetailPage> createState() =>
@@ -155,8 +155,7 @@ class _EmployeeConsumptionDetailPageState
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md +
-                            MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,8 +257,8 @@ class _EmployeeConsumptionDetailPageState
                             itemBuilder: (context, idx) {
                               final item = _item!.details[idx];
                               return Container(
-                                margin:
-                                    const EdgeInsets.only(bottom: AppSpacing.sm),
+                                margin: const EdgeInsets.only(
+                                    bottom: AppSpacing.sm),
                                 padding: AppSpacing.paddingSM,
                                 decoration: BoxDecoration(
                                   color: colorScheme.surface,
@@ -306,8 +305,18 @@ class _EmployeeConsumptionDetailPageState
     try {
       final dt = DateTime.parse(dateStr);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {

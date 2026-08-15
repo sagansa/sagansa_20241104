@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/safe_bottom_bar.dart';
+
 class AddFab extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -8,15 +10,16 @@ class AddFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8.0, right: 8.0),
-        child: FloatingActionButton(
-          onPressed: onPressed,
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          child: const Icon(Icons.add, size: 28),
-        ),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: context.systemBottomInset + 8,
+        right: 8,
+      ),
+      child: FloatingActionButton(
+        onPressed: onPressed,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }

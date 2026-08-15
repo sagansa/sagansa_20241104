@@ -8,6 +8,7 @@ import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class CreateTransferStockPage extends StatefulWidget {
   const CreateTransferStockPage({super.key});
@@ -109,7 +110,10 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Gagal Menyimpan',
-            style: Theme.of(ctx).textTheme.titleMedium?.copyWith(color: Theme.of(ctx).colorScheme.error)),
+            style: Theme.of(ctx)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: Theme.of(ctx).colorScheme.error)),
         content: Text(message),
         actions: [
           TextButton(
@@ -148,8 +152,7 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
     }
     if (_selectedFromStore!.id == _selectedToStore!.id) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Toko asal dan tujuan tidak boleh sama.')),
+        const SnackBar(content: Text('Toko asal dan tujuan tidak boleh sama.')),
       );
       return;
     }
@@ -189,9 +192,7 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
         items: itemsApi,
         sentById: _selectedSender?['id'],
         receivedById: _selectedReceiver?['id'],
-        notes: _notesController.text.isNotEmpty
-            ? _notesController.text
-            : null,
+        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
 
       if (!mounted) return;
@@ -229,7 +230,8 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(_errorMessage!,
-                            style: textTheme.bodyLarge?.copyWith(color: colorScheme.error)),
+                            style: textTheme.bodyLarge
+                                ?.copyWith(color: colorScheme.error)),
                         AppSpacing.gapVerticalMD,
                         ElevatedButton(
                           onPressed: _loadInitialData,
@@ -250,7 +252,8 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                               ModernDropdown<StoreModel>(
                                 labelText: 'Toko Asal',
                                 hint: 'Pilih toko asal...',
-                                prefixIcon: const Icon(Icons.storefront, size: 20),
+                                prefixIcon:
+                                    const Icon(Icons.storefront, size: 20),
                                 value: _selectedFromStore,
                                 items: _stores
                                     .where((s) =>
@@ -297,17 +300,22 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                               ModernDropdown<int>(
                                 labelText: 'Pengirim',
                                 hint: 'Pilih pengirim...',
-                                prefixIcon: const Icon(Icons.person_outline, size: 20),
+                                prefixIcon:
+                                    const Icon(Icons.person_outline, size: 20),
                                 value: _selectedSender?['id'] is int
                                     ? _selectedSender!['id']
-                                    : int.tryParse(_selectedSender?['id']?.toString() ?? ''),
+                                    : int.tryParse(
+                                        _selectedSender?['id']?.toString() ??
+                                            ''),
                                 items: _users
                                     .map<int>((u) => u['id'] is int
                                         ? u['id']
                                         : int.parse(u['id'].toString()))
                                     .toList(),
                                 getLabel: (val) {
-                                  final u = _users.firstWhere((e) => e['id'] == val, orElse: () => {});
+                                  final u = _users.firstWhere(
+                                      (e) => e['id'] == val,
+                                      orElse: () => {});
                                   return u['name']?.toString() ?? '';
                                 },
                                 onChanged: (val) {
@@ -323,14 +331,18 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                 prefixIcon: const Icon(Icons.person, size: 20),
                                 value: _selectedReceiver?['id'] is int
                                     ? _selectedReceiver!['id']
-                                    : int.tryParse(_selectedReceiver?['id']?.toString() ?? ''),
+                                    : int.tryParse(
+                                        _selectedReceiver?['id']?.toString() ??
+                                            ''),
                                 items: _users
                                     .map<int>((u) => u['id'] is int
                                         ? u['id']
                                         : int.parse(u['id'].toString()))
                                     .toList(),
                                 getLabel: (val) {
-                                  final u = _users.firstWhere((e) => e['id'] == val, orElse: () => {});
+                                  final u = _users.firstWhere(
+                                      (e) => e['id'] == val,
+                                      orElse: () => {});
                                   return u['name']?.toString() ?? '';
                                 },
                                 onChanged: (val) {
@@ -372,8 +384,7 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                   child: Center(
                                     child: Text(
                                       'Belum ada item. Ketuk "Tambah Item" untuk mulai.',
-                                      style: textTheme.bodyMedium
-                                          ?.copyWith(
+                                      style: textTheme.bodyMedium?.copyWith(
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
@@ -396,59 +407,77 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                                               child: ModernDropdown<int>(
                                                 labelText: 'Produk',
                                                 hint: 'Pilih produk...',
-                                                value: item['product_id'] as int?,
-                                                items: _products.map((p) => p.id).toList(),
+                                                value:
+                                                    item['product_id'] as int?,
+                                                items: _products
+                                                    .map((p) => p.id)
+                                                    .toList(),
                                                 getLabel: (val) {
-                                                  final p = _products.firstWhere((e) => e.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
+                                                  final p = _products.firstWhere(
+                                                      (e) => e.id == val,
+                                                      orElse: () =>
+                                                          TransferStockProduct(
+                                                              id: 0,
+                                                              name: '',
+                                                              unitName: ''));
                                                   return p.name;
                                                 },
                                                 getSubtitle: (val) {
-                                                  final p = _products.firstWhere((e) => e.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
+                                                  final p = _products.firstWhere(
+                                                      (e) => e.id == val,
+                                                      orElse: () =>
+                                                          TransferStockProduct(
+                                                              id: 0,
+                                                              name: '',
+                                                              unitName: ''));
                                                   return p.unitName;
                                                 },
                                                 onChanged: (val) {
                                                   if (val == null) return;
-                                                  final product = _products.firstWhere((p) => p.id == val, orElse: () => TransferStockProduct(id: 0, name: '', unitName: ''));
+                                                  final product =
+                                                      _products.firstWhere(
+                                                          (p) => p.id == val,
+                                                          orElse: () =>
+                                                              TransferStockProduct(
+                                                                  id: 0,
+                                                                  name: '',
+                                                                  unitName:
+                                                                      ''));
                                                   setState(() {
                                                     item['product_id'] = val;
-                                                    item['productName'] = product.name;
-                                                    item['unitName'] = product.unitName;
+                                                    item['productName'] =
+                                                        product.name;
+                                                    item['unitName'] =
+                                                        product.unitName;
                                                   });
                                                 },
                                               ),
                                             ),
                                             AppSpacing.gapHorizontalSM,
                                             IconButton(
-                                              icon: const Icon(Icons
-                                                  .remove_circle_outline),
+                                              icon: const Icon(
+                                                  Icons.remove_circle_outline),
                                               color: colorScheme.error,
-                                              onPressed: () =>
-                                                  _removeItem(idx),
+                                              onPressed: () => _removeItem(idx),
                                             ),
                                           ],
                                         ),
                                         AppSpacing.gapVerticalSM,
                                         if (item['product_id'] != null)
                                           TextFormField(
-                                            controller:
-                                                item['controller'],
-                                            keyboardType:
-                                                TextInputType.number,
+                                            controller: item['controller'],
+                                            keyboardType: TextInputType.number,
                                             decoration: InputDecoration(
                                               labelText: 'Kuantitas',
-                                              suffixText:
-                                                  item['unitName'],
+                                              suffixText: item['unitName'],
                                             ),
                                             onTap: () {
-                                              final ctrl = item[
-                                                      'controller']
+                                              final ctrl = item['controller']
                                                   as TextEditingController;
-                                              ctrl.selection =
-                                                  TextSelection(
-                                                      baseOffset: 0,
-                                                      extentOffset:
-                                                          ctrl.text
-                                                              .length);
+                                              ctrl.selection = TextSelection(
+                                                  baseOffset: 0,
+                                                  extentOffset:
+                                                      ctrl.text.length);
                                             },
                                           ),
                                       ],
@@ -464,19 +493,15 @@ class _CreateTransferStockPageState extends State<CreateTransferStockPage> {
                     if (_isSubmitting)
                       Container(
                         color: colorScheme.scrim.withValues(alpha: 0.3),
-                        child:
-                            const Center(child: CircularProgressIndicator()),
+                        child: const Center(child: CircularProgressIndicator()),
                       ),
                   ],
                 ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: ModernButton(
-            text: 'Ajukan Transfer Stok',
-            onPressed: _isSubmitting ? null : _submitTransfer,
-            isLoading: _isSubmitting,
-          ),
+      bottomNavigationBar: SafeBottomBar(
+        child: ModernButton(
+          text: 'Ajukan Transfer Stok',
+          onPressed: _isSubmitting ? null : _submitTransfer,
+          isLoading: _isSubmitting,
         ),
       ),
     );

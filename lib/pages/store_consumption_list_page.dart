@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'create_store_consumption_page.dart';
 import 'store_consumption_detail_page.dart';
@@ -145,10 +146,14 @@ class _StoreConsumptionListPageState extends State<StoreConsumptionListPage> {
         DropdownFilterField<int>(
           label: 'Toko',
           value: _selectedStoreId,
-          options: _stores.map((s) => (
-            s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()),
-            s['nickname']?.toString() ?? 'Toko #${s['id']}',
-          )).toList(),
+          options: _stores
+              .map((s) => (
+                    s['id'] is int
+                        ? s['id'] as int
+                        : int.parse(s['id'].toString()),
+                    s['nickname']?.toString() ?? 'Toko #${s['id']}',
+                  ))
+              .toList(),
         ),
       ],
       onApply: (values) {
@@ -213,9 +218,8 @@ class _StoreConsumptionListPageState extends State<StoreConsumptionListPage> {
           ),
         ],
       ),
-      floatingActionButton: _canManage
-          ? AddFab(onPressed: () => _openForm())
-          : null,
+      floatingActionButton:
+          _canManage ? AddFab(onPressed: () => _openForm()) : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2,
         onTap: (index) {
@@ -247,7 +251,8 @@ class _StoreConsumptionListPageState extends State<StoreConsumptionListPage> {
       onRefresh: _fetch,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: _items.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == _items.length) {
@@ -372,8 +377,18 @@ class _StoreConsumptionListPageState extends State<StoreConsumptionListPage> {
     try {
       final dt = DateTime.parse(dateStr);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {

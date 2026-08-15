@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
+import 'safe_bottom_bar.dart';
 
 class ModernBottomSheet extends StatelessWidget {
   final String? title;
@@ -51,12 +52,10 @@ class ModernBottomSheet extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     // Tambahkan bottom system inset (nav bar / gesture bar) secara sentral.
-    // Pakai viewPaddingOf (bukan SafeArea/useSafeArea) agar konsisten dengan
-    // idiom terpercaya codebase (lihat invoice_detail_page.dart) — SafeArea
-    // biasa bisa kalah dikonsumsi ancestor pada mode edge-to-edge Android 15
-    // (targetSdk 35) sehingga konten/aksi di bawah bottom sheet tertutup nav
-    // bar. Caller tetap menangani keyboard via viewInsets.bottom pada child.
-    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    // Pakai systemBottomInset (baca langsung dari View engine, bulletproof
+    // terhadap modifikasi MediaQuery oleh ancestor). Caller tetap menangani
+    // keyboard via viewInsets.bottom pada child.
+    final safeBottom = context.systemBottomInset;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -79,7 +78,8 @@ class ModernBottomSheet extends StatelessWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      color:
+                          colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                       borderRadius: AppSpacing.borderRadiusXS,
                     ),
                   ),

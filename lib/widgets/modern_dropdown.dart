@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 /// Komponen Dropdown Modern menggantikan DropdownButtonFormField standar.
 /// Menampilkan trigger box yang sleek dan membuka Bottom Sheet pilihan
@@ -79,7 +80,9 @@ class ModernDropdown<T> extends StatelessWidget {
             : (effectiveLabel != null ? '' : hint);
 
         return InkWell(
-          onTap: isEffectiveEnabled ? () => _showSelectionSheet(context, state) : null,
+          onTap: isEffectiveEnabled
+              ? () => _showSelectionSheet(context, state)
+              : null,
           borderRadius: AppSpacing.borderRadiusMD,
           child: InputDecorator(
             isEmpty: !hasValue,
@@ -105,7 +108,8 @@ class ModernDropdown<T> extends StatelessWidget {
                           : colorScheme.onSurface.withValues(alpha: 0.5),
                     )
                   : theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color:
+                          colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -143,8 +147,7 @@ class DropdownSelectionSheet<T> extends StatefulWidget {
       _DropdownSelectionSheetState<T>();
 }
 
-class _DropdownSelectionSheetState<T>
-    extends State<DropdownSelectionSheet<T>> {
+class _DropdownSelectionSheetState<T> extends State<DropdownSelectionSheet<T>> {
   final TextEditingController _searchController = TextEditingController();
   List<T> _filteredItems = [];
 
@@ -288,8 +291,8 @@ class _DropdownSelectionSheetState<T>
                   )
                 : ListView.separated(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     itemCount: _filteredItems.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 4),
                     itemBuilder: (context, index) {
@@ -375,7 +378,7 @@ class _DropdownSelectionSheetState<T>
                     },
                   ),
           ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          SizedBox(height: context.systemBottomInset + 8),
         ],
       ),
     );

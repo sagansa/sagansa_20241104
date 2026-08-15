@@ -109,7 +109,7 @@ class _FuelServicePageState extends State<FuelServicePage>
 
   void _onReceiptScroll() {
     if (_receiptScrollController.position.pixels >=
-        _receiptScrollController.position.maxScrollExtent - 200 &&
+            _receiptScrollController.position.maxScrollExtent - 200 &&
         !_isLoadingMoreReceipts &&
         _hasMoreReceipts) {
       _loadMoreReceipts();
@@ -164,8 +164,10 @@ class _FuelServicePageState extends State<FuelServicePage>
         page: _page,
         createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
-        fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
-        paymentTypeId: _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
+        fuelService:
+            _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+        paymentTypeId:
+            _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
       );
       if (!mounted) return;
       setState(() {
@@ -192,8 +194,10 @@ class _FuelServicePageState extends State<FuelServicePage>
         page: _page + 1,
         createdById: _selectedUserId,
         status: _statusFilter == 0 ? null : _statusFilter.toString(),
-        fuelService: _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
-        paymentTypeId: _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
+        fuelService:
+            _fuelServiceFilter == 0 ? null : _fuelServiceFilter.toString(),
+        paymentTypeId:
+            _paymentTypeFilter == 0 ? null : _paymentTypeFilter.toString(),
       );
       if (!mounted) return;
       setState(() {
@@ -240,9 +244,9 @@ class _FuelServicePageState extends State<FuelServicePage>
             options: [
               (null, 'Semua User'),
               ..._userList.map((u) => (
-                _toInt(u['id']) ?? 0,
-                u['name']?.toString() ?? 'User #${u['id']}',
-              )),
+                    _toInt(u['id']) ?? 0,
+                    u['name']?.toString() ?? 'User #${u['id']}',
+                  )),
             ],
           ),
         DropdownFilterField<int>(
@@ -265,7 +269,8 @@ class _FuelServicePageState extends State<FuelServicePage>
         ),
         DropdownFilterField<int>(
           label: 'Pembayaran',
-          value: _paymentTypeFilter == 0 ? 0 : (_paymentTypeFilter == 2 ? 2 : 1),
+          value:
+              _paymentTypeFilter == 0 ? 0 : (_paymentTypeFilter == 2 ? 2 : 1),
           options: const [
             (0, 'Semua'),
             (2, 'Tunai'),
@@ -363,7 +368,8 @@ class _FuelServicePageState extends State<FuelServicePage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_paymentMode ? 'Pilih untuk Bayar Transfer' : 'Bensin & Servis'),
+        title: Text(
+            _paymentMode ? 'Pilih untuk Bayar Transfer' : 'Bensin & Servis'),
         actions: [
           if (_tabController.index == 0 && !_paymentMode) ...[
             FilterAppBarAction(
@@ -454,7 +460,8 @@ class _FuelServicePageState extends State<FuelServicePage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+                      Icon(Icons.error_outline,
+                          size: 64, color: colorScheme.error),
                       AppSpacing.gapVerticalMD,
                       Text(
                         _errorMessage!,
@@ -479,9 +486,11 @@ class _FuelServicePageState extends State<FuelServicePage>
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.local_gas_station_outlined, size: 64, color: colorScheme.outline),
+                        Icon(Icons.local_gas_station_outlined,
+                            size: 64, color: colorScheme.outline),
                         AppSpacing.gapVerticalMD,
-                        Text('Belum ada riwayat bensin atau servis.', style: textTheme.bodyLarge),
+                        Text('Belum ada riwayat bensin atau servis.',
+                            style: textTheme.bodyLarge),
                         AppSpacing.gapVerticalSM,
                         Text(
                           'Tarik ke bawah untuk menyegarkan',
@@ -509,20 +518,25 @@ class _FuelServicePageState extends State<FuelServicePage>
                     final fs = _services[index];
                     final type = fs['fuel_service'] == 1 ? 'Fuel' : 'Service';
                     final isFuel = fs['fuel_service'] == 1;
-                    final amount = double.tryParse(fs['amount'].toString()) ?? 0;
+                    final amount =
+                        double.tryParse(fs['amount'].toString()) ?? 0;
                     final date = fs['date'] ?? '';
-                    final vehicleNo = fs['vehicle']?['no_register'] ?? 'Kendaraan';
+                    final vehicleNo =
+                        fs['vehicle']?['no_register'] ?? 'Kendaraan';
                     final km = fs['km'] ?? 0;
                     final creatorName = fs['created_by']?['name'] ?? 'Staff';
-                    final statusStr = fs['status'] == 2 ? 'Lunas / Terhubung' : 'Pending';
+                    final statusStr =
+                        fs['status'] == 2 ? 'Lunas / Terhubung' : 'Pending';
                     final isPaid = fs['status'] == 2;
                     final paymentTypeId = fs['payment_type_id'];
                     final canPayTransfer =
                         _paymentMode && !isPaid && paymentTypeId == 1;
-                    final imageUrl = ImageService.buildUrl(fs['image']?.toString());
+                    final imageUrl =
+                        ImageService.buildUrl(fs['image']?.toString());
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
+                      margin:
+                          const EdgeInsets.only(bottom: AppSpacing.sectionGap),
                       child: Padding(
                         padding: AppSpacing.paddingMD,
                         child: Row(
@@ -536,8 +550,9 @@ class _FuelServicePageState extends State<FuelServicePage>
                                       .read<FuelServicePaymentProvider>()
                                       .isSelected(fs['id'] as int),
                                   onChanged: (v) {
-                                    final amount =
-                                        double.tryParse(fs['amount'].toString()) ?? 0;
+                                    final amount = double.tryParse(
+                                            fs['amount'].toString()) ??
+                                        0;
                                     context
                                         .read<FuelServicePaymentProvider>()
                                         .toggleSelection(
@@ -560,28 +575,36 @@ class _FuelServicePageState extends State<FuelServicePage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                                            horizontal: AppSpacing.sm,
+                                            vertical: AppSpacing.xs),
                                         decoration: BoxDecoration(
-                                          color: (isFuel ? AppColors.success : AppColors.warning)
+                                          color: (isFuel
+                                                  ? AppColors.success
+                                                  : AppColors.warning)
                                               .withValues(alpha: 0.1),
-                                          borderRadius: AppSpacing.borderRadiusSM,
+                                          borderRadius:
+                                              AppSpacing.borderRadiusSM,
                                         ),
                                         child: Text(
                                           type,
-                                          style: textTheme.labelMedium?.copyWith(
-                                            color: isFuel ? AppColors.success : AppColors.warning,
+                                          style:
+                                              textTheme.labelMedium?.copyWith(
+                                            color: isFuel
+                                                ? AppColors.success
+                                                : AppColors.warning,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
                                       Text(
                                         currencyFormatter.format(amount),
-                                        style: textTheme.titleMedium
-                                            ?.copyWith(fontWeight: FontWeight.bold),
+                                        style: textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ],
                                   ),
@@ -594,26 +617,29 @@ class _FuelServicePageState extends State<FuelServicePage>
                                   AppSpacing.gapVerticalXS,
                                   Text(
                                     'Tanggal: $date | Oleh: $creatorName',
-                                    style: textTheme.bodySmall
-                                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                                    style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurfaceVariant),
                                   ),
                                   AppSpacing.gapVerticalSM,
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         statusStr,
                                         style: textTheme.labelMedium?.copyWith(
-                                          color: isPaid ? AppColors.success : colorScheme.error,
+                                          color: isPaid
+                                              ? AppColors.success
+                                              : colorScheme.error,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       if (imageUrl != null)
                                         IconButton(
-                                          icon: const Icon(Icons.share, size: 18),
-                                          onPressed: () => _shareImage(
-                                              imageUrl,
-                                              fs['id']),
+                                          icon:
+                                              const Icon(Icons.share, size: 18),
+                                          onPressed: () =>
+                                              _shareImage(imageUrl, fs['id']),
                                           tooltip: 'Bagikan',
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
@@ -623,12 +649,13 @@ class _FuelServicePageState extends State<FuelServicePage>
                                   if (fs['notes'] != null) ...[
                                     AppSpacing.gapVerticalXS,
                                     (() {
-                                      final stripped = _stripHtmlTags(fs['notes'].toString());
+                                      final stripped = _stripHtmlTags(
+                                          fs['notes'].toString());
                                       if (stripped.isNotEmpty) {
                                         return Text(
                                           stripped,
-                                          style: textTheme.bodySmall
-                                              ?.copyWith(fontStyle: FontStyle.italic),
+                                          style: textTheme.bodySmall?.copyWith(
+                                              fontStyle: FontStyle.italic),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         );
@@ -671,7 +698,8 @@ class _FuelServicePageState extends State<FuelServicePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 64, color: Theme.of(context).colorScheme.outline),
+            Icon(Icons.receipt_long_outlined,
+                size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
             Text('Belum ada pembayaran bensin & servis.'),
           ],
@@ -698,7 +726,8 @@ class _FuelServicePageState extends State<FuelServicePage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => PaymentReceiptDetailPage(receiptId: receipt.id),
+                  builder: (_) =>
+                      PaymentReceiptDetailPage(receiptId: receipt.id),
                 ),
               ).then((_) => _fetchReceipts());
             },
@@ -762,46 +791,43 @@ class _FuelServicePageState extends State<FuelServicePage>
     final provider = context.read<FuelServicePaymentProvider>();
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${provider.selectedCount} item terpilih',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${provider.selectedCount} item terpilih',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  FormatUtils.formatCurrency(provider.totalAmount),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Text(
-                    FormatUtils.formatCurrency(provider.totalAmount),
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final success = await FuelServicePaymentBottomSheet.show(context);
-                if (success == true) {
-                  setState(() => _paymentMode = false);
-                  _fetch();
-                }
-              },
-              icon: const Icon(Icons.payment),
-              label: const Text('Bayar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.gold,
-              ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final success = await FuelServicePaymentBottomSheet.show(context);
+              if (success == true) {
+                setState(() => _paymentMode = false);
+                _fetch();
+              }
+            },
+            icon: const Icon(Icons.payment),
+            label: const Text('Bayar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.gold,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

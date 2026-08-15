@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
 import '../../theme/app_colors.dart';
@@ -6,6 +7,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/list_thumbnail.dart';
 import '../../widgets/modern_button.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'create_payment_receipt_page.dart';
 
 class InvoiceSelectionPage extends StatefulWidget {
@@ -47,7 +49,8 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
       );
       if (!mounted) return;
       setState(() {
-        _invoices = result.items.where((inv) => inv.paymentTypeId == 1).toList();
+        _invoices =
+            result.items.where((inv) => inv.paymentTypeId == 1).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -196,7 +199,8 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                           Icon(
                             Icons.receipt_long_outlined,
                             size: 56,
-                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                            color: colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
                           ),
                           AppSpacing.gapVerticalMD,
                           Text(
@@ -213,8 +217,11 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                         // Selection info bar
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                          color: isDark ? theme.cardColor : AppColors.surfaceVariant.withValues(alpha: 0.4),
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.xs),
+                          color: isDark
+                              ? theme.cardColor
+                              : AppColors.surfaceVariant.withValues(alpha: 0.4),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -228,11 +235,14 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                               ),
                               if (_selectedIds.isNotEmpty)
                                 Text(
-                                  FormatUtils.formatCurrency(_selectedTotalAmount),
+                                  FormatUtils.formatCurrency(
+                                      _selectedTotalAmount),
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? AppColors.gold : AppColors.primary,
+                                    color: isDark
+                                        ? AppColors.gold
+                                        : AppColors.primary,
                                   ),
                                 ),
                             ],
@@ -244,60 +254,74 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                           child: RefreshIndicator(
                             onRefresh: _fetchInvoices,
                             child: ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 20),
                               itemCount: _invoices.length,
                               itemBuilder: (context, idx) {
                                 final inv = _invoices[idx];
                                 final selected = _selectedIds.contains(inv.id);
 
                                 return Container(
-                                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                  margin: const EdgeInsets.only(
+                                      bottom: AppSpacing.sm),
                                   decoration: BoxDecoration(
-                                    color: isDark ? theme.cardColor : AppColors.surface,
-                                    borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                                    color: isDark
+                                        ? theme.cardColor
+                                        : AppColors.surface,
+                                    borderRadius: BorderRadius.circular(
+                                        AppSpacing.radiusMD),
                                     border: Border.all(
                                       color: selected
                                           ? AppColors.gold
                                           : (isDark
                                               ? Colors.white12
-                                              : AppColors.secondaryContainer.withValues(alpha: 0.4)),
+                                              : AppColors.secondaryContainer
+                                                  .withValues(alpha: 0.4)),
                                       width: selected ? 1.5 : 1,
                                     ),
                                   ),
                                   child: Material(
                                     color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                                    borderRadius: BorderRadius.circular(
+                                        AppSpacing.radiusMD),
                                     child: InkWell(
-                                      borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+                                      borderRadius: BorderRadius.circular(
+                                          AppSpacing.radiusMD),
                                       onTap: () => _toggleSelection(inv.id),
                                       child: Padding(
-                                        padding: const EdgeInsets.all(AppSpacing.md),
+                                        padding:
+                                            const EdgeInsets.all(AppSpacing.md),
                                         child: Row(
                                           children: [
                                             Checkbox(
                                               value: selected,
                                               activeColor: AppColors.gold,
                                               checkColor: Colors.black,
-                                              onChanged: (_) => _toggleSelection(inv.id),
+                                              onChanged: (_) =>
+                                                  _toggleSelection(inv.id),
                                             ),
                                             const SizedBox(width: 4),
                                             ListThumbnail(
                                               imageUrl: inv.imageUrl,
-                                              placeholderIcon: Icons.receipt_long_rounded,
+                                              placeholderIcon:
+                                                  Icons.receipt_long_rounded,
                                               onTap: inv.imageUrl != null
-                                                  ? () => _showImageFullscreen(inv.imageUrl!)
+                                                  ? () => _showImageFullscreen(
+                                                      inv.imageUrl!)
                                                   : null,
                                             ),
                                             AppSpacing.gapHorizontalSM,
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     inv.storeName,
                                                     style: const TextStyle(
                                                       fontSize: 14,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
                                                   ),
                                                   const SizedBox(height: 2),
@@ -305,18 +329,22 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                                                     '${inv.supplierName ?? "-"} • ${inv.date}',
                                                     style: TextStyle(
                                                       fontSize: 12,
-                                                      color: colorScheme.onSurfaceVariant,
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
                                             Text(
-                                              FormatUtils.formatCurrency(inv.totalPrice),
+                                              FormatUtils.formatCurrency(
+                                                  inv.totalPrice),
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,
-                                                color: isDark ? AppColors.gold : AppColors.primary,
+                                                color: isDark
+                                                    ? AppColors.gold
+                                                    : AppColors.primary,
                                               ),
                                             ),
                                           ],
@@ -331,30 +359,16 @@ class _InvoiceSelectionPageState extends State<InvoiceSelectionPage> {
                         ),
 
                         // Bottom Floating Action Button Container
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          decoration: BoxDecoration(
-                            color: isDark ? theme.cardColor : colorScheme.surface,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 10,
-                                offset: const Offset(0, -4),
-                              ),
-                            ],
-                          ),
-                          child: SafeArea(
-                            top: false,
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ModernButton(
-                                text: _selectedIds.isEmpty
-                                    ? 'Pilih Minimal 1 Invoice'
-                                    : 'Buat Payment Receipt (${_selectedIds.length})',
-                                onPressed: _selectedIds.isEmpty ? null : _proceed,
-                                icon: Icons.payments_rounded,
-                                height: 52,
-                              ),
+                        SafeBottomBar(
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ModernButton(
+                              text: _selectedIds.isEmpty
+                                  ? 'Pilih Minimal 1 Invoice'
+                                  : 'Buat Payment Receipt (${_selectedIds.length})',
+                              onPressed: _selectedIds.isEmpty ? null : _proceed,
+                              icon: Icons.payments_rounded,
+                              height: 52,
                             ),
                           ),
                         ),

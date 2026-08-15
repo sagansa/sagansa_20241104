@@ -6,6 +6,7 @@ import '../models/applicant_detail_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 import '../utils/error_utils.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -204,7 +205,7 @@ class _ProfilePageState extends State<ProfilePage> {
           AppSpacing.md,
           AppSpacing.md,
           AppSpacing.md,
-          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+          AppSpacing.md + context.systemBottomInset,
         ),
         child: Form(
           key: _formKey,
@@ -223,8 +224,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.lock_outline,
-                          size: 18, color: AppColors.info),
+                      Icon(Icons.lock_outline, size: 18, color: AppColors.info),
                       AppSpacing.gapHorizontalSM,
                       Expanded(
                         child: Text(
@@ -276,7 +276,8 @@ class _ProfilePageState extends State<ProfilePage> {
               AppSpacing.gapVerticalSM,
               _field(_religionCtrl, 'Agama', enabled: !_isLocked),
               _field(_maritalCtrl, 'Status Pernikahan', enabled: !_isLocked),
-              _field(_educationCtrl, 'Pendidikan Terakhir', enabled: !_isLocked),
+              _field(_educationCtrl, 'Pendidikan Terakhir',
+                  enabled: !_isLocked),
               _field(_addressCtrl, 'Alamat', enabled: !_isLocked, maxLines: 2),
               _field(_emergencyNameCtrl, 'Kontak Darurat (Nama)',
                   enabled: !_isLocked),

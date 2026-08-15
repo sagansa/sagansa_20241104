@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/salary_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'salary_pay_page.dart';
 
 class SalaryDetailPage extends StatefulWidget {
@@ -102,7 +103,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Container(
         width: double.infinity,
         padding: AppSpacing.paddingMD,
@@ -172,7 +174,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Container(
         width: double.infinity,
         padding: AppSpacing.paddingMD,
@@ -183,17 +186,16 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.account_balance, color: AppColors.success, size: 20),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Nilai Ditransfer',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.bold,
-                  ),
+            Row(children: [
+              Icon(Icons.account_balance, color: AppColors.success, size: 20),
+              AppSpacing.gapHorizontalSM,
+              Text(
+                'Nilai Ditransfer',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
             ]),
             AppSpacing.gapVerticalSM,
             Text(
@@ -210,7 +212,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
                 AppSpacing.gapHorizontalXS,
                 Text(
                   'Ditransfer $tanggalText',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -218,7 +221,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
               AppSpacing.gapVerticalXS,
               Text(
                 selisihText,
-                style: textTheme.bodySmall?.copyWith(color: selisihColor, fontWeight: FontWeight.bold),
+                style: textTheme.bodySmall?.copyWith(
+                    color: selisihColor, fontWeight: FontWeight.bold),
               ),
             ],
           ],
@@ -227,7 +231,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     );
   }
 
-  Widget _buildBreakdownCard(BuildContext context) {    if (salaryDetail == null) return const SizedBox.shrink();
+  Widget _buildBreakdownCard(BuildContext context) {
+    if (salaryDetail == null) return const SizedBox.shrink();
 
     final textTheme = Theme.of(context).textTheme;
 
@@ -241,7 +246,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
     final int totalSalary = _parseInt(salaryDetail!['amount']);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Padding(
         padding: AppSpacing.paddingMD,
         child: Column(
@@ -249,26 +255,41 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
           children: [
             Text(
               'Rincian Komponen Gaji',
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style:
+                  textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 24),
-            _buildRowItem('Gaji Utama Tenur (A)', currencyFormatter.format(baseSalary)),
-            _buildRowItem('Total Gaji Harian (B)', currencyFormatter.format(dailySalaryTotal), isAddition: true),
+            _buildRowItem(
+                'Gaji Utama Tenur (A)', currencyFormatter.format(baseSalary)),
+            _buildRowItem('Total Gaji Harian (B)',
+                currencyFormatter.format(dailySalaryTotal),
+                isAddition: true),
             if (latePenalties > 0)
-              _buildRowItem('Denda Keterlambatan', '- ${currencyFormatter.format(latePenalties)}', isDeduction: true),
+              _buildRowItem('Denda Keterlambatan',
+                  '- ${currencyFormatter.format(latePenalties)}',
+                  isDeduction: true),
             if (manualPenalties > 0)
-              _buildRowItem('Denda Manual', '- ${currencyFormatter.format(manualPenalties)}', isDeduction: true),
+              _buildRowItem('Denda Manual',
+                  '- ${currencyFormatter.format(manualPenalties)}',
+                  isDeduction: true),
             if (loanInstallments > 0)
-              _buildRowItem('Cicilan Kasbon', '- ${currencyFormatter.format(loanInstallments)}', isDeduction: true),
+              _buildRowItem('Cicilan Kasbon',
+                  '- ${currencyFormatter.format(loanInstallments)}',
+                  isDeduction: true),
             const Divider(height: 24),
-            _buildRowItem('Total Gaji Akhir (A - Potongan + B)', currencyFormatter.format(totalSalary), isBold: true),
+            _buildRowItem('Total Gaji Akhir (A - Potongan + B)',
+                currencyFormatter.format(totalSalary),
+                isBold: true),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRowItem(String label, String value, {bool isAddition = false, bool isDeduction = false, bool isBold = false}) {
+  Widget _buildRowItem(String label, String value,
+      {bool isAddition = false,
+      bool isDeduction = false,
+      bool isBold = false}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     Color valColor = colorScheme.onSurface;
@@ -318,7 +339,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
+                Text(_errorMessage!,
+                    style: TextStyle(color: colorScheme.error)),
                 AppSpacing.gapVerticalMD,
                 ElevatedButton(
                   onPressed: _loadSalaryDetail,
@@ -346,36 +368,41 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
           children: [
             Text(
               widget.userName ?? salaryDetail!['user_name'] ?? '',
-              style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              style:
+                  textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
               'Slip Gaji ${DateFormat('MMMM yyyy', 'id_ID').format(periodDate)}',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: textTheme.bodySmall
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
           ],
         ),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom,
+          bottom: context.systemBottomInset,
         ),
         child: Column(
           children: [
             Container(
               padding: AppSpacing.paddingMD,
-              color: _getStatusBackgroundColor(salaryDetail!['status'], colorScheme),
+              color: _getStatusBackgroundColor(
+                  salaryDetail!['status'], colorScheme),
               child: Row(
                 children: [
                   Icon(
                     _getStatusIcon(salaryDetail!['status']),
-                    color: _getStatusColor(salaryDetail!['status'], colorScheme),
+                    color:
+                        _getStatusColor(salaryDetail!['status'], colorScheme),
                   ),
                   AppSpacing.gapHorizontalSM,
                   Expanded(
                     child: Text(
                       _getStatusMessage(salaryDetail!['status']),
                       style: textTheme.bodyMedium?.copyWith(
-                        color: _getStatusColor(salaryDetail!['status'], colorScheme),
+                        color: _getStatusColor(
+                            salaryDetail!['status'], colorScheme),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -475,8 +502,8 @@ class _SalaryDetailPageState extends State<SalaryDetailPage> {
   }
 
   String _getStatusMessage(String status) {
-    final DateTime? paymentDate = salaryDetail!['paymentDate'] != null 
-        ? DateTime.parse(salaryDetail!['paymentDate']) 
+    final DateTime? paymentDate = salaryDetail!['paymentDate'] != null
+        ? DateTime.parse(salaryDetail!['paymentDate'])
         : null;
 
     switch (status) {

@@ -24,6 +24,7 @@ import 'services/auth_session.dart';
 import 'services/inventory_anomaly_service.dart';
 import 'services/leave_service.dart';
 import 'services/location_tracking_service.dart';
+import 'services/navigator_service.dart';
 import 'services/presence_service.dart';
 import 'services/procurement_service.dart';
 import 'services/salary_service.dart';
@@ -235,8 +236,9 @@ class _MyAppState extends State<MyApp> {
       FuelServicePaymentProvider();
 
   /// Key global Navigator agar service layer (AuthSession) bisa navigasi
-  /// tanpa BuildContext — dipakai untuk auto-logout saat 401.
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  /// tanpa BuildContext — dipakai untuk auto-logout saat 401 dan deep-link
+  /// notifikasi. Disentralisasi lewat [NavigatorService] (satu instance).
+  final GlobalKey<NavigatorState> _navigatorKey = NavigatorService.navigatorKey;
 
   @override
   void initState() {
@@ -290,7 +292,8 @@ class _MyAppState extends State<MyApp> {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
             statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarColor:
+                isDark ? AppColors.darkBackground : AppColors.background,
             systemNavigationBarIconBrightness:
                 isDark ? Brightness.light : Brightness.dark,
           );
@@ -298,7 +301,7 @@ class _MyAppState extends State<MyApp> {
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: overlayStyle,
             child: MaterialApp(
-              navigatorKey: _navigatorKey,
+              navigatorKey: NavigatorService.navigatorKey,
               title: 'Sagansa',
               theme: themeData,
               darkTheme: ThemeProvider.darkTheme,

@@ -12,6 +12,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/search_app_bar_action.dart';
 import '../widgets/status_badge.dart';
 import 'supplier_detail_page.dart';
@@ -98,8 +99,9 @@ class _SupplierListScaffold extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final provider = context.watch<SupplierProvider>();
     final list = provider.list;
-    final canManage =
-        context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor']);
+    final canManage = context
+        .read<AuthProvider>()
+        .hasAnyRole(['admin', 'super_admin', 'supervisor']);
 
     return Scaffold(
       appBar: AppBar(
@@ -145,9 +147,8 @@ class _SupplierListScaffold extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: canManage
-          ? AddFab(onPressed: () => _openForm(context))
-          : null,
+      floatingActionButton:
+          canManage ? AddFab(onPressed: () => _openForm(context)) : null,
       body: list.isLoading
           ? const Center(child: CircularProgressIndicator())
           : list.errorMessage != null
@@ -175,7 +176,8 @@ class _SupplierListScaffold extends StatelessWidget {
       onRefresh: provider.loadInitialSuppliers,
       child: ListView.builder(
         controller: provider.scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: list.suppliers.length + (list.hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == list.suppliers.length) {
@@ -265,15 +267,13 @@ class _SupplierListScaffold extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.account_balance_rounded,
-                              size: 13,
-                              color: AppColors.info),
+                              size: 13, color: AppColors.info),
                           AppSpacing.gapHorizontalXS,
                           Expanded(
                             child: Text(
                               [
                                 if (s.bankName != null) s.bankName!,
-                                if (s.bankAccountNo != null)
-                                  s.bankAccountNo!,
+                                if (s.bankAccountNo != null) s.bankAccountNo!,
                               ].join(' · '),
                               style: textTheme.bodySmall,
                               maxLines: 1,
@@ -288,8 +288,7 @@ class _SupplierListScaffold extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.location_on_rounded,
-                              size: 13,
-                              color: AppColors.info),
+                              size: 13, color: AppColors.info),
                           AppSpacing.gapHorizontalXS,
                           Expanded(
                             child: Text(
@@ -306,8 +305,7 @@ class _SupplierListScaffold extends StatelessWidget {
                 ),
               ),
               AppSpacing.gapHorizontalSM,
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.info),
+              Icon(Icons.chevron_right_rounded, color: AppColors.info),
             ],
           ),
         ),

@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
 import '../../utils/format_utils.dart';
+import '../../widgets/safe_bottom_bar.dart';
 import 'edit_invoice_page.dart';
 import 'invoice_selection_page.dart';
 
@@ -317,7 +318,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(
-                        12, 12, 12, 200 + MediaQuery.viewPaddingOf(context).bottom),
+                        12, 12, 12, 200 + context.systemBottomInset),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1038,36 +1039,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   _invoice!.paymentTypeId == 1 &&
                   _isAdmin) ||
               (_invoice != null && _invoice!.orderStatus == '1' && _canReceive)
-          ? Builder(
-              builder: (context) {
-                // MediaQuery.viewPaddingOf tidak pernah di-consume oleh
-                // ancestor, jadi masih mereport bottom inset sistem (nav bar)
-                // walau dalam edge-to-edge Android 15 (targetSdk 36). SafeArea
-                // biasa tidak efektif karena MediaQuery.padding sudah dipakai
-                // ancestor — tombol "Tandai Sudah Diterima" jadi tertutup nav bar.
-                final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottomInset),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, -4),
-                      )
-                    ],
-                    border: Border(
-                      top: BorderSide(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+          ? SafeBottomBar(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                       // Existing: Buat Payment Receipt (admin + draft + transfer type)
                       if (_invoice != null &&
                           _invoice!.paymentStatus == '1' &&
@@ -1178,8 +1153,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                         ),
                     ],
                   ),
-                );
-              },
             )
           : null,
     );

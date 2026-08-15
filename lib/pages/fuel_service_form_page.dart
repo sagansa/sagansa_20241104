@@ -45,7 +45,7 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
   double? _vehicleLastKm; // KM terakhir kendaraan terpilih (untuk validasi).
   int? _selectedSupplierId;
   int _selectedPaymentType = 2; // 2 = Tunai, 1 = Transfer
-  
+
   final _kmController = TextEditingController(text: '0');
   final _literController = TextEditingController(text: '0');
   final _amountController = TextEditingController(text: '0');
@@ -99,7 +99,9 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
     if (_selectedType == 2) {
       double total = 0;
       for (var detail in _serviceServiceDetails) {
-        total += double.tryParse((detail['costController'] as TextEditingController).text) ?? 0;
+        total += double.tryParse(
+                (detail['costController'] as TextEditingController).text) ??
+            0;
       }
       _amountController.text = total.toStringAsFixed(0);
     }
@@ -132,23 +134,27 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
           'service_details': _serviceServiceDetails.map((d) {
             return {
               'name': (d['nameController'] as TextEditingController).text,
-              'price': double.tryParse((d['costController'] as TextEditingController).text) ?? 0,
+              'price': double.tryParse(
+                      (d['costController'] as TextEditingController).text) ??
+                  0,
             };
           }).toList(),
       };
 
       await _service.createFuelService(payload, imageFile: _selectedImage);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaksi bensin/servis berhasil disimpan.')),
+          const SnackBar(
+              content: Text('Transaksi bensin/servis berhasil disimpan.')),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan transaksi bensin/servis: $e')),
+          SnackBar(
+              content: Text('Gagal menyimpan transaksi bensin/servis: $e')),
         );
       }
       setState(() => _isSubmitting = false);
@@ -174,7 +180,8 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                        const Icon(Icons.error_outline,
+                            size: 64, color: AppColors.error),
                         AppSpacing.gapVerticalMD,
                         Text(
                           _errorMessage!,
@@ -198,7 +205,9 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Type Radio Group
-                        Text('Tipe Pengeluaran:', style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        Text('Tipe Pengeluaran:',
+                            style: textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.bold)),
                         AppSpacing.gapVerticalXS,
                         RadioGroup<int>(
                           groupValue: _selectedType,
@@ -231,13 +240,15 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         // Date picker
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: Text('Tanggal: ${DateFormat('dd MMMM yyyy').format(_selectedDate)}'),
+                          title: Text(
+                              'Tanggal: ${DateFormat('dd MMMM yyyy').format(_selectedDate)}'),
                           trailing: const Icon(Icons.calendar_today),
                           onTap: () async {
                             final picked = await showDatePicker(
                               context: context,
                               initialDate: _selectedDate,
-                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 30)),
                               lastDate: DateTime.now(),
                             );
                             if (picked != null) {
@@ -252,15 +263,20 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                           labelText: 'Pilih Kendaraan',
                           hint: 'Pilih kendaraan...',
                           isRequired: true,
-                          prefixIcon: const Icon(Icons.directions_car_outlined, size: 20),
+                          prefixIcon: const Icon(Icons.directions_car_outlined,
+                              size: 20),
                           value: _selectedVehicleId,
                           items: _vehicles.map((v) => v['id'] as int).toList(),
                           getLabel: (val) {
-                            final v = _vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                            final v = _vehicles.firstWhere(
+                                (e) => e['id'] == val,
+                                orElse: () => {});
                             return v['no_register']?.toString() ?? '';
                           },
                           getSubtitle: (val) {
-                            final v = _vehicles.firstWhere((e) => e['id'] == val, orElse: () => {});
+                            final v = _vehicles.firstWhere(
+                                (e) => e['id'] == val,
+                                orElse: () => {});
                             return v['name']?.toString() ?? '';
                           },
                           onChanged: (val) => setState(() {
@@ -276,13 +292,16 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                                 : double.tryParse(lastKm?.toString() ?? '');
                             // Pre-fill KM dengan last_km bila kosong/0.
                             if ((_kmController.text.isEmpty ||
-                                    (double.tryParse(_kmController.text) ?? 0) <= 0) &&
+                                    (double.tryParse(_kmController.text) ??
+                                            0) <=
+                                        0) &&
                                 _vehicleLastKm != null) {
                               _kmController.text =
                                   _vehicleLastKm!.toStringAsFixed(0);
                             }
                           }),
-                          validator: (val) => val == null ? 'Pilih kendaraan' : null,
+                          validator: (val) =>
+                              val == null ? 'Pilih kendaraan' : null,
                         ),
                         const SizedBox(height: AppSpacing.sectionGap),
 
@@ -307,9 +326,10 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             child: Text(
                               _selectedSupplierId != null
                                   ? (_suppliers.firstWhere(
-                                      (s) => s['id'] == _selectedSupplierId,
-                                      orElse: () => {'name': ''},
-                                    )['name'] ?? '')
+                                        (s) => s['id'] == _selectedSupplierId,
+                                        orElse: () => {'name': ''},
+                                      )['name'] ??
+                                      '')
                                   : '',
                             ),
                           ),
@@ -317,11 +337,14 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         const SizedBox(height: AppSpacing.sectionGap),
 
                         // Payment Type
-                        Text('Tipe Pembayaran:', style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        Text('Tipe Pembayaran:',
+                            style: textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.bold)),
                         AppSpacing.gapVerticalXS,
                         RadioGroup<int>(
                           groupValue: _selectedPaymentType,
-                          onChanged: (val) => setState(() => _selectedPaymentType = val!),
+                          onChanged: (val) =>
+                              setState(() => _selectedPaymentType = val!),
                           child: Row(
                             children: [
                               Radio<int>(
@@ -354,7 +377,8 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             if (km <= 0) {
                               return 'KM harus lebih besar dari 0';
                             }
-                            if (_vehicleLastKm != null && km < _vehicleLastKm!) {
+                            if (_vehicleLastKm != null &&
+                                km < _vehicleLastKm!) {
                               return 'KM tidak boleh lebih kecil dari km terakhir '
                                   '(${_vehicleLastKm!.toStringAsFixed(0)} km)';
                             }
@@ -371,7 +395,8 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                               labelText: 'Jumlah Liter',
                               suffixText: 'liter',
                             ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                           ),
                           const SizedBox(height: AppSpacing.sectionGap),
                         ],
@@ -383,14 +408,16 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             children: [
                               Text(
                                 'Rincian Service:',
-                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               TextButton.icon(
                                 onPressed: () {
                                   setState(() {
                                     _serviceServiceDetails.add({
                                       'nameController': TextEditingController(),
-                                      'costController': TextEditingController(text: '0'),
+                                      'costController':
+                                          TextEditingController(text: '0'),
                                     });
                                   });
                                 },
@@ -403,13 +430,15 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                           ..._serviceServiceDetails.map((detail) {
                             final idx = _serviceServiceDetails.indexOf(detail);
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              padding:
+                                  const EdgeInsets.only(bottom: AppSpacing.sm),
                               child: Row(
                                 children: [
                                   Expanded(
                                     flex: 3,
                                     child: TextFormField(
-                                      controller: detail['nameController'] as TextEditingController,
+                                      controller: detail['nameController']
+                                          as TextEditingController,
                                       decoration: const InputDecoration(
                                         labelText: 'Nama Item/Part',
                                       ),
@@ -419,16 +448,19 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                                   Expanded(
                                     flex: 2,
                                     child: TextFormField(
-                                      controller: detail['costController'] as TextEditingController,
+                                      controller: detail['costController']
+                                          as TextEditingController,
                                       decoration: const InputDecoration(
                                         labelText: 'Biaya',
                                       ),
                                       keyboardType: TextInputType.number,
-                                      onChanged: (val) => setState(() => _updateServiceAmount()),
+                                      onChanged: (val) => setState(
+                                          () => _updateServiceAmount()),
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                                    icon: Icon(Icons.delete_outline,
+                                        color: colorScheme.error),
                                     onPressed: () {
                                       setState(() {
                                         _serviceServiceDetails.removeAt(idx);
@@ -452,7 +484,10 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                           ),
                           keyboardType: TextInputType.number,
                           readOnly: _selectedType == 2,
-                          validator: (val) => (double.tryParse(val ?? '0') ?? 0) <= 0 ? 'Masukkan total biaya' : null,
+                          validator: (val) =>
+                              (double.tryParse(val ?? '0') ?? 0) <= 0
+                                  ? 'Masukkan total biaya'
+                                  : null,
                         ),
                         const SizedBox(height: AppSpacing.sectionGap),
 
@@ -467,7 +502,8 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                         AppSpacing.gapVerticalLG,
 
                         // Foto Bukti
-                        Text('Foto Bukti / Nota *:', style: theme.textTheme.bodyMedium),
+                        Text('Foto Bukti / Nota *:',
+                            style: theme.textTheme.bodyMedium),
                         AppSpacing.gapVerticalXS,
                         Row(
                           children: [
@@ -485,7 +521,9 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                             ],
                             OutlinedButton.icon(
                               onPressed: () async {
-                                final File? file = await ImageService.selectAndPickImage(context);
+                                final File? file =
+                                    await ImageService.selectAndPickImage(
+                                        context);
                                 if (file != null) {
                                   setState(() {
                                     _selectedImage = file;
@@ -493,12 +531,15 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
                                 }
                               },
                               icon: const Icon(Icons.add_a_photo),
-                              label: Text(_selectedImage == null ? 'Unggah Foto *' : 'Ubah Foto'),
+                              label: Text(_selectedImage == null
+                                  ? 'Unggah Foto *'
+                                  : 'Ubah Foto'),
                             ),
                             if (_selectedImage != null) ...[
                               AppSpacing.gapHorizontalSM,
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red),
                                 onPressed: () {
                                   setState(() {
                                     _selectedImage = null;
@@ -521,12 +562,10 @@ class _FuelServiceFormPageState extends State<FuelServiceFormPage> {
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: 'Simpan Transaksi',
-          onPressed: _isSubmitting ? null : _submit,
-          isLoading: _isSubmitting,
-        ),
+      child: ModernButton(
+        text: 'Simpan Transaksi',
+        onPressed: _isSubmitting ? null : _submit,
+        isLoading: _isSubmitting,
       ),
     );
   }

@@ -12,14 +12,18 @@
 // ====================================================================
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:workmanager/workmanager.dart';
 import 'asset_check_reminder_service.dart';
 import 'location_service.dart';
+import 'notification_router.dart';
+import 'procurement_notification_service.dart';
+import 'token_store.dart';
 
 /// Nama unik periodic task workmanager.
 const String _kLocationPeriodicTask = 'sagansa-location-ping';
@@ -97,6 +101,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       await handleAssetCheckDueFcm(data);
       return;
     }
+
+    if (type == kFcmTypeInvoiceTransferCreated ||
+        type == kFcmTypePaymentReceiptPaid) {
+      // Notifikasi procurement → tampilkan notifikasi lokal.
+      await handleProcurementNotificationFcm(data);
+      return;
+    }
   } catch (e) {
     // No-op bersih bila Firebase tidak tersedia di background isolate.
     debugPrint('firebaseMessagingBackgroundHandler: Firebase nonaktif ($e)');
@@ -168,11 +179,21 @@ class LocationTrackingService {
       const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
       await _localNotifications.initialize(
         settings: const InitializationSettings(android: androidInit),
+        // Tap notifikasi (foreground) → router deep-link ke halaman detail.
+        onDidReceiveNotificationResponse: (response) {
+          _handleLocalNotificationTap(response);
+        },
       );
       await _ensureAndroidChannel();
       // Channel notifikasi untuk pengingat aset (dibuat idempoten di sini
       // agar siap saat push 'asset_check_due' masuk).
       await AssetCheckReminderService.instance.ensureChannel();
+      // Channel notifikasi untuk procurement (invoice transfer & pembayaran).
+      await ProcurementNotificationService.instance.ensureChannel();
+
+      // Cold-start: bila app diluncurkan dari tap notifikasi, arahkan setelah
+      // frame pertama (Navigator baru siap).
+      await _handleAppLaunchNotification();
     } catch (e) {
       debugPrint('LocationTrackingService: init workmanager/notif gagal: $e');
     }
@@ -260,10 +281,59 @@ class LocationTrackingService {
       handleAssetCheckDueFcm(message.data);
       return;
     }
+    // Notifikasi procurement → tampilkan notifikasi lokal saat app di foreground.
+    if (type == kFcmTypeInvoiceTransferCreated ||
+        type == kFcmTypePaymentReceiptPaid) {
+      handleProcurementNotificationFcm(message.data);
+      return;
+    }
   }
 
   Future<void> _onTokenRefresh(String token) async {
     await LocationService().registerDeviceToken(token);
+  }
+
+  /// Tap notifikasi saat app sedang jalan (foreground/background hidup).
+  /// Payload berupa JSON (type, id, payment_for) → router deep-link.
+  void _handleLocalNotificationTap(NotificationResponse response) {
+    final payloadStr = response.payload;
+    if (payloadStr == null || payloadStr.isEmpty) return;
+    try {
+      final payload = jsonDecode(payloadStr);
+      if (payload is Map<String, dynamic>) {
+        _navigateFromNotification(payload);
+      }
+    } catch (e) {
+      debugPrint('LocationTrackingService: decode payload notif gagal: $e');
+    }
+  }
+
+  /// Cold-start: bila app diluncurkan dari tap notifikasi, navigasi ke
+  /// halaman detail terkait setelah frame pertama.
+  Future<void> _handleAppLaunchNotification() async {
+    try {
+      final details = await _localNotifications.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp != true) return;
+      final payloadStr = details?.notificationResponse?.payload;
+      if (payloadStr == null || payloadStr.isEmpty) return;
+      final payload = jsonDecode(payloadStr);
+      if (payload is Map<String, dynamic>) {
+        // Tunggu frame pertama agar Navigator sudah ter-attach ke widget tree.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigateFromNotification(payload);
+        });
+      }
+    } catch (e) {
+      debugPrint('LocationTrackingService: cek app launch notif gagal: $e');
+    }
+  }
+
+  /// Navigasi dari notifikasi hanya bila user sudah login (token ada).
+  /// readToken() async (flutter_secure_storage) → guard harus di-await.
+  Future<void> _navigateFromNotification(Map<String, dynamic> payload) async {
+    final token = await TokenStore.instance.readToken();
+    if (token == null || token.isEmpty) return;
+    navigateToNotification(payload);
   }
 
   Future<void> _registerCurrentToken() async {

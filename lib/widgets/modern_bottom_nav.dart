@@ -12,6 +12,11 @@ import '../pages/transaction_dashboard_page.dart';
 import '../theme/app_colors.dart';
 
 class ModernBottomNav extends StatelessWidget {
+  /// Tinggi bar (CupertinoTabBar default) — dipakai untuk clearance konten
+  /// list/detail agar tidak tertutup nav bar. Gabungkan dengan
+  /// [BuildContext.systemBottomInset] untuk total clearance.
+  static const double height = 50.0;
+
   final int currentIndex;
   final Function(int) onTap;
   final List<PresenceModel>? presences;
@@ -48,13 +53,15 @@ class ModernBottomNav extends StatelessWidget {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const TransactionDashboardPage()),
+          MaterialPageRoute(
+              builder: (context) => const TransactionDashboardPage()),
         );
         break;
       case 4:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const OperationalDashboardPage()),
+          MaterialPageRoute(
+              builder: (context) => const OperationalDashboardPage()),
         );
         break;
     }

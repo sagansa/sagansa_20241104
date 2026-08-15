@@ -8,6 +8,7 @@ import '../theme/app_spacing.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/modern_button.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'create_store_consumption_page.dart';
 
@@ -21,7 +22,8 @@ class StoreConsumptionDetailPage extends StatefulWidget {
       _StoreConsumptionDetailPageState();
 }
 
-class _StoreConsumptionDetailPageState extends State<StoreConsumptionDetailPage> {
+class _StoreConsumptionDetailPageState
+    extends State<StoreConsumptionDetailPage> {
   final StoreConsumptionService _service = StoreConsumptionService();
   StoreConsumptionModel? _item;
   bool _isLoading = true;
@@ -150,8 +152,7 @@ class _StoreConsumptionDetailPageState extends State<StoreConsumptionDetailPage>
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md +
-                            MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,10 +193,11 @@ class _StoreConsumptionDetailPageState extends State<StoreConsumptionDetailPage>
                                   ],
                                 ),
                                 AppSpacing.gapVerticalSM,
-                                _buildInfoRow('Tanggal', _formatDate(_item!.date), theme),
-                                AppSpacing.gapVerticalSM,
                                 _buildInfoRow(
-                                    'Dilaporkan oleh', _item!.createdByName, theme),
+                                    'Tanggal', _formatDate(_item!.date), theme),
+                                AppSpacing.gapVerticalSM,
+                                _buildInfoRow('Dilaporkan oleh',
+                                    _item!.createdByName, theme),
                                 AppSpacing.gapVerticalSM,
                                 _buildInfoRow('Jumlah item',
                                     '${_item!.details.length} jenis', theme),
@@ -252,8 +254,8 @@ class _StoreConsumptionDetailPageState extends State<StoreConsumptionDetailPage>
                             itemBuilder: (context, idx) {
                               final item = _item!.details[idx];
                               return Container(
-                                margin:
-                                    const EdgeInsets.only(bottom: AppSpacing.sm),
+                                margin: const EdgeInsets.only(
+                                    bottom: AppSpacing.sm),
                                 padding: AppSpacing.paddingSM,
                                 decoration: BoxDecoration(
                                   color: colorScheme.surface,
@@ -300,8 +302,18 @@ class _StoreConsumptionDetailPageState extends State<StoreConsumptionDetailPage>
     try {
       final dt = DateTime.parse(dateStr);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {

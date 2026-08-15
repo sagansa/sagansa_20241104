@@ -1,12 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/sales_order_employee_model.dart';
 import '../services/sales_order_employee_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
 import '../utils/snackbar_utils.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'sales_order_employee_form_page.dart';
 
 /// Detail penjualan employee.
@@ -85,8 +88,7 @@ class _SalesOrderEmployeeDetailPageState
   }
 
   /// Sales hanya boleh edit/hapus jika pemilik & belum valid. Admin selalu boleh hapus.
-  bool get _canEdit =>
-      widget.canEdit && _order != null && !_order!.isLocked;
+  bool get _canEdit => widget.canEdit && _order != null && !_order!.isLocked;
   bool get _canDelete => _isAdmin || _canEdit;
 
   Future<void> _openEdit() async {
@@ -94,8 +96,7 @@ class _SalesOrderEmployeeDetailPageState
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-          builder: (_) =>
-              SalesOrderEmployeeFormPage(order: _order)),
+          builder: (_) => SalesOrderEmployeeFormPage(order: _order)),
     );
     if (result == true) {
       _dirty = true;
@@ -111,7 +112,9 @@ class _SalesOrderEmployeeDetailPageState
         title: const Text('Hapus Penjualan?'),
         content: const Text('Tindakan ini tidak dapat dibatalkan.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -133,7 +136,8 @@ class _SalesOrderEmployeeDetailPageState
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      SnackbarUtils.error(context, e.toString().replaceFirst('Exception: ', ''));
+      SnackbarUtils.error(
+          context, e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -192,7 +196,8 @@ class _SalesOrderEmployeeDetailPageState
       SnackbarUtils.success(context, 'Status pembayaran diperbarui.');
     } catch (e) {
       if (!mounted) return;
-      SnackbarUtils.error(context, e.toString().replaceFirst('Exception: ', ''));
+      SnackbarUtils.error(
+          context, e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -208,35 +213,35 @@ class _SalesOrderEmployeeDetailPageState
         Navigator.pop(context, _dirty);
       },
       child: Scaffold(
-      appBar: AppBar(title: const Text('Detail Penjualan')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _ErrorBody(message: _error!, onRetry: _loadOrder)
-              : _order == null
-                  ? const Center(child: Text('Data tidak ditemukan.'))
-                  : RefreshIndicator(
-                      onRefresh: _loadOrder,
-                      child: ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+        appBar: AppBar(title: const Text('Detail Penjualan')),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _ErrorBody(message: _error!, onRetry: _loadOrder)
+                : _order == null
+                    ? const Center(child: Text('Data tidak ditemukan.'))
+                    : RefreshIndicator(
+                        onRefresh: _loadOrder,
+                        child: ListView(
+                          padding: EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md + context.systemBottomInset,
+                          ),
+                          children: [
+                            _buildHeader(context),
+                            AppSpacing.gapVerticalMD,
+                            _buildInfoCard(context),
+                            AppSpacing.gapVerticalMD,
+                            _buildItemsCard(context),
+                            AppSpacing.gapVerticalMD,
+                            _buildImageCard(context),
+                            AppSpacing.gapVerticalLG,
+                            _buildActions(context),
+                          ],
                         ),
-                        children: [
-                          _buildHeader(context),
-                          AppSpacing.gapVerticalMD,
-                          _buildInfoCard(context),
-                          AppSpacing.gapVerticalMD,
-                          _buildItemsCard(context),
-                          AppSpacing.gapVerticalMD,
-                          _buildImageCard(context),
-                          AppSpacing.gapVerticalLG,
-                          _buildActions(context),
-                        ],
                       ),
-                    ),
       ),
     );
   }
@@ -276,8 +281,8 @@ class _SalesOrderEmployeeDetailPageState
               ),
               child: Text(
                 o.paymentStatusLabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                    color: color, fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: color, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -302,11 +307,11 @@ class _SalesOrderEmployeeDetailPageState
                     ? FormatUtils.formatDate(o.deliveryDate!)
                     : '-'),
             _divider(),
-            _infoRow(context, 'Rekening Tujuan',
-                o.transferToAccountName ?? '-'),
+            _infoRow(
+                context, 'Rekening Tujuan', o.transferToAccountName ?? '-'),
             _divider(),
-            _infoRow(context, 'Alamat Pengiriman',
-                o.deliveryAddressName ?? '-'),
+            _infoRow(
+                context, 'Alamat Pengiriman', o.deliveryAddressName ?? '-'),
             if (o.notes != null && o.notes!.isNotEmpty) ...[
               _divider(),
               _infoRow(context, 'Catatan', o.notes!),
@@ -365,8 +370,7 @@ class _SalesOrderEmployeeDetailPageState
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 Text(FormatUtils.formatCurrency(o.totalPrice),
                     style: theme.textTheme.titleSmall?.copyWith(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.bold)),
+                        color: AppColors.success, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
@@ -438,10 +442,13 @@ class _SalesOrderEmployeeDetailPageState
           onPressed: _busy ? null : _confirmDelete,
           icon: _busy
               ? const SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.delete_outline, color: AppColors.error),
           label: const Text('Hapus', style: TextStyle(color: AppColors.error)),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          style:
+              OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
         ),
       );
     }

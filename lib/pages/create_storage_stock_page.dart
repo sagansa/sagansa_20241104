@@ -6,6 +6,7 @@ import '../services/store_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class CreateStorageStockPage extends StatefulWidget {
   const CreateStorageStockPage({super.key});
@@ -24,7 +25,8 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
   String? _errorMessage;
 
   StoreModel? _selectedStore;
-  final List<Map<String, dynamic>> _items = []; // Contains product_id, productName, unitName, controller
+  final List<Map<String, dynamic>> _items =
+      []; // Contains product_id, productName, unitName, controller
   bool _isSubmitting = false;
 
   @override
@@ -45,11 +47,11 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
     try {
       final stores = await _storeService.getStores();
       final products = await _storageStockService.getProducts();
-      
+
       setState(() {
         _stores = stores;
         _products = products;
-        
+
         // Auto-populate all products by default (lazy load equivalent for mobile)
         _items.clear();
         for (var p in _products) {
@@ -58,11 +60,12 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
           controller.addListener(() {
             final text = controller.text;
             if (text.startsWith('0') && text.length > 1) {
-               controller.text = text.substring(1);
-               controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+              controller.text = text.substring(1);
+              controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: controller.text.length));
             }
           });
-          
+
           _items.add({
             'product_id': p.id,
             'productName': p.name,
@@ -70,7 +73,7 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
             'controller': controller,
           });
         }
-        
+
         _isLoadingData = false;
       });
     } catch (e) {
@@ -85,7 +88,11 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Gagal Menyimpan', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(color: Theme.of(ctx).colorScheme.error)),
+        title: Text('Gagal Menyimpan',
+            style: Theme.of(ctx)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: Theme.of(ctx).colorScheme.error)),
         content: Text(message),
         actions: [
           TextButton(
@@ -122,7 +129,8 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
         };
       }).toList();
 
-      await _storageStockService.createStorageStock(_selectedStore!.id, itemsApi);
+      await _storageStockService.createStorageStock(
+          _selectedStore!.id, itemsApi);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Laporan Stok Sisa berhasil disimpan.')),
@@ -158,7 +166,9 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_errorMessage!, style: textTheme.bodyLarge?.copyWith(color: colorScheme.error)),
+                        Text(_errorMessage!,
+                            style: textTheme.bodyLarge
+                                ?.copyWith(color: colorScheme.error)),
                         AppSpacing.gapVerticalMD,
                         ElevatedButton(
                           onPressed: _loadInitialData,
@@ -195,7 +205,8 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                             vertical: AppSpacing.sm,
                           ),
                           width: double.infinity,
-                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                          color: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.3),
                           child: Text(
                             'Isi kuantitas stok aktual saat ini',
                             style: textTheme.bodySmall?.copyWith(
@@ -229,12 +240,14 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                                         controller: item['controller'],
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
-
                                           suffixText: item['unitName'],
                                         ),
                                         onTap: () {
-                                          final ctrl = item['controller'] as TextEditingController;
-                                          ctrl.selection = TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+                                          final ctrl = item['controller']
+                                              as TextEditingController;
+                                          ctrl.selection = TextSelection(
+                                              baseOffset: 0,
+                                              extentOffset: ctrl.text.length);
                                         },
                                       ),
                                     ),
@@ -253,14 +266,11 @@ class _CreateStorageStockPageState extends State<CreateStorageStockPage> {
                       ),
                   ],
                 ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: ModernButton(
-            text: 'Simpan Stock Opname',
-            onPressed: _isSubmitting ? null : _submitReport,
-            isLoading: _isSubmitting,
-          ),
+      bottomNavigationBar: SafeBottomBar(
+        child: ModernButton(
+          text: 'Simpan Stock Opname',
+          onPressed: _isSubmitting ? null : _submitReport,
+          isLoading: _isSubmitting,
         ),
       ),
     );

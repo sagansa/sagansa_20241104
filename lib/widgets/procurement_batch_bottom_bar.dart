@@ -109,8 +109,7 @@ class ProcurementBatchBottomBar extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: actionColor,
               foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
         ],

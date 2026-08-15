@@ -60,6 +60,20 @@ class UtilityModel {
 
   String get statusText => status == 1 ? 'Aktif' : 'Nonaktif';
 
+  UtilityModel copyWith({int? status}) => UtilityModel(
+        id: id,
+        number: number,
+        name: name,
+        storeId: storeId,
+        storeNickname: storeNickname,
+        status: status ?? this.status,
+        unit: unit,
+        utilityProviderId: utilityProviderId,
+        utilityProviderName: utilityProviderName,
+        prePost: prePost,
+        category: category,
+      );
+
   factory UtilityModel.fromJson(Map<String, dynamic> json) {
     final id = json['id'] is int
         ? json['id'] as int

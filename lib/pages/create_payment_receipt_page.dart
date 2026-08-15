@@ -1,7 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../models/procurement_model.dart';
 import '../services/closing_store_service.dart';
 import '../services/image_service.dart';
@@ -10,6 +12,7 @@ import '../services/supplier_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/supplier_payment_info_card.dart';
 import '../widgets/supplier_picker_modal.dart';
 
@@ -28,7 +31,8 @@ class CreatePaymentReceiptPage extends StatefulWidget {
   /// receipt akan dibuat dengan payment_for = 2.
   final List<Map<String, dynamic>>? dailySalaries;
 
-  const CreatePaymentReceiptPage({super.key, this.invoices, this.dailySalaries});
+  const CreatePaymentReceiptPage(
+      {super.key, this.invoices, this.dailySalaries});
 
   @override
   State<CreatePaymentReceiptPage> createState() =>
@@ -266,9 +270,10 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                           onPressed: () {
                             setSheetState(() {
                               final allSelected = tempSelection.values
-                                  .where((inv) => allUnpaid
-                                      .any((u) => u.id == inv.id))
-                                  .length >= allUnpaid.length;
+                                      .where((inv) =>
+                                          allUnpaid.any((u) => u.id == inv.id))
+                                      .length >=
+                                  allUnpaid.length;
                               if (allSelected) {
                                 // Unset semua dari allUnpaid.
                                 for (final inv in allUnpaid) {
@@ -288,7 +293,10 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                             });
                           },
                           child: Text(
-                            tempSelection.values.where((inv) => allUnpaid.any((u) => u.id == inv.id)).length >=
+                            tempSelection.values
+                                        .where((inv) => allUnpaid
+                                            .any((u) => u.id == inv.id))
+                                        .length >=
                                     allUnpaid.length
                                 ? 'Batal Semua'
                                 : 'Pilih Semua',
@@ -319,7 +327,8 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                             },
                             title: Text(
                               'Invoice #${inv.id}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text(
                               '${inv.storeName} • ${currencyFormatter.format(inv.totalPrice)}',
@@ -435,8 +444,7 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
         data['daily_salary_ids'] =
             _selectedDailySalaries.map((s) => s['id']).toList();
       } else {
-        data['invoice_ids'] =
-            _selectedInvoices.map((inv) => inv.id).toList();
+        data['invoice_ids'] = _selectedInvoices.map((inv) => inv.id).toList();
         if (_selectedSupplierId != null) {
           data['supplier_id'] = _selectedSupplierId;
         }
@@ -494,9 +502,11 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                    Icon(Icons.error_outline,
+                        size: 48, color: colorScheme.error),
                     AppSpacing.gapVerticalMD,
-                    Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
+                    Text(_errorMessage!,
+                        style: TextStyle(color: colorScheme.error)),
                   ],
                 ),
               ),
@@ -521,121 +531,124 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                             style: theme.textTheme.titleSmall
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                        AppSpacing.gapVerticalSM,
-                        InkWell(
-                          onTap: _pickSupplier,
-                          borderRadius: BorderRadius.circular(8),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Pilih Supplier *',
-                              suffixIcon: Icon(Icons.search),
-                              isDense: true,
-                            ),
-                            child: Text(
-                              _selectedSupplierName,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: _selectedSupplierName.isEmpty
-                                    ? colorScheme.onSurfaceVariant
-                                    : null,
+                          AppSpacing.gapVerticalSM,
+                          InkWell(
+                            onTap: _pickSupplier,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Pilih Supplier *',
+                                suffixIcon: Icon(Icons.search),
+                                isDense: true,
+                              ),
+                              child: Text(
+                                _selectedSupplierName,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: _selectedSupplierName.isEmpty
+                                      ? colorScheme.onSurfaceVariant
+                                      : null,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        if (_selectedSupplier != null) ...[
-                          AppSpacing.gapVerticalSM,
-                          SupplierPaymentInfoCard(
-                              selectedSupplier: _selectedSupplier),
-                        ],
-                      ],
-                    ),
-                  ),
-                  AppSpacing.gapVerticalMD,
-
-                  // === Invoices Picker ===
-                  _sectionContainer(
-                    isDark: isDark,
-                    theme: theme,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Invoice Terpilih (${_selectedInvoices.length})',
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            TextButton.icon(
-                              onPressed: _isLoadingInvoices ? null : _pickInvoices,
-                              icon: _isLoadingInvoices
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.add, size: 18),
-                              label: const Text('Pilih Invoice'),
-                            ),
+                          if (_selectedSupplier != null) ...[
+                            AppSpacing.gapVerticalSM,
+                            SupplierPaymentInfoCard(
+                                selectedSupplier: _selectedSupplier),
                           ],
-                        ),
-                        if (_selectedInvoices.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Text(
-                              _selectedSupplierId == null
-                                  ? 'Pilih supplier dulu untuk menampilkan invoice.'
-                                  : 'Belum ada invoice dipilih. Tap "Pilih Invoice".',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant),
-                            ),
-                          )
-                        else ...[
-                          AppSpacing.gapVerticalSM,
-                          ..._selectedInvoices.map((inv) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Invoice #${inv.id} • ${inv.storeName}',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          currencyFormatter.format(inv.totalPrice),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? AppColors.gold
-                                                : AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close, size: 18),
-                                    onPressed: () => _removeInvoice(inv.id),
-                                    tooltip: 'Hapus',
-                                  ),
-                                ],
-                              ),
-                            );
-                          }),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                    AppSpacing.gapVerticalMD,
+
+                    // === Invoices Picker ===
+                    _sectionContainer(
+                      isDark: isDark,
+                      theme: theme,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Invoice Terpilih (${_selectedInvoices.length})',
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              TextButton.icon(
+                                onPressed:
+                                    _isLoadingInvoices ? null : _pickInvoices,
+                                icon: _isLoadingInvoices
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.add, size: 18),
+                                label: const Text('Pilih Invoice'),
+                              ),
+                            ],
+                          ),
+                          if (_selectedInvoices.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                _selectedSupplierId == null
+                                    ? 'Pilih supplier dulu untuk menampilkan invoice.'
+                                    : 'Belum ada invoice dipilih. Tap "Pilih Invoice".',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant),
+                              ),
+                            )
+                          else ...[
+                            AppSpacing.gapVerticalSM,
+                            ..._selectedInvoices.map((inv) {
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.sm),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Invoice #${inv.id} • ${inv.storeName}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            currencyFormatter
+                                                .format(inv.totalPrice),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? AppColors.gold
+                                                  : AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      onPressed: () => _removeInvoice(inv.id),
+                                      tooltip: 'Hapus',
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                   AppSpacing.gapVerticalMD,
 
@@ -678,8 +691,9 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color:
-                                      isDark ? AppColors.gold : AppColors.primary,
+                                  color: isDark
+                                      ? AppColors.gold
+                                      : AppColors.primary,
                                 ),
                               ),
                             ],
@@ -711,8 +725,8 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                           Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusMD),
+                                borderRadius:
+                                    BorderRadius.circular(AppSpacing.radiusMD),
                                 child: kIsWeb
                                     ? Image.network(
                                         _selectedImage!.path,
@@ -737,8 +751,8 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                                   child: IconButton(
                                     icon: const Icon(Icons.close_rounded,
                                         size: 18, color: Colors.white),
-                                    onPressed: () => setState(
-                                        () => _selectedImage = null),
+                                    onPressed: () =>
+                                        setState(() => _selectedImage = null),
                                   ),
                                 ),
                               ),
@@ -765,8 +779,7 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor:
                                   isDark ? AppColors.gold : AppColors.primary,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
                         ),
@@ -776,40 +789,36 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                   AppSpacing.gapVerticalLG,
 
                   // === Submit Button ===
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.gold,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppSpacing.radiusMD),
-                            ),
+                  SafeBottomBar(
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.gold,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMD),
                           ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.gold,
-                                  ),
-                                )
-                              : const Text(
-                                  'Buat Payment Receipt',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                         ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.gold,
+                                ),
+                              )
+                            : const Text(
+                                'Buat Payment Receipt',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -846,12 +855,10 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
           else ...[
             ..._selectedDailySalaries.map((s) {
               final employeeName = s['created_by']?['name'] ?? 'Staff';
-              final storeName = s['store']?['nickname'] ??
-                  s['store']?['name'] ??
-                  '-';
+              final storeName =
+                  s['store']?['nickname'] ?? s['store']?['name'] ?? '-';
               final date = s['date'] ?? '';
-              final amount =
-                  double.tryParse(s['amount'].toString()) ?? 0;
+              final amount = double.tryParse(s['amount'].toString()) ?? 0;
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
@@ -871,9 +878,8 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                             '$date • ${currencyFormatter.format(amount)}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark
-                                  ? AppColors.gold
-                                  : AppColors.primary,
+                              color:
+                                  isDark ? AppColors.gold : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

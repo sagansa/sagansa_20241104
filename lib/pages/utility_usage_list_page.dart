@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'utility_usage_detail_page.dart';
 import 'utility_usage_form_page.dart';
@@ -48,8 +49,10 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
       return _utilities;
     }
     return _utilities.where((u) {
-      final matchStore = _selectedStoreId == null || u['store_id'] == _selectedStoreId;
-      final matchCategory = _selectedCategory == null || u['category'] == _selectedCategory;
+      final matchStore =
+          _selectedStoreId == null || u['store_id'] == _selectedStoreId;
+      final matchCategory =
+          _selectedCategory == null || u['category'] == _selectedCategory;
       return matchStore && matchCategory;
     }).toList();
   }
@@ -61,7 +64,10 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
         {'id': 3, 'label': 'Internet'},
       ];
 
-  bool get _hasActiveFilters => _selectedStoreId != null || _selectedCategory != null || _selectedUtilityId != null;
+  bool get _hasActiveFilters =>
+      _selectedStoreId != null ||
+      _selectedCategory != null ||
+      _selectedUtilityId != null;
 
   int get _activeFilterCount {
     int count = 0;
@@ -74,7 +80,9 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
   @override
   void initState() {
     super.initState();
-    _canManage = context.read<AuthProvider>().hasAnyRole(['admin', 'super_admin', 'supervisor', 'staff']);
+    _canManage = context
+        .read<AuthProvider>()
+        .hasAnyRole(['admin', 'super_admin', 'supervisor', 'staff']);
     _loadFilterData();
     _fetch();
     _scrollController.addListener(_onScroll);
@@ -184,26 +192,36 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
         DropdownFilterField<int>(
           label: 'Toko',
           value: _selectedStoreId,
-          options: _stores.map((s) => (
-            s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()),
-            s['nickname']?.toString() ?? 'Toko #${s['id']}',
-          )).toList(),
+          options: _stores
+              .map((s) => (
+                    s['id'] is int
+                        ? s['id'] as int
+                        : int.parse(s['id'].toString()),
+                    s['nickname']?.toString() ?? 'Toko #${s['id']}',
+                  ))
+              .toList(),
         ),
         DropdownFilterField<int>(
           label: 'Jenis Utility',
           value: _selectedCategory,
-          options: _filteredCategories.map((c) => (
-            c['id'] as int,
-            c['label'] as String,
-          )).toList(),
+          options: _filteredCategories
+              .map((c) => (
+                    c['id'] as int,
+                    c['label'] as String,
+                  ))
+              .toList(),
         ),
         DropdownFilterField<int>(
           label: 'Utility',
           value: _selectedUtilityId,
-          options: _filteredUtilities.map((u) => (
-            u['id'] is int ? u['id'] as int : int.parse(u['id'].toString()),
-            u['name']?.toString() ?? 'Utility #${u['id']}',
-          )).toList(),
+          options: _filteredUtilities
+              .map((u) => (
+                    u['id'] is int
+                        ? u['id'] as int
+                        : int.parse(u['id'].toString()),
+                    u['name']?.toString() ?? 'Utility #${u['id']}',
+                  ))
+              .toList(),
         ),
       ],
       onApply: (values) {
@@ -271,9 +289,8 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
           ),
         ],
       ),
-      floatingActionButton: _canManage
-          ? AddFab(onPressed: () => _openForm())
-          : null,
+      floatingActionButton:
+          _canManage ? AddFab(onPressed: () => _openForm()) : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2, // Ops tab
         onTap: (index) {},
@@ -301,7 +318,8 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
       onRefresh: _fetch,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: _items.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == _items.length) {
@@ -387,8 +405,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                     Row(
                       children: [
                         Icon(Icons.speed_rounded,
-                            size: 13,
-                            color: AppColors.info),
+                            size: 13, color: AppColors.info),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           resultText,
@@ -399,8 +416,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                         if (item.createdAt != null) ...[
                           const SizedBox(width: AppSpacing.sm),
                           Icon(Icons.calendar_today_rounded,
-                              size: 13,
-                              color: AppColors.info),
+                              size: 13, color: AppColors.info),
                           const SizedBox(width: AppSpacing.xs),
                           Expanded(
                             child: Text(
@@ -418,8 +434,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                       Row(
                         children: [
                           Icon(Icons.store_rounded,
-                              size: 11,
-                              color: AppColors.info),
+                              size: 11, color: AppColors.info),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             item.storeNickname!,
@@ -436,8 +451,7 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.info),
+              Icon(Icons.chevron_right_rounded, color: AppColors.info),
             ],
           ),
         ),
@@ -450,9 +464,9 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
       final num = double.parse(value);
       if (num == num.roundToDouble()) {
         return num.toInt().toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        );
+              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+              (Match m) => '${m[1]}.',
+            );
       }
       return num.toStringAsFixed(2).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -467,8 +481,18 @@ class _UtilityUsageListPageState extends State<UtilityUsageListPage> {
     try {
       final dt = DateTime.parse(dateStr);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {

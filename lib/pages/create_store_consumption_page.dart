@@ -69,9 +69,8 @@ class _CreateStoreConsumptionPageState
 
       _items.clear();
       for (var p in products) {
-        final existing = editing?.details
-            .where((d) => d.productId == p.id)
-            .firstOrNull;
+        final existing =
+            editing?.details.where((d) => d.productId == p.id).firstOrNull;
         final controller = TextEditingController(
           text: existing != null ? _qtyText(existing.quantity) : '0',
         );
@@ -157,7 +156,8 @@ class _CreateStoreConsumptionPageState
 
     if (validItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Isi minimal satu item dengan jumlah > 0.')),
+        const SnackBar(
+            content: Text('Isi minimal satu item dengan jumlah > 0.')),
       );
       return;
     }
@@ -277,8 +277,8 @@ class _CreateStoreConsumptionPageState
                               ModernDropdown<StoreModel>(
                                 labelText: 'Pilih Toko',
                                 hint: 'Pilih toko...',
-                                prefixIcon: const Icon(Icons.storefront,
-                                    size: 20),
+                                prefixIcon:
+                                    const Icon(Icons.storefront, size: 20),
                                 value: _selectedStore,
                                 items: _stores,
                                 enabled: !_isLocked,
@@ -328,8 +328,7 @@ class _CreateStoreConsumptionPageState
                                       Expanded(
                                         flex: 1,
                                         child: TextFormField(
-                                          controller:
-                                              item['controller'],
+                                          controller: item['controller'],
                                           keyboardType: TextInputType.number,
                                           enabled: !_isLocked,
                                           decoration: InputDecoration(
@@ -357,25 +356,20 @@ class _CreateStoreConsumptionPageState
                     if (_isSubmitting)
                       Container(
                         color: colorScheme.scrim.withValues(alpha: 0.3),
-                        child:
-                            const Center(child: CircularProgressIndicator()),
+                        child: const Center(child: CircularProgressIndicator()),
                       ),
                   ],
                 ),
       bottomNavigationBar: _isLocked
           ? null
-          : SafeArea(
-              child: GlassContainer.bottomBar(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-                child: ModernButton(
-                  text: isEditing ? 'Simpan Perubahan' : 'Simpan Konsumsi',
-                  icon: isEditing
-                      ? Icons.save_rounded
-                      : Icons.add_circle_rounded,
-                  onPressed: _isSubmitting ? null : _submitReport,
-                  isLoading: _isSubmitting,
-                ),
+          : GlassContainer.bottomBar(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.md,
+                  AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
+              child: ModernButton(
+                text: isEditing ? 'Simpan Perubahan' : 'Simpan Konsumsi',
+                icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
+                onPressed: _isSubmitting ? null : _submitReport,
+                isLoading: _isSubmitting,
               ),
             ),
     );
@@ -407,8 +401,18 @@ class _CreateStoreConsumptionPageState
 
   String _monthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return months[month - 1];
   }

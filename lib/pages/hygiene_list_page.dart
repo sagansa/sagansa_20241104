@@ -128,11 +128,12 @@ class _HygieneListPageState extends State<HygieneListPage> {
     }
   }
 
-  String _formatDate(String raw) {
+  String _formatDateTime(String raw) {
     if (raw.isEmpty) return '-';
     try {
       final dt = DateTime.parse(raw);
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      String two(int n) => n.toString().padLeft(2, '0');
+      return '${two(dt.day)}/${two(dt.month)}/${dt.year} ${two(dt.hour)}:${two(dt.minute)}';
     } catch (_) {
       return raw;
     }
@@ -285,6 +286,15 @@ class _HygieneListPageState extends State<HygieneListPage> {
                                                       .onSurfaceVariant,
                                                 ),
                                               ),
+                                              Text(
+                                                _formatDateTime(item.createdAt),
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -346,7 +356,7 @@ class _HygieneListPageState extends State<HygieneListPage> {
                                     ] else ...[
                                       AppSpacing.gapVerticalXS,
                                       Text(
-                                        _formatDate(item.createdAt),
+                                        'Tanpa foto',
                                         style: theme.textTheme.bodySmall
                                             ?.copyWith(
                                           color: colorScheme.onSurfaceVariant,

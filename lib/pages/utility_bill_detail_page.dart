@@ -7,6 +7,8 @@ import '../services/utility_bill_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'utility_bill_form_page.dart';
 
 class UtilityBillDetailPage extends StatefulWidget {
@@ -160,7 +162,8 @@ class _UtilityBillDetailPageState extends State<UtilityBillDetailPage>
           child: FadeTransition(
             opacity: _fadeAnim,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: EdgeInsets.fromLTRB(16, 16, 16,
+                  ModernBottomNav.height + context.systemBottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

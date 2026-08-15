@@ -712,9 +712,7 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
     final provider = context.read<FuelServicePaymentProvider>();
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SafeArea(
-        top: false,
-        child: Row(
+      child: Row(
           children: [
             Expanded(
               child: Column(
@@ -752,7 +750,6 @@ class _FuelServiceListPageState extends State<FuelServiceListPage> {
             ),
           ],
         ),
-      ),
     );
   }
 }

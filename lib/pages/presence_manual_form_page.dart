@@ -251,9 +251,8 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final checkIn = _combineDateTime(_checkInDate, _checkInTime)!;
-    final checkOut = _hasCheckOut
-        ? _combineDateTime(_checkOutDate, _checkOutTime)
-        : null;
+    final checkOut =
+        _hasCheckOut ? _combineDateTime(_checkOutDate, _checkOutTime) : null;
 
     final store = _selectedStore!;
     final data = <String, dynamic>{
@@ -472,8 +471,8 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Sudah check-out?'),
-            subtitle: const Text(
-                'Aktifkan untuk mengisi waktu pulang karyawan.'),
+            subtitle:
+                const Text('Aktifkan untuk mengisi waktu pulang karyawan.'),
             value: _hasCheckOut,
             onChanged: (v) => setState(() {
               _hasCheckOut = v;
@@ -536,7 +535,8 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.location_on_outlined, size: 20, color: AppColors.info),
+          const Icon(Icons.location_on_outlined,
+              size: 20, color: AppColors.info),
           AppSpacing.gapHorizontalSM,
           Expanded(
             child: Text(
@@ -554,13 +554,11 @@ class _PresenceManualFormPageState extends State<PresenceManualFormPage> {
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: _isEditing ? 'Simpan Perubahan' : 'Simpan Presensi',
-          onPressed: _isSaving ? null : _submit,
-          isLoading: _isSaving,
-          icon: Icons.save_outlined,
-        ),
+      child: ModernButton(
+        text: _isEditing ? 'Simpan Perubahan' : 'Simpan Presensi',
+        onPressed: _isSaving ? null : _submit,
+        isLoading: _isSaving,
+        icon: Icons.save_outlined,
       ),
     );
   }

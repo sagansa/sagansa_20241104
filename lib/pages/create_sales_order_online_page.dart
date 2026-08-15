@@ -115,9 +115,9 @@ class _CreateSalesOrderOnlinePageState
   int get _totalPrice {
     var total = 0;
     for (final item in _items) {
-      final qty = int.tryParse(
-              (item['qtyController'] as TextEditingController).text) ??
-          0;
+      final qty =
+          int.tryParse((item['qtyController'] as TextEditingController).text) ??
+              0;
       final price = int.tryParse(
               (item['priceController'] as TextEditingController).text) ??
           0;
@@ -176,7 +176,8 @@ class _CreateSalesOrderOnlinePageState
       final cs = Theme.of(context).colorScheme;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal mengambil foto: $e', style: const TextStyle(color: Colors.white)),
+          content: Text('Gagal mengambil foto: $e',
+              style: const TextStyle(color: Colors.white)),
           backgroundColor: cs.error,
         ),
       );
@@ -210,7 +211,8 @@ class _CreateSalesOrderOnlinePageState
     if (_selectedStore == null ||
         _selectedProvider == null ||
         _selectedDeliveryService == null) {
-      _showError('Lengkapi semua field wajib (toko, provider, delivery service).');
+      _showError(
+          'Lengkapi semua field wajib (toko, provider, delivery service).');
       return;
     }
     if (_items.isEmpty) {
@@ -334,226 +336,238 @@ class _CreateSalesOrderOnlinePageState
                     onTap: () => FocusScope.of(context).unfocus(),
                     behavior: HitTestBehavior.translucent,
                     child: ListView(
-                    padding: AppSpacing.paddingMD,
-                    children: [
-                      // === Header fields ===
-                      Card(
-                        child: Padding(
-                          padding: AppSpacing.paddingMD,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Informasi Order',
-                                  style: textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold)),
-                              AppSpacing.gapVerticalMD,
-                               ModernDropdown<StoreModel>(
-                                 labelText: 'Toko',
-                                 hint: 'Pilih toko...',
-                                 isRequired: true,
-                                 prefixIcon: const Icon(Icons.storefront, size: 20),
-                                 value: _selectedStore,
-                                 items: _stores,
-                                 getLabel: (s) => s.nickname,
-                                 onChanged: (v) =>
-                                     setState(() => _selectedStore = v),
-                                 validator: (v) =>
-                                     v == null ? 'Pilih toko' : null,
-                               ),
-                               AppSpacing.gapVerticalSM,
-                               ModernDropdown<OnlineShopProvider>(
-                                 labelText: 'Online Shop Provider',
-                                 hint: 'Pilih provider...',
-                                 isRequired: true,
-                                 prefixIcon: const Icon(Icons.shopping_bag_outlined, size: 20),
-                                 value: _selectedProvider,
-                                 items: _providers,
-                                 getLabel: (p) => p.name,
-                                 onChanged: (v) =>
-                                     setState(() => _selectedProvider = v),
-                                 validator: (v) =>
-                                     v == null ? 'Pilih provider' : null,
-                               ),
-                               AppSpacing.gapVerticalSM,
-                               ModernDropdown<DeliveryServiceOption>(
-                                 labelText: 'Delivery Service',
-                                 hint: 'Pilih kurir...',
-                                 isRequired: true,
-                                 prefixIcon: const Icon(Icons.local_shipping_outlined, size: 20),
-                                 value: _selectedDeliveryService,
-                                 items: _deliveryServices,
-                                 getLabel: (d) => d.name,
-                                 onChanged: (v) =>
-                                     setState(() => _selectedDeliveryService = v),
-                                 validator: (v) =>
-                                     v == null ? 'Pilih delivery service' : null,
-                               ),
-                              AppSpacing.gapVerticalSM,
-                              InkWell(
-                                onTap: _pickDate,
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Tanggal Pengiriman *',
-                                    prefixIcon: Icon(Icons.calendar_today),
-                                  ),
-                                  child: Text(
-                                    '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
-                                  ),
+                      padding: AppSpacing.paddingMD,
+                      children: [
+                        // === Header fields ===
+                        Card(
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Informasi Order',
+                                    style: textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold)),
+                                AppSpacing.gapVerticalMD,
+                                ModernDropdown<StoreModel>(
+                                  labelText: 'Toko',
+                                  hint: 'Pilih toko...',
+                                  isRequired: true,
+                                  prefixIcon:
+                                      const Icon(Icons.storefront, size: 20),
+                                  value: _selectedStore,
+                                  items: _stores,
+                                  getLabel: (s) => s.nickname,
+                                  onChanged: (v) =>
+                                      setState(() => _selectedStore = v),
+                                  validator: (v) =>
+                                      v == null ? 'Pilih toko' : null,
                                 ),
-                              ),
-                              AppSpacing.gapVerticalSM,
-                              TextFormField(
-                                controller: _receiptNoController,
-                                decoration: InputDecoration(
-                                  labelText: 'Nomor Resi *',
-                                  prefixIcon: const Icon(Icons.receipt_outlined),
-                                  suffixIcon: IconButton(
-                                    icon: const Icon(Icons.qr_code_scanner),
-                                    tooltip: 'Scan Barcode / QR',
-                                    onPressed: _scanBarcode,
-                                  ),
+                                AppSpacing.gapVerticalSM,
+                                ModernDropdown<OnlineShopProvider>(
+                                  labelText: 'Online Shop Provider',
+                                  hint: 'Pilih provider...',
+                                  isRequired: true,
+                                  prefixIcon: const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 20),
+                                  value: _selectedProvider,
+                                  items: _providers,
+                                  getLabel: (p) => p.name,
+                                  onChanged: (v) =>
+                                      setState(() => _selectedProvider = v),
+                                  validator: (v) =>
+                                      v == null ? 'Pilih provider' : null,
                                 ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'Nomor resi wajib diisi';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              AppSpacing.gapVerticalSM,
-                              // Image resi
-                              if (_imageResi != null || _imageResiBytes != null) ...[
-                                Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: AppSpacing.borderRadiusMD,
-                                      child: kIsWeb
-                                          ? Image.memory(_imageResiBytes!,
-                                              height: 180,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover)
-                                          : Image.file(_imageResi!,
-                                              height: 180,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover),
+                                AppSpacing.gapVerticalSM,
+                                ModernDropdown<DeliveryServiceOption>(
+                                  labelText: 'Delivery Service',
+                                  hint: 'Pilih kurir...',
+                                  isRequired: true,
+                                  prefixIcon: const Icon(
+                                      Icons.local_shipping_outlined,
+                                      size: 20),
+                                  value: _selectedDeliveryService,
+                                  items: _deliveryServices,
+                                  getLabel: (d) => d.name,
+                                  onChanged: (v) => setState(
+                                      () => _selectedDeliveryService = v),
+                                  validator: (v) => v == null
+                                      ? 'Pilih delivery service'
+                                      : null,
+                                ),
+                                AppSpacing.gapVerticalSM,
+                                InkWell(
+                                  onTap: _pickDate,
+                                  child: InputDecorator(
+                                    decoration: const InputDecoration(
+                                      labelText: 'Tanggal Pengiriman *',
+                                      prefixIcon: Icon(Icons.calendar_today),
                                     ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.success,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(Icons.check_circle,
-                                                color: Colors.white, size: 14),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Siap diunggah',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
+                                    child: Text(
+                                      '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}',
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.gapVerticalSM,
+                                TextFormField(
+                                  controller: _receiptNoController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Nomor Resi *',
+                                    prefixIcon:
+                                        const Icon(Icons.receipt_outlined),
+                                    suffixIcon: IconButton(
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      tooltip: 'Scan Barcode / QR',
+                                      onPressed: _scanBarcode,
+                                    ),
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Nomor resi wajib diisi';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                AppSpacing.gapVerticalSM,
+                                // Image resi
+                                if (_imageResi != null ||
+                                    _imageResiBytes != null) ...[
+                                  Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: AppSpacing.borderRadiusMD,
+                                        child: kIsWeb
+                                            ? Image.memory(_imageResiBytes!,
+                                                height: 180,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover)
+                                            : Image.file(_imageResi!,
+                                                height: 180,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.success,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.check_circle,
+                                                  color: Colors.white,
+                                                  size: 14),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Siap diunggah',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  AppSpacing.gapVerticalSM,
+                                ],
+                                OutlinedButton.icon(
+                                  onPressed: _pickImage,
+                                  icon: Icon(
+                                    (_imageResi == null &&
+                                            _imageResiBytes == null)
+                                        ? Icons.add_a_photo
+                                        : Icons.edit,
+                                    size: 18,
+                                  ),
+                                  label: Text((_imageResi == null &&
+                                          _imageResiBytes == null)
+                                      ? 'Unggah Foto Resi (Opsional)'
+                                      : 'Ganti Foto Resi'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        AppSpacing.gapVerticalMD,
+
+                        // === Items ===
+                        Card(
+                          child: Padding(
+                            padding: AppSpacing.paddingMD,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Detail Item',
+                                        style: textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold)),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle),
+                                      color: colorScheme.primary,
+                                      onPressed: _addItem,
                                     ),
                                   ],
                                 ),
-                                AppSpacing.gapVerticalSM,
-                              ],
-                              OutlinedButton.icon(
-                                onPressed: _pickImage,
-                                icon: Icon(
-                                  (_imageResi == null && _imageResiBytes == null)
-                                      ? Icons.add_a_photo
-                                      : Icons.edit,
-                                  size: 18,
-                                ),
-                                label: Text(
-                                    (_imageResi == null && _imageResiBytes == null)
-                                        ? 'Unggah Foto Resi (Opsional)'
-                                        : 'Ganti Foto Resi'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      AppSpacing.gapVerticalMD,
-
-                      // === Items ===
-                      Card(
-                        child: Padding(
-                          padding: AppSpacing.paddingMD,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Detail Item',
-                                      style: textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold)),
-                                  IconButton(
-                                    icon: const Icon(Icons.add_circle),
-                                    color: colorScheme.primary,
-                                    onPressed: _addItem,
-                                  ),
-                                ],
-                              ),
-                              ..._items.asMap().entries.map((entry) {
-                                final idx = entry.key;
-                                final item = entry.value;
-                                return _buildItemRow(idx, item, theme);
-                              }),
-                              if (_items.isEmpty)
-                                Padding(
-                                  padding: AppSpacing.paddingVerticalMD,
-                                  child: Center(
-                                    child: Text(
-                                      'Belum ada item. Tap + untuk menambah.',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                          color: colorScheme.onSurfaceVariant),
+                                ..._items.asMap().entries.map((entry) {
+                                  final idx = entry.key;
+                                  final item = entry.value;
+                                  return _buildItemRow(idx, item, theme);
+                                }),
+                                if (_items.isEmpty)
+                                  Padding(
+                                    padding: AppSpacing.paddingVerticalMD,
+                                    child: Center(
+                                      child: Text(
+                                        'Belum ada item. Tap + untuk menambah.',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                            color:
+                                                colorScheme.onSurfaceVariant),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              const Divider(height: 32),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Total',
-                                      style: textTheme.titleMedium
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.bold)),
-                                  StatefulBuilder(
-                                    builder: (context, setInner) {
-                                      // Re-render total saat items berubah.
-                                      return Text(
-                                        'Rp ${_formatCurrency(_totalPrice)}',
+                                const Divider(height: 32),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Total',
                                         style: textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: colorScheme.primary,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
+                                            fontWeight: FontWeight.bold)),
+                                    StatefulBuilder(
+                                      builder: (context, setInner) {
+                                        // Re-render total saat items berubah.
+                                        return Text(
+                                          'Rp ${_formatCurrency(_totalPrice)}',
+                                          style:
+                                              textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: colorScheme.primary,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      AppSpacing.gapVerticalMD,
-                    ],
+                        AppSpacing.gapVerticalMD,
+                      ],
                     ),
                   ),
                 ),
@@ -565,12 +579,10 @@ class _CreateSalesOrderOnlinePageState
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: 'Simpan Sales Order',
-          onPressed: _isSubmitting ? null : _submit,
-          isLoading: _isSubmitting,
-        ),
+      child: ModernButton(
+        text: 'Simpan Sales Order',
+        onPressed: _isSubmitting ? null : _submit,
+        isLoading: _isSubmitting,
       ),
     );
   }
@@ -641,7 +653,8 @@ class _CreateSalesOrderOnlinePageState
                   controller: item['priceController'] as TextEditingController,
                   keyboardType: TextInputType.number,
                   onTap: () {
-                    final ctrl = item['priceController'] as TextEditingController;
+                    final ctrl =
+                        item['priceController'] as TextEditingController;
                     ctrl.selection = TextSelection(
                       baseOffset: 0,
                       extentOffset: ctrl.text.length,
@@ -671,12 +684,12 @@ class _CreateSalesOrderOnlinePageState
   }
 
   int _itemSubtotal(Map<String, dynamic> item) {
-    final qty = int.tryParse(
-            (item['qtyController'] as TextEditingController).text) ??
-        0;
-    final price = int.tryParse(
-            (item['priceController'] as TextEditingController).text) ??
-        0;
+    final qty =
+        int.tryParse((item['qtyController'] as TextEditingController).text) ??
+            0;
+    final price =
+        int.tryParse((item['priceController'] as TextEditingController).text) ??
+            0;
     return qty * price;
   }
 }
@@ -731,7 +744,8 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
           final cs = Theme.of(context).colorScheme;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Tidak ditemukan barcode/QR pada gambar.', style: TextStyle(color: Colors.white)),
+              content: const Text('Tidak ditemukan barcode/QR pada gambar.',
+                  style: TextStyle(color: Colors.white)),
               backgroundColor: cs.error,
             ),
           );
@@ -742,7 +756,8 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
         final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memproses gambar: $e', style: const TextStyle(color: Colors.white)),
+            content: Text('Gagal memproses gambar: $e',
+                style: const TextStyle(color: Colors.white)),
             backgroundColor: cs.error,
           ),
         );

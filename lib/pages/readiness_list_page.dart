@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'home_page.dart';
 import 'hrd_dashboard_page.dart';
@@ -78,19 +79,22 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
     if (index == 4) return;
     switch (index) {
       case 0:
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => const HomePage()));
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const HomePage()));
         break;
       case 1:
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (context) => const HRDDashboardPage()));
         break;
       case 2:
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => const StockDashboardPage()));
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const StockDashboardPage()));
         break;
       case 3:
-        Navigator.pushReplacement(context,
+        Navigator.pushReplacement(
+            context,
             MaterialPageRoute(
                 builder: (context) => const TransactionDashboardPage()));
         break;
@@ -110,7 +114,8 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
       final result = _isAdmin
           ? await _service.getAdminList(
               page: _page,
-              date: _selectedDate != null ? _formatIsoDate(_selectedDate!) : null,
+              date:
+                  _selectedDate != null ? _formatIsoDate(_selectedDate!) : null,
             )
           : await _service.getHistory(page: _page);
       if (!mounted) return;
@@ -137,7 +142,8 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
       final result = _isAdmin
           ? await _service.getAdminList(
               page: _page + 1,
-              date: _selectedDate != null ? _formatIsoDate(_selectedDate!) : null,
+              date:
+                  _selectedDate != null ? _formatIsoDate(_selectedDate!) : null,
             )
           : await _service.getHistory(page: _page + 1);
       if (!mounted) return;
@@ -161,8 +167,18 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
     try {
       final dt = DateTime.parse(raw);
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {
@@ -172,8 +188,18 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
 
   String _formatDisplayDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
@@ -303,7 +329,8 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
       onRefresh: _fetch,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: _items.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == _items.length) {
@@ -318,8 +345,8 @@ class _ReadinessListPageState extends State<ReadinessListPage> {
     );
   }
 
-  Widget _buildCard(
-      ReadinessModel item, int idx, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildCard(ReadinessModel item, int idx, ColorScheme colorScheme,
+      TextTheme textTheme) {
     final name = item.createdByName ?? 'Tanpa nama';
 
     return Container(

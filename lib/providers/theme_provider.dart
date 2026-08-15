@@ -71,7 +71,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarColor:
+            isDark ? AppColors.darkBackground : AppColors.background,
         systemNavigationBarIconBrightness:
             isDark ? Brightness.light : Brightness.dark,
       ),
@@ -162,7 +163,6 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         foregroundColor: AppColors.onSurface,
         elevation: AppElevation.level1,
         shadowColor: AppColors.shadow.withValues(alpha: 0.1),
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleTextStyle: AppTypography.titleLarge.copyWith(
           color: AppColors.onSurface,
           fontWeight: FontWeight.w600,
@@ -264,8 +264,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppSpacing.borderRadiusMD,
-          borderSide:
-              BorderSide(color: AppColors.outline.withValues(alpha: 0.5), width: 1.5),
+          borderSide: BorderSide(
+              color: AppColors.outline.withValues(alpha: 0.5), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.borderRadiusMD,
@@ -395,7 +395,6 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         foregroundColor: AppColors.darkOnSurface,
         elevation: AppElevation.level1,
         shadowColor: AppColors.shadow.withValues(alpha: 0.3),
-        systemOverlayStyle: SystemUiOverlayStyle.light,
         titleTextStyle: AppTypography.titleLarge.copyWith(
           color: AppColors.darkOnSurface,
           fontWeight: FontWeight.w600,
@@ -494,12 +493,14 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
         border: OutlineInputBorder(
           borderRadius: AppSpacing.borderRadiusMD,
           borderSide: BorderSide(
-              color: AppColors.darkOnSurface.withValues(alpha: 0.3), width: 1.5),
+              color: AppColors.darkOnSurface.withValues(alpha: 0.3),
+              width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppSpacing.borderRadiusMD,
           borderSide: BorderSide(
-              color: AppColors.darkOnSurface.withValues(alpha: 0.2), width: 1.5),
+              color: AppColors.darkOnSurface.withValues(alpha: 0.2),
+              width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.borderRadiusMD,
@@ -575,7 +576,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
           borderRadius: AppSpacing.borderRadiusSM,
         ),
         tileColor: AppColors.darkSurface,
-        selectedTileColor: AppColors.darkPrimaryContainer.withValues(alpha: 0.2),
+        selectedTileColor:
+            AppColors.darkPrimaryContainer.withValues(alpha: 0.2),
         textColor: AppColors.darkOnSurface,
         iconColor: AppColors.darkOnSurfaceVariant,
       ),

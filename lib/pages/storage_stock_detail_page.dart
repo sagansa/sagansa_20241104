@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/storage_stock_model.dart';
 import '../services/storage_stock_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class StorageStockDetailPage extends StatefulWidget {
   final int reportId;
@@ -58,7 +59,8 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
+                        Text(_errorMessage!,
+                            style: TextStyle(color: colorScheme.error)),
                         AppSpacing.gapVerticalMD,
                         ElevatedButton(
                           onPressed: _fetchDetail,
@@ -75,8 +77,7 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md +
-                            MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,7 +89,8 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
                                         child: Text(
@@ -102,16 +104,22 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                       const SizedBox(width: 8),
                                       Flexible(
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: AppSpacing.md,
+                                              vertical: AppSpacing.xs),
                                           decoration: BoxDecoration(
-                                            color: colorScheme.primary.withValues(alpha:0.1),
-                                            borderRadius: AppSpacing.borderRadiusXL,
+                                            color: colorScheme.primary
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                AppSpacing.borderRadiusXL,
                                           ),
                                           child: Text(
                                             _report!.statusText,
                                             overflow: TextOverflow.ellipsis,
-                                            style: textTheme.labelMedium?.copyWith(
-                                              color: colorScheme.onSurfaceVariant,
+                                            style:
+                                                textTheme.labelMedium?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -120,9 +128,11 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                                     ],
                                   ),
                                   AppSpacing.gapVerticalSM,
-                                  _buildInfoRow('Tanggal', _report!.date, theme),
+                                  _buildInfoRow(
+                                      'Tanggal', _report!.date, theme),
                                   AppSpacing.gapVerticalSM,
-                                  _buildInfoRow('Dilaporkan oleh', _report!.createdByName, theme),
+                                  _buildInfoRow('Dilaporkan oleh',
+                                      _report!.createdByName, theme),
                                 ],
                               ),
                             ),
@@ -142,14 +152,17 @@ class _StorageStockDetailPageState extends State<StorageStockDetailPage> {
                             itemBuilder: (context, idx) {
                               final item = _report!.details[idx];
                               return Card(
-                                 margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                margin: const EdgeInsets.only(
+                                    bottom: AppSpacing.sm),
                                 child: ListTile(
                                   title: Text(
                                     item.productName,
-                                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                    style: textTheme.bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                   trailing: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 130),
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 130),
                                     child: Text(
                                       '${item.quantity.toStringAsFixed(0)} ${item.unitName}',
                                       textAlign: TextAlign.end,

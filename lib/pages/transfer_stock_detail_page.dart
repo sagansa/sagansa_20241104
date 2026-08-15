@@ -3,6 +3,7 @@ import '../models/transfer_stock_model.dart';
 import '../services/transfer_stock_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class TransferStockDetailPage extends StatefulWidget {
   final int transferId;
@@ -99,8 +100,7 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md +
-                            MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,8 +129,7 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: _statusColor(
-                                                  _transfer!.status)
+                                          color: _statusColor(_transfer!.status)
                                               .withValues(alpha: 0.1),
                                           borderRadius:
                                               AppSpacing.borderRadiusXL,
@@ -157,16 +156,12 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
                                   _buildInfoRow('Toko Tujuan',
                                       _transfer!.toStoreName, theme),
                                   AppSpacing.gapVerticalSM,
-                                  _buildInfoRow(
-                                      'Dikirim oleh',
-                                      _transfer!.sentByName,
-                                      theme),
+                                  _buildInfoRow('Dikirim oleh',
+                                      _transfer!.sentByName, theme),
                                   if (_transfer!.receivedByName != null) ...[
                                     AppSpacing.gapVerticalSM,
-                                    _buildInfoRow(
-                                        'Diterima oleh',
-                                        _transfer!.receivedByName!,
-                                        theme),
+                                    _buildInfoRow('Diterima oleh',
+                                        _transfer!.receivedByName!, theme),
                                   ],
                                   if (_transfer!.notes != null &&
                                       _transfer!.notes!.isNotEmpty) ...[
@@ -193,7 +188,8 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
                             itemBuilder: (context, idx) {
                               final item = _transfer!.details[idx];
                               return Card(
-                                 margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                margin: const EdgeInsets.only(
+                                    bottom: AppSpacing.sm),
                                 child: ListTile(
                                   title: Text(
                                     item.productName,
@@ -202,8 +198,8 @@ class _TransferStockDetailPageState extends State<TransferStockDetailPage> {
                                   ),
                                   trailing: Text(
                                     '${item.quantity.toStringAsFixed(0)} ${item.unitName}',
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: colorScheme.primary,
                                     ),

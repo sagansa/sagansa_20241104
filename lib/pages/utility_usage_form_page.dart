@@ -11,8 +11,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
 import '../widgets/glass_container.dart';
+import '../widgets/modern_bottom_nav.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class UtilityUsageFormPage extends StatefulWidget {
   final UtilityUsageModel? usage;
@@ -207,8 +209,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
 
   Future<String?> _fetchPreviousReading({int? utilityId, int? storeId}) async {
     try {
-      final data =
-          await _service.getUtilityUsages(utilityId: utilityId, storeId: storeId);
+      final data = await _service.getUtilityUsages(
+          utilityId: utilityId, storeId: storeId);
       if (data.isNotEmpty) return data.first.result;
     } catch (_) {}
     return null;
@@ -276,8 +278,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
         };
         await _service.updateUtilityUsage(widget.usage!.id, data);
       } else {
-        final utilitiesWithResults =
-            _filteredUtilities.where((u) {
+        final utilitiesWithResults = _filteredUtilities.where((u) {
           final controller = _resultControllers[_storeId(u)];
           return controller != null && controller.text.trim().isNotEmpty;
         }).toList();
@@ -285,7 +286,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
         if (utilitiesWithResults.isEmpty) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Isi minimal satu pemakaian utility.')),
+            const SnackBar(
+                content: Text('Isi minimal satu pemakaian utility.')),
           );
           return;
         }
@@ -362,8 +364,11 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.md, AppSpacing.md, 100),
+                padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    ModernBottomNav.height + context.systemBottomInset),
                 children: [
                   _buildStoreSection(theme, colorScheme),
                   if (!isEditing && _selectedStore != null) ...[
@@ -467,7 +472,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: filled ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+        color:
+            filled ? colorScheme.primary : colorScheme.surfaceContainerHighest,
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -518,7 +524,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
           final hasPhoto = _meterPhotos.containsKey(id);
 
           return Padding(
-            padding: EdgeInsets.only(bottom: items.last == u ? 0 : AppSpacing.sm),
+            padding:
+                EdgeInsets.only(bottom: items.last == u ? 0 : AppSpacing.sm),
             child: _buildMeterCard(
               utility: u,
               controller: controller,
@@ -541,7 +548,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
     required int utilityId,
     required ColorScheme colorScheme,
   }) {
-    final name = utility['utility_name']?.toString() ?? 'Utility #${utility['id']}';
+    final name =
+        utility['utility_name']?.toString() ?? 'Utility #${utility['id']}';
     final unit = utility['unit']?.toString() ?? '';
     final category = utility['category'];
 
@@ -618,8 +626,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
               color: colorScheme.surfaceContainerLow,
               child: Row(
                 children: [
-                  Icon(Icons.history_rounded,
-                      size: 14, color: AppColors.info),
+                  Icon(Icons.history_rounded, size: 14, color: AppColors.info),
                   AppSpacing.gapHorizontalXS,
                   Text(
                     'Lalu: ${_formatNumber(prevReading)} $unit',
@@ -650,7 +657,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
                       hintText: '0',
                       hintStyle: TextStyle(
                         fontSize: 18,
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       labelText: 'Angka meter',
                       labelStyle: TextStyle(
@@ -670,7 +678,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
                       enabledBorder: OutlineInputBorder(
                         borderRadius: AppSpacing.borderRadiusSM,
                         borderSide: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            color: colorScheme.outlineVariant
+                                .withValues(alpha: 0.5),
                             width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
@@ -692,8 +701,7 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
               ],
             ),
           ),
-          if (hasPhoto)
-            _buildPhotoPreview(utilityId, colorScheme),
+          if (hasPhoto) _buildPhotoPreview(utilityId, colorScheme),
         ],
       ),
     );
@@ -807,7 +815,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Utility', Icons.electrical_services_rounded, colorScheme),
+        _buildSectionHeader(
+            'Utility', Icons.electrical_services_rounded, colorScheme),
         AppSpacing.gapVerticalSM,
         Container(
           decoration: BoxDecoration(
@@ -822,12 +831,15 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
               ModernDropdown<Map<String, dynamic>>(
                 value: _selectedUtility,
                 labelText: 'Utility',
-                hint: _selectedStore == null ? 'Pilih toko dulu' : 'Pilih utility...',
+                hint: _selectedStore == null
+                    ? 'Pilih toko dulu'
+                    : 'Pilih utility...',
                 isRequired: true,
                 enabled: _selectedStore != null,
                 prefixIcon: const Icon(Icons.electrical_services, size: 20),
                 items: _filteredUtilities,
-                getLabel: (u) => '${u['utility_name'] ?? 'Utility #${u['id']}'}${u['unit'] != null ? ' (${u['unit']})' : ''}',
+                getLabel: (u) =>
+                    '${u['utility_name'] ?? 'Utility #${u['id']}'}${u['unit'] != null ? ' (${u['unit']})' : ''}',
                 onChanged: (val) => setState(() => _selectedUtility = val),
                 validator: (v) => v == null ? 'Utility wajib dipilih' : null,
               ),
@@ -878,7 +890,8 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon, ColorScheme colorScheme) {
+  Widget _buildSectionHeader(
+      String title, IconData icon, ColorScheme colorScheme) {
     return Row(
       children: [
         Icon(icon, size: 18, color: AppColors.info),
@@ -900,13 +913,11 @@ class _UtilityUsageFormPageState extends State<UtilityUsageFormPage> {
     return GlassContainer.bottomBar(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.md, AppSpacing.sm + 4, AppSpacing.md, AppSpacing.lg),
-      child: SafeArea(
-        child: ModernButton(
-          text: isEditing ? 'Simpan Perubahan' : 'Tambah Pemakaian',
-          icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
-          onPressed: _isSaving ? null : _submit,
-          isLoading: _isSaving,
-        ),
+      child: ModernButton(
+        text: isEditing ? 'Simpan Perubahan' : 'Tambah Pemakaian',
+        icon: isEditing ? Icons.save_rounded : Icons.add_circle_rounded,
+        onPressed: _isSaving ? null : _submit,
+        isLoading: _isSaving,
       ),
     );
   }

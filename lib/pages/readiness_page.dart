@@ -7,6 +7,7 @@ import '../services/readiness_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class ReadinessPage extends StatefulWidget {
   const ReadinessPage({super.key});
@@ -80,9 +81,12 @@ class _ReadinessPageState extends State<ReadinessPage> {
   }
 
   Future<void> _submit() async {
-    if (_selfieImage == null || _leftHandImage == null || _rightHandImage == null) {
+    if (_selfieImage == null ||
+        _leftHandImage == null ||
+        _rightHandImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mohon lengkapi semua foto yang diperlukan!')),
+        const SnackBar(
+            content: Text('Mohon lengkapi semua foto yang diperlukan!')),
       );
       return;
     }
@@ -114,7 +118,8 @@ class _ReadinessPageState extends State<ReadinessPage> {
     }
   }
 
-  Widget _buildImagePickerCard(String title, String description, File? image, String type) {
+  Widget _buildImagePickerCard(
+      String title, String description, File? image, String type) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Card(
@@ -126,7 +131,8 @@ class _ReadinessPageState extends State<ReadinessPage> {
           children: [
             Text(
               title,
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style:
+                  textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             AppSpacing.gapVerticalXS,
             Text(
@@ -143,7 +149,8 @@ class _ReadinessPageState extends State<ReadinessPage> {
                   width: double.infinity,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha:0.3),
+                    color: colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
                     borderRadius: AppSpacing.borderRadiusSM,
                     border: Border.all(
                       color: image != null
@@ -200,11 +207,13 @@ class _ReadinessPageState extends State<ReadinessPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle, size: 80, color: AppColors.success),
+                      Icon(Icons.check_circle,
+                          size: 80, color: AppColors.success),
                       AppSpacing.gapVerticalMD,
                       Text(
                         'Anda sudah mengisi Kesiapan Diri hari ini',
-                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                       AppSpacing.gapVerticalLG,
@@ -220,7 +229,7 @@ class _ReadinessPageState extends State<ReadinessPage> {
                     AppSpacing.md,
                     AppSpacing.md,
                     AppSpacing.md,
-                    AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                    AppSpacing.md + context.systemBottomInset,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -228,9 +237,10 @@ class _ReadinessPageState extends State<ReadinessPage> {
                       Container(
                         padding: AppSpacing.paddingMD,
                         decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha:0.1),
+                          color: AppColors.info.withValues(alpha: 0.1),
                           borderRadius: AppSpacing.borderRadiusSM,
-                          border: Border.all(color: AppColors.info.withValues(alpha:0.3)),
+                          border: Border.all(
+                              color: AppColors.info.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,7 +263,8 @@ class _ReadinessPageState extends State<ReadinessPage> {
                             ),
                             AppSpacing.gapVerticalSM,
                             const Text('- Kuku harus bersih'),
-                            const Text('- Rambut laki-laki harus pendek dan rapi'),
+                            const Text(
+                                '- Rambut laki-laki harus pendek dan rapi'),
                           ],
                         ),
                       ),
@@ -281,7 +292,8 @@ class _ReadinessPageState extends State<ReadinessPage> {
                         onPressed: _submit,
                         child: Text(
                           'KIRIM KESIAPAN DIRI',
-                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                       AppSpacing.gapVerticalSM,

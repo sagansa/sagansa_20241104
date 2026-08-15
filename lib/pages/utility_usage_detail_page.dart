@@ -8,6 +8,8 @@ import '../services/utility_usage_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import '../widgets/status_badge.dart';
 import 'utility_usage_form_page.dart';
 
@@ -79,7 +81,8 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
     final confirmed = await showConfirmDialog(
       context,
       title: 'Hapus Pemakaian?',
-      content: 'Data pemakaian utility "${_item?.utilityDisplayName}" akan dihapus permanen.',
+      content:
+          'Data pemakaian utility "${_item?.utilityDisplayName}" akan dihapus permanen.',
       confirmText: 'Hapus',
       isDestructive: true,
     );
@@ -170,7 +173,8 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
           child: FadeTransition(
             opacity: _fadeAnim,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: EdgeInsets.fromLTRB(16, 16, 16,
+                  ModernBottomNav.height + context.systemBottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -184,7 +188,6 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                     ],
                   ),
                   AppSpacing.gapVerticalLG,
-
                   _buildSectionTitle('Detail Pemakaian', theme),
                   _buildInfoCard(
                     colorScheme: colorScheme,
@@ -231,7 +234,6 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                     ],
                   ),
                   AppSpacing.gapVerticalMD,
-
                   _buildSectionTitle('Informasi', theme),
                   _buildInfoCard(
                     colorScheme: colorScheme,
@@ -378,8 +380,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
                 ),
                 if (onTap != null) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  Icon(Icons.copy_rounded,
-                      size: 14, color: AppColors.info),
+                  Icon(Icons.copy_rounded, size: 14, color: AppColors.info),
                 ],
               ],
             ),
@@ -402,8 +403,7 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 48),
+            const Icon(Icons.error_outline_rounded, size: 48),
             AppSpacing.gapVerticalMD,
             Text(_errorMessage!),
             AppSpacing.gapVerticalMD,
@@ -427,8 +427,18 @@ class _UtilityUsageDetailPageState extends State<UtilityUsageDetailPage>
     try {
       final dt = DateTime.parse(dateStr);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {

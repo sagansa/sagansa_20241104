@@ -13,6 +13,7 @@ import '../theme/app_spacing.dart';
 import '../utils/image_utils.dart';
 import '../utils/snackbar_utils.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class HygienePage extends StatefulWidget {
   final int? initialStoreId;
@@ -169,7 +170,6 @@ class _HygienePageState extends State<HygienePage> {
           maxLines: 3,
           decoration: const InputDecoration(
             hintText: 'Tulis catatan kondisi ruangan...',
-
           ),
         ),
         actions: [
@@ -207,7 +207,8 @@ class _HygienePageState extends State<HygienePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Kirim Laporan'),
-        content: Text('Kirim laporan kebersihan untuk $_completedCount ruangan?'),
+        content:
+            Text('Kirim laporan kebersihan untuk $_completedCount ruangan?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -292,8 +293,9 @@ class _HygienePageState extends State<HygienePage> {
                         prefixIcon:
                             const Icon(Icons.storefront_rounded, size: 20),
                         items: _stores,
-                        getLabel: (s) =>
-                            s.nickname.isNotEmpty ? s.nickname : 'Store #${s.id}',
+                        getLabel: (s) => s.nickname.isNotEmpty
+                            ? s.nickname
+                            : 'Store #${s.id}',
                         onChanged: (v) {
                           if (v == null) return;
                           setState(() {
@@ -311,14 +313,17 @@ class _HygienePageState extends State<HygienePage> {
                               child: LinearProgressIndicator(
                                 value: progress,
                                 minHeight: 8,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
                               ),
                             ),
                           ),
                           AppSpacing.gapHorizontalMD,
                           Text(
                             '$_completedCount/${_rooms.length}',
-                            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -328,7 +333,9 @@ class _HygienePageState extends State<HygienePage> {
                             ? 'Semua ruangan sudah diperiksa'
                             : '${_rooms.length - _completedCount} ruangan belum diperiksa',
                         style: TextStyle(
-                          color: _isReadyToSubmit ? AppColors.success : AppColors.warning,
+                          color: _isReadyToSubmit
+                              ? AppColors.success
+                              : AppColors.warning,
                           fontSize: 13,
                         ),
                       ),
@@ -353,7 +360,7 @@ class _HygienePageState extends State<HygienePage> {
                 ),
               ),
               SliverToBoxAdapter(
-                child: SizedBox(height: MediaQuery.of(context).padding.bottom + 100),
+                child: SizedBox(height: context.systemBottomInset + 100),
               ),
             ],
           ),
@@ -366,7 +373,8 @@ class _HygienePageState extends State<HygienePage> {
   Widget _buildRoomCard(RoomModel room) {
     final hasPhoto = _roomPhotos.containsKey(room.id);
     final photoFile = _roomPhotos[room.id];
-    final hasNotes = _roomNotes.containsKey(room.id) && _roomNotes[room.id] != null;
+    final hasNotes =
+        _roomNotes.containsKey(room.id) && _roomNotes[room.id] != null;
     final colorScheme = Theme.of(context).colorScheme;
 
     return ClipRRect(
@@ -419,7 +427,8 @@ class _HygienePageState extends State<HygienePage> {
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -439,7 +448,9 @@ class _HygienePageState extends State<HygienePage> {
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
-                            shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+                            shadows: [
+                              Shadow(blurRadius: 2, color: Colors.black54)
+                            ],
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -447,7 +458,8 @@ class _HygienePageState extends State<HygienePage> {
                       ),
                       if (hasPhoto) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.check_circle, size: 16, color: AppColors.success),
+                        Icon(Icons.check_circle,
+                            size: 16, color: AppColors.success),
                       ],
                     ],
                   ),
@@ -474,7 +486,8 @@ class _HygienePageState extends State<HygienePage> {
                   child: GestureDetector(
                     onTap: () => _addNotes(room.id),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: hasNotes
                             ? AppColors.info
@@ -521,20 +534,7 @@ class _HygienePageState extends State<HygienePage> {
   }
 
   Widget _buildSubmitBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        top: AppSpacing.cardPadding.left,
-        bottom: AppSpacing.cardPadding.left + MediaQuery.of(context).padding.bottom,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant),
-        ),
-      ),
+    return SafeBottomBar(
       child: SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -548,7 +548,10 @@ class _HygienePageState extends State<HygienePage> {
               : const Icon(Icons.send_rounded),
           label: Text(
             _isSubmitting ? 'Mengirim...' : 'KIRIM LAPORAN KEBERSIHAN',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
       ),

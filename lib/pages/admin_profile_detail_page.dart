@@ -3,14 +3,14 @@ import '../models/applicant_detail_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class AdminProfileDetailPage extends StatefulWidget {
   final int profileId;
   const AdminProfileDetailPage({super.key, required this.profileId});
 
   @override
-  State<AdminProfileDetailPage> createState() =>
-      _AdminProfileDetailPageState();
+  State<AdminProfileDetailPage> createState() => _AdminProfileDetailPageState();
 }
 
 class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
@@ -91,8 +91,8 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
             child: Text(
               value?.isNotEmpty == true ? value! : '-',
               textAlign: TextAlign.end,
-              style: textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style:
+                  textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -121,7 +121,8 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(_errorMessage!, style: TextStyle(color: colorScheme.error)),
+                Text(_errorMessage!,
+                    style: TextStyle(color: colorScheme.error)),
                 AppSpacing.gapVerticalMD,
                 ElevatedButton(
                   onPressed: _load,
@@ -135,8 +136,7 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
     }
 
     final d = _detail ?? {};
-    final detail = ApplicantDetail.fromJson(
-        d);
+    final detail = ApplicantDetail.fromJson(d);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Profil')),
@@ -145,7 +145,7 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
           AppSpacing.md,
           AppSpacing.md,
           AppSpacing.md,
-          AppSpacing.md + MediaQuery.of(context).padding.bottom,
+          AppSpacing.md + context.systemBottomInset,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,9 +163,7 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
                 children: [
                   Icon(
                     _locked ? Icons.lock : Icons.lock_open,
-                    color: _locked
-                        ? colorScheme.error
-                        : AppColors.success,
+                    color: _locked ? colorScheme.error : AppColors.success,
                   ),
                   AppSpacing.gapHorizontalSM,
                   Expanded(
@@ -174,9 +172,7 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
                           ? 'Profil TERKUNCI — hanya rekening yang dapat diubah user.'
                           : 'Profil TERBUKA — user dapat mengubah semua data.',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: _locked
-                            ? colorScheme.error
-                            : AppColors.success,
+                        color: _locked ? colorScheme.error : AppColors.success,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -201,18 +197,23 @@ class _AdminProfileDetailPageState extends State<AdminProfileDetailPage> {
             _row('Tempat Lahir', detail.birthPlace, textTheme, colorScheme),
             _row('Tanggal Lahir', detail.birthDate, textTheme, colorScheme),
             _row('Agama', detail.religion, textTheme, colorScheme),
-            _row('Status Pernikahan', detail.maritalStatus, textTheme, colorScheme),
+            _row('Status Pernikahan', detail.maritalStatus, textTheme,
+                colorScheme),
             _row('Pendidikan', detail.educationLevel, textTheme, colorScheme),
             _row('Alamat', detail.address, textTheme, colorScheme),
-            _row('Kontak Darurat', detail.emergencyName, textTheme, colorScheme),
-            _row('Telepon Darurat', detail.emergencyPhone, textTheme, colorScheme),
+            _row(
+                'Kontak Darurat', detail.emergencyName, textTheme, colorScheme),
+            _row('Telepon Darurat', detail.emergencyPhone, textTheme,
+                colorScheme),
             AppSpacing.gapVerticalMD,
             Text('Data Rekening',
                 style: textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
             _row('Nama Bank', detail.bankName, textTheme, colorScheme),
-            _row('Pemilik Rekening', detail.bankAccountName, textTheme, colorScheme),
-            _row('No. Rekening', detail.bankAccountNumber, textTheme, colorScheme),
+            _row('Pemilik Rekening', detail.bankAccountName, textTheme,
+                colorScheme),
+            _row('No. Rekening', detail.bankAccountNumber, textTheme,
+                colorScheme),
             AppSpacing.gapVerticalLG,
             SizedBox(
               width: double.infinity,

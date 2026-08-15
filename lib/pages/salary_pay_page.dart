@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/salary_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 class SalaryPayPage extends StatefulWidget {
   final int salaryId;
@@ -14,8 +15,8 @@ class SalaryPayPage extends StatefulWidget {
 
 class _SalaryPayPageState extends State<SalaryPayPage> {
   final SalaryService _service = SalaryService();
-  final currencyFormatter = NumberFormat.currency(
-      locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  final currencyFormatter =
+      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   final _paidAmountCtrl = TextEditingController();
   final _dateCtrl = TextEditingController();
 
@@ -38,7 +39,8 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
         _info = info;
         _isLoading = false;
         final defaults = info['defaults'] ?? {};
-        _paidAmountCtrl.text = _parseInt(defaults['suggested_paid_amount']).toString();
+        _paidAmountCtrl.text =
+            _parseInt(defaults['suggested_paid_amount']).toString();
         _dateCtrl.text = defaults['today'] ??
             DateTime.now().toIso8601String().substring(0, 10);
       });
@@ -54,8 +56,8 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
   Future<void> _submit() async {
     final amount = double.tryParse(_paidAmountCtrl.text);
     if (amount == null || amount <= 0 || _dateCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Isi nominal (> 0) & tanggal.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Isi nominal (> 0) & tanggal.')));
       return;
     }
     setState(() => _isSaving = true);
@@ -100,8 +102,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                         AppSpacing.md,
                         AppSpacing.md,
                         AppSpacing.md,
-                        AppSpacing.md +
-                            MediaQuery.of(context).padding.bottom,
+                        AppSpacing.md + context.systemBottomInset,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,8 +152,7 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                                       width: 16,
                                       height: 16,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white))
+                                          strokeWidth: 2, color: Colors.white))
                                   : const Icon(Icons.check),
                               label: const Text('Konfirmasi Pembayaran'),
                             ),
@@ -171,8 +171,12 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
     final input = double.tryParse(_paidAmountCtrl.text);
     if (input == null) return null;
     final selisih = expected - input;
-    if (selisih > 0) return 'Kurang bayar: ${currencyFormatter.format(selisih)}';
-    if (selisih < 0) return 'Lebih bayar: ${currencyFormatter.format(selisih.abs())}';
+    if (selisih > 0) {
+      return 'Kurang bayar: ${currencyFormatter.format(selisih)}';
+    }
+    if (selisih < 0) {
+      return 'Lebih bayar: ${currencyFormatter.format(selisih.abs())}';
+    }
     return 'Sesuai gaji bulanan bersih.';
   }
 
@@ -189,9 +193,11 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                     ?.copyWith(fontWeight: FontWeight.bold)),
             AppSpacing.gapVerticalSM,
             _row('Bank', bank['bank_name']?.toString() ?? '—'),
-            _row('No. Rekening', bank['bank_account_number']?.toString() ?? '—'),
+            _row(
+                'No. Rekening', bank['bank_account_number']?.toString() ?? '—'),
             _row('Atas Nama', bank['bank_account_name']?.toString() ?? '—'),
-            _row('Biaya Admin', currencyFormatter.format(_parseInt(bank['admin_fee']))),
+            _row('Biaya Admin',
+                currencyFormatter.format(_parseInt(bank['admin_fee']))),
           ],
         ),
       ),
@@ -210,7 +216,8 @@ class _SalaryPayPageState extends State<SalaryPayPage> {
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const Divider(),
-            _row('Gaji Utama (A)', currencyFormatter.format(_parseInt(b['base_salary']))),
+            _row('Gaji Utama (A)',
+                currencyFormatter.format(_parseInt(b['base_salary']))),
             _row('Denda Keterlambatan',
                 '- ${currencyFormatter.format(_parseInt(b['late_penalties']))}'),
             _row('Denda Manual',

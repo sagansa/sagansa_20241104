@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/safe_bottom_bar.dart';
 import 'utility_bill_detail_page.dart';
 import 'utility_bill_form_page.dart';
 
@@ -44,9 +45,7 @@ class _UtilityBillListPageState extends State<UtilityBillListPage> {
     if (_selectedStoreId == null) {
       return _utilities;
     }
-    return _utilities
-        .where((u) => u['store_id'] == _selectedStoreId)
-        .toList();
+    return _utilities.where((u) => u['store_id'] == _selectedStoreId).toList();
   }
 
   bool get _hasActiveFilters =>
@@ -171,18 +170,26 @@ class _UtilityBillListPageState extends State<UtilityBillListPage> {
         DropdownFilterField<int>(
           label: 'Toko',
           value: _selectedStoreId,
-          options: _stores.map((s) => (
-            s['id'] is int ? s['id'] as int : int.parse(s['id'].toString()),
-            s['nickname']?.toString() ?? 'Toko #${s['id']}',
-          )).toList(),
+          options: _stores
+              .map((s) => (
+                    s['id'] is int
+                        ? s['id'] as int
+                        : int.parse(s['id'].toString()),
+                    s['nickname']?.toString() ?? 'Toko #${s['id']}',
+                  ))
+              .toList(),
         ),
         DropdownFilterField<int>(
           label: 'Utility',
           value: _selectedUtilityId,
-          options: _filteredUtilities.map((u) => (
-            u['id'] is int ? u['id'] as int : int.parse(u['id'].toString()),
-            u['utility_name']?.toString() ?? 'Utility #${u['id']}',
-          )).toList(),
+          options: _filteredUtilities
+              .map((u) => (
+                    u['id'] is int
+                        ? u['id'] as int
+                        : int.parse(u['id'].toString()),
+                    u['utility_name']?.toString() ?? 'Utility #${u['id']}',
+                  ))
+              .toList(),
         ),
       ],
       onApply: (values) {
@@ -201,8 +208,7 @@ class _UtilityBillListPageState extends State<UtilityBillListPage> {
   void _openDetail(UtilityBillModel item) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-          builder: (_) => UtilityBillDetailPage(billId: item.id)),
+      MaterialPageRoute(builder: (_) => UtilityBillDetailPage(billId: item.id)),
     );
     if (result == true) _fetch();
   }
@@ -236,9 +242,8 @@ class _UtilityBillListPageState extends State<UtilityBillListPage> {
           ),
         ],
       ),
-      floatingActionButton: _canManage
-          ? AddFab(onPressed: () => _openForm())
-          : null,
+      floatingActionButton:
+          _canManage ? AddFab(onPressed: () => _openForm()) : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 2, // Ops tab
         onTap: (index) {},
@@ -266,7 +271,8 @@ class _UtilityBillListPageState extends State<UtilityBillListPage> {
       onRefresh: _fetch,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, ModernBottomNav.height + context.systemBottomInset),
         itemCount: _items.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == _items.length) {

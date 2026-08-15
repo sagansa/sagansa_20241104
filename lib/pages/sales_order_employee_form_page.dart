@@ -14,6 +14,7 @@ import '../utils/format_utils.dart';
 import '../utils/snackbar_utils.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 /// Form create/update penjualan employee (role sales).
 ///
@@ -34,7 +35,12 @@ class _FormItem {
   String? unit;
   int quantity;
   int unitPrice;
-  _FormItem({this.productId, this.productName, this.unit, this.quantity = 1, this.unitPrice = 0});
+  _FormItem(
+      {this.productId,
+      this.productName,
+      this.unit,
+      this.quantity = 1,
+      this.unitPrice = 0});
 }
 
 class _SalesOrderEmployeeFormPageState
@@ -92,12 +98,15 @@ class _SalesOrderEmployeeFormPageState
       if (!mounted) return;
 
       setState(() {
-        _transferAccounts =
-            (data['transfer_to_accounts'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-        _deliveryAddresses =
-            (data['delivery_addresses'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-        _products =
-            (data['products'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+        _transferAccounts = (data['transfer_to_accounts'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>() ??
+            [];
+        _deliveryAddresses = (data['delivery_addresses'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>() ??
+            [];
+        _products = (data['products'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>() ??
+            [];
         _stores = stores;
 
         // Prefill untuk edit mode
@@ -151,7 +160,8 @@ class _SalesOrderEmployeeFormPageState
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return;
     setState(() => _imagePath = picked.path);
   }
@@ -180,8 +190,10 @@ class _SalesOrderEmployeeFormPageState
       SnackbarUtils.warning(context, 'Tambahkan minimal 1 produk.');
       return;
     }
-    if (_store == null || _deliveryDate == null ||
-        _transferAccount == null || _deliveryAddress == null) {
+    if (_store == null ||
+        _deliveryDate == null ||
+        _transferAccount == null ||
+        _deliveryAddress == null) {
       SnackbarUtils.warning(context, 'Lengkapi semua field wajib.');
       return;
     }
@@ -219,7 +231,9 @@ class _SalesOrderEmployeeFormPageState
           transferToAccountId: _transferAccount!['id'] as int,
           imagePayment: imagePath,
           clearImage: imagePath == null,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
           items: itemsPayload,
         );
       } else {
@@ -229,7 +243,9 @@ class _SalesOrderEmployeeFormPageState
           deliveryAddressId: _deliveryAddress!['id'] as int,
           transferToAccountId: _transferAccount!['id'] as int,
           imagePayment: imagePath,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
           items: itemsPayload,
         );
       }
@@ -265,7 +281,7 @@ class _SalesOrderEmployeeFormPageState
                       AppSpacing.md,
                       AppSpacing.md,
                       AppSpacing.md,
-                      AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                      AppSpacing.md + context.systemBottomInset,
                     ),
                     children: [
                       _buildStoreField(theme),
@@ -327,9 +343,8 @@ class _SalesOrderEmployeeFormPageState
   }
 
   Widget _buildDateField(ThemeData theme) {
-    final text = _deliveryDate == null
-        ? ''
-        : FormatUtils.formatDate(_deliveryDate!);
+    final text =
+        _deliveryDate == null ? '' : FormatUtils.formatDate(_deliveryDate!);
     return InkWell(
       onTap: _pickDate,
       child: InputDecorator(
@@ -498,11 +513,13 @@ class _ItemRow extends StatelessWidget {
                     hint: 'Pilih produk...',
                     items: products.map((p) => p['id'] as int).toList(),
                     getLabel: (v) {
-                      final p = products.firstWhere((e) => e['id'] == v, orElse: () => {});
+                      final p = products.firstWhere((e) => e['id'] == v,
+                          orElse: () => {});
                       return '${p['name'] ?? ''} (${p['unit'] ?? ''})';
                     },
                     getSubtitle: (v) {
-                      final p = products.firstWhere((e) => e['id'] == v, orElse: () => {});
+                      final p = products.firstWhere((e) => e['id'] == v,
+                          orElse: () => {});
                       return 'Rp ${p['price'] ?? 0}';
                     },
                     onChanged: (v) {

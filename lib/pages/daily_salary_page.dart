@@ -17,6 +17,7 @@ import '../widgets/modern_bottom_nav.dart';
 import '../widgets/payment_receipt_card.dart';
 import 'create_payment_receipt_page.dart';
 import 'daily_salary_form_page.dart';
+import 'edit_payment_receipt_page.dart';
 import 'payment_receipt_detail_page.dart';
 
 class DailySalaryPage extends StatefulWidget {
@@ -44,11 +45,16 @@ class _DailySalaryPageState extends State<DailySalaryPage>
   int _currentPage = 1;
   bool _hasMore = true;
 
+  // Ringkasan dari meta (mengikuti filter aktif, dihitung server-side).
+  int _totalCount = 0;
+  int _totalAmount = 0;
+
   // Role & filter states
   bool _isAdmin = false;
   int? _currentUserId;
   List<dynamic> _employees = [];
   int? _selectedUserId;
+  String? _selectedEmployeeRole; // 'active' | 'former' (null = semua)
   String? _selectedStatus;
   int? _selectedPaymentType;
   DateTime? _selectedDateFrom;
@@ -115,6 +121,11 @@ class _DailySalaryPageState extends State<DailySalaryPage>
               ? rawId
               : int.tryParse(rawId?.toString() ?? '');
         });
+        // Tab "Pembayaran" hanya untuk admin — muat receipt begitu role
+        // diketahui (mirror fuel_service_page), bukan menunggu pull-to-refresh.
+        if (_isAdmin) {
+          _fetchReceipts();
+        }
       }
     } catch (e) {
       // Ignore
@@ -143,6 +154,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       final result = await _service.getDailySalaries(
         page: 1,
         userId: _selectedUserId,
+        employeeRole: _selectedEmployeeRole,
         status: _selectedStatus,
         paymentTypeId: _selectedPaymentType,
         dateFrom: _selectedDateFrom,
@@ -151,6 +163,9 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       setState(() {
         _dailySalaries = result['data'];
         _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+        _totalCount = int.tryParse('${result['meta']['total'] ?? 0}') ?? 0;
+        _totalAmount =
+            int.tryParse('${result['meta']['total_amount'] ?? 0}') ?? 0;
         _isLoading = false;
       });
 
@@ -187,6 +202,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       final result = await _service.getDailySalaries(
         page: _currentPage + 1,
         userId: _selectedUserId,
+        employeeRole: _selectedEmployeeRole,
         status: _selectedStatus,
         paymentTypeId: _selectedPaymentType,
         dateFrom: _selectedDateFrom,
@@ -196,6 +212,9 @@ class _DailySalaryPageState extends State<DailySalaryPage>
         _dailySalaries.addAll(result['data']);
         _currentPage++;
         _hasMore = _currentPage < (result['meta']['last_page'] ?? 1);
+        _totalCount = int.tryParse('${result['meta']['total'] ?? 0}') ?? 0;
+        _totalAmount =
+            int.tryParse('${result['meta']['total_amount'] ?? 0}') ?? 0;
         _isLoadingMore = false;
       });
     } catch (_) {
@@ -206,6 +225,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
   void _clearFilters() {
     setState(() {
       _selectedUserId = null;
+      _selectedEmployeeRole = null;
       _selectedStatus = null;
       _selectedPaymentType = null;
       _selectedDateFrom = null;
@@ -217,6 +237,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
   int get _activeFilterCount {
     int count = 0;
     if (_selectedUserId != null) count++;
+    if (_selectedEmployeeRole != null) count++;
     if (_selectedStatus != null) count++;
     if (_selectedPaymentType != null) count++;
     if (_selectedDateFrom != null || _selectedDateTo != null) count++;
@@ -228,15 +249,40 @@ class _DailySalaryPageState extends State<DailySalaryPage>
     FilterBottomSheet.show(
       context,
       fields: [
-        if (_isAdmin)
+        if (_isAdmin) ...[
+          DropdownFilterField<String>(
+            label: 'Status Karyawan',
+            value: _selectedEmployeeRole,
+            options: const [
+              ('active', 'Karyawan Aktif'),
+              ('former', 'Mantan Karyawan'),
+            ],
+          ),
           DropdownFilterField<int>(
             label: 'Karyawan',
             value: _selectedUserId,
-            options: employees.map((e) => (
-              e['id'] as int,
-              e['name']?.toString() ?? 'Karyawan #${e['id']}',
-            )).toList(),
+            options: employees.map((e) {
+              final name = e['name']?.toString() ?? 'Karyawan #${e['id']}';
+              final isFormer = e['is_former_employee'] == true ||
+                  e['is_former_employee'] == 1;
+              return (
+                e['id'] as int,
+                isFormer ? '$name (Mantan Karyawan)' : name,
+              );
+            }).toList(),
+            // Opsi Karyawan mengikuti pilihan Status Karyawan.
+            dependsOn: 'Status Karyawan',
+            optionFilter: (options, status) => status == null
+                ? options
+                : options
+                    .where((opt) => _employees.any((e) =>
+                        e['id'] == opt.$1 &&
+                        (status == 'former') ==
+                            (e['is_former_employee'] == true ||
+                                e['is_former_employee'] == 1)))
+                    .toList(),
           ),
+        ],
         DropdownFilterField<String>(
           label: 'Status',
           value: _selectedStatus,
@@ -256,6 +302,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       ],
       onApply: (values) {
         setState(() {
+          _selectedEmployeeRole = values['Status Karyawan'] as String?;
           _selectedUserId = values['Karyawan'] as int?;
           _selectedStatus = values['Status'] as String?;
           _selectedPaymentType = values['Pembayaran'] as int?;
@@ -322,6 +369,10 @@ class _DailySalaryPageState extends State<DailySalaryPage>
 
     if (result == true && mounted) {
       await _loadData();
+      // Receipt baru saja dibuat — segarkan tab Pembayaran juga.
+      if (_isAdmin) {
+        _fetchReceipts();
+      }
     }
   }
 
@@ -435,11 +486,17 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       _hasMoreReceipts = true;
     });
     try {
-      final result = await _procurementService.getPaymentReceipts(page: _receiptPage);
+      // payment_for=2 → hanya receipt DailySalary. Backend GET /payment-receipts
+      // default-nya mengembalikan receipt InvoicePurchase (3), jadi tanpa param
+      // ini tab Pembayaran akan selalu kosong (filter client-side sebelumnya
+      // menutupi masalah ini tapi tidak menangani pagination dengan benar).
+      final result = await _procurementService.getPaymentReceipts(
+        page: _receiptPage,
+        paymentFor: '2',
+      );
       if (!mounted) return;
-      final filtered = result.items.where((r) => r.paymentFor == '2').toList();
       setState(() {
-        _receipts = filtered;
+        _receipts = result.items;
         _hasMoreReceipts = result.hasMore;
         _isLoadingReceipts = false;
       });
@@ -452,12 +509,14 @@ class _DailySalaryPageState extends State<DailySalaryPage>
     if (_isLoadingMoreReceipts || !_hasMoreReceipts) return;
     setState(() => _isLoadingMoreReceipts = true);
     try {
-      final result = await _procurementService.getPaymentReceipts(page: _receiptPage + 1);
+      final result = await _procurementService.getPaymentReceipts(
+        page: _receiptPage + 1,
+        paymentFor: '2',
+      );
       if (!mounted) return;
-      final filtered = result.items.where((r) => r.paymentFor == '2').toList();
       setState(() {
         _receiptPage++;
-        _receipts.addAll(filtered);
+        _receipts.addAll(result.items);
         _hasMoreReceipts = result.hasMore;
         _isLoadingMoreReceipts = false;
       });
@@ -477,6 +536,52 @@ class _DailySalaryPageState extends State<DailySalaryPage>
         ],
       ),
     );
+  }
+
+  /// Hapus receipt gaji harian dari tab Pembayaran. Server mengembalikan
+  /// status semua daily salary ter-attach menjadi siap dibayar (3), jadi
+  /// kedua tab di-refresh.
+  Future<void> _confirmDeleteReceipt(PaymentReceipt receipt) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Payment Receipt'),
+        content: const Text(
+            'Yakin ingin menghapus payment receipt ini? Semua daily salary ter-attach akan dikembalikan menjadi "Siap Dibayar".'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _procurementService.deletePaymentReceipt(receipt.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Payment receipt dihapus. Status gaji dikembalikan.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      _fetchReceipts();
+      _loadData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   Widget _buildPaymentReceiptTab() {
@@ -500,7 +605,8 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       onRefresh: _fetchReceipts,
       child: ListView.builder(
         controller: _receiptScrollController,
-        padding: const EdgeInsets.all(16),
+        // Padding lebih rapat (8px) agar list receipt terlihat lebih padat.
+        padding: const EdgeInsets.all(AppSpacing.sm),
         itemCount: _receipts.length + (_hasMoreReceipts ? 1 : 0),
         itemBuilder: (context, idx) {
           if (idx == _receipts.length) {
@@ -518,8 +624,25 @@ class _DailySalaryPageState extends State<DailySalaryPage>
                 MaterialPageRoute(
                   builder: (_) => PaymentReceiptDetailPage(receiptId: receipt.id),
                 ),
-              ).then((_) => _fetchReceipts());
+              ).then((_) {
+                // Status gaji bisa berubah (edit/hapus dari halaman detail).
+                _fetchReceipts();
+                _loadData();
+              });
             },
+            onEdit: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditPaymentReceiptPage(receipt: receipt),
+                ),
+              );
+              if (mounted) {
+                _fetchReceipts();
+                _loadData();
+              }
+            },
+            onDelete: () => _confirmDeleteReceipt(receipt),
           );
         },
       ),
@@ -595,6 +718,9 @@ class _DailySalaryPageState extends State<DailySalaryPage>
           // Tab 1: Daily salary list
           Column(
             children: [
+              // Total hanya relevan saat ada filter aktif (permintaan user);
+              // tanpa filter angka ini hanya "semua data" dan berisiko salah baca.
+              if (_activeFilterCount > 0) _buildSummaryBar(),
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -620,6 +746,38 @@ class _DailySalaryPageState extends State<DailySalaryPage>
             Navigator.pop(context);
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildSummaryBar() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      color: colorScheme.surface,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$_totalCount data',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            'Total: ${currencyFormatter.format(_totalAmount)}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
+          ),
+        ],
       ),
     );
   }

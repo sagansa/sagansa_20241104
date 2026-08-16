@@ -45,6 +45,14 @@ class UserService {
     return data as Map<String, dynamic>;
   }
 
+  /// Detail profil (termasuk rekening) berdasarkan user id — dipakai untuk
+  /// menampilkan rekening pegawai penerima payment receipt gaji harian.
+  Future<Map<String, dynamic>?> getAdminProfileByUser(dynamic userId) async {
+    final data = await _api.get('admin/profile/user/$userId');
+    if (data == null) return null;
+    return data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> setProfileStatus(dynamic profileId, String status) async {
     final data = await _api.put('admin/profile/$profileId/status', body: {'status': status});
     return data as Map<String, dynamic>;

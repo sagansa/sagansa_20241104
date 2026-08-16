@@ -6,6 +6,8 @@ import '../models/store_model.dart';
 import '../services/closing_store_service.dart';
 import '../services/presence_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/modern_button.dart';
+import '../widgets/safe_bottom_bar.dart';
 
 /// Form buat/edit daily salary manual (meniru DailySalaryResource admin):
 /// create selalu atas nama user login dengan status "belum dibayar";
@@ -176,6 +178,17 @@ class _DailySalaryFormPageState extends State<DailySalaryFormPage> {
       appBar: AppBar(
         title: Text(_isEditMode ? 'Edit Gaji Harian' : 'Buat Gaji Harian'),
       ),
+      // Tombol submit dipatok di bawah (tidak ikut scroll) — pola standar
+      // SafeBottomBar + ModernButton seperti halaman create lainnya.
+      bottomNavigationBar: (_isLoading || _errorMessage != null)
+          ? null
+          : SafeBottomBar(
+              child: ModernButton(
+                text: _isEditMode ? 'Simpan Perubahan' : 'Buat Gaji Harian',
+                onPressed: _isSubmitting ? null : _submit,
+                isLoading: _isSubmitting,
+              ),
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -293,20 +306,6 @@ class _DailySalaryFormPageState extends State<DailySalaryFormPage> {
                             setState(() => _selectedPaymentTypeId = v),
                         validator: (v) =>
                             v == null ? 'Pilih metode pembayaran.' : null,
-                      ),
-                      AppSpacing.gapVerticalLG,
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2),
-                              )
-                            : Text(_isEditMode
-                                ? 'Simpan Perubahan'
-                                : 'Buat Gaji Harian'),
                       ),
                     ],
                   ),

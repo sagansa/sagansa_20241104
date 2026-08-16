@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/procurement_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/procurement_service.dart';
+import '../../services/user_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/constants.dart';
@@ -29,6 +30,7 @@ class PaymentReceiptDetailPage extends StatefulWidget {
 
 class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
   final ProcurementService _procurementService = ProcurementService();
+  final UserService _userService = UserService();
   PaymentReceipt? _receipt;
   bool _isLoading = true;
   String? _errorMessage;
@@ -37,6 +39,10 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
   String? _qrisError;
   bool _isStaff = false;
   bool _isAdmin = false;
+
+  // Rekening pegawai penerima (receipt gaji harian) dari profil.
+  Map<String, dynamic>? _employeeBank;
+  bool _bankLoading = false;
 
   @override
   void initState() {
@@ -62,12 +68,64 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
         _receipt = receipt;
         _isLoading = false;
       });
+      // Receipt gaji harian tidak memakai QRIS — transfer langsung ke
+      // rekening pegawai penerima (diambil dari profil).
+      if (_isAdmin && receipt.paymentFor == '2') {
+        _loadEmployeeBank();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Gagal memuat detail: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  /// Hapus receipt gaji harian. Backend mengembalikan status semua daily
+  /// salary ter-attach menjadi siap dibayar; pop(true) agar caller refresh.
+  Future<void> _confirmDelete() async {
+    final receipt = _receipt;
+    if (receipt == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Payment Receipt'),
+        content: const Text(
+            'Yakin ingin menghapus payment receipt ini? Semua daily salary ter-attach akan dikembalikan menjadi "Siap Dibayar".'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _procurementService.deletePaymentReceipt(receipt.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Payment receipt dihapus. Status gaji dikembalikan.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
     }
   }
 
@@ -169,6 +227,24 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
     }
   }
 
+  /// Ambil rekening pegawai penerima dari profil (DB recruitment).
+  /// Penerima = created_by item gaji (satu karyawan per receipt).
+  Future<void> _loadEmployeeBank() async {
+    final userId = _receipt?.dailySalaries.firstOrNull?.createdById;
+    if (userId == null) return;
+    setState(() => _bankLoading = true);
+    try {
+      final data = await _userService.getAdminProfileByUser(userId);
+      if (!mounted) return;
+      setState(() {
+        _employeeBank = data?['details'] as Map<String, dynamic>?;
+        _bankLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _bankLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -180,8 +256,9 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
         title: const Text('Detail Payment Receipt'),
         elevation: 0,
         actions: [
-          // Tombol Edit hanya untuk admin & receipt fuel service (payment_for == '1').
-          if (_isAdmin && _receipt?.paymentFor == '1')
+          // Tombol Edit untuk admin & receipt fuel service / gaji harian.
+          if (_isAdmin &&
+              (_receipt?.paymentFor == '1' || _receipt?.paymentFor == '2'))
             IconButton(
               icon: const Icon(Icons.edit_rounded),
               tooltip: 'Edit',
@@ -196,6 +273,13 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                   setState(() => _receipt = updated);
                 }
               },
+            ),
+          // Hapus (hanya receipt gaji harian) — status gaji dikembalikan.
+          if (_isAdmin && _receipt?.paymentFor == '2')
+            IconButton(
+              icon: const Icon(Icons.delete_rounded),
+              tooltip: 'Hapus',
+              onPressed: _confirmDelete,
             ),
           if (_receipt?.image != null && _receipt!.image!.isNotEmpty)
             IconButton(
@@ -243,8 +327,10 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                         if (_receipt!.image != null && _receipt!.image!.isNotEmpty)
                           _buildImageCard(theme, isDark),
 
-                        // QRIS Section
-                        if (!_isStaff) _buildQrisCard(theme, isDark),
+                        // QRIS Section (bukan untuk receipt gaji harian —
+                        // transfer gaji langsung ke rekening pegawai).
+                        if (!_isStaff && _receipt!.paymentFor != '2')
+                          _buildQrisCard(theme, isDark),
 
                         // Catatan Card
                         if (_receipt!.notes != null &&
@@ -278,6 +364,39 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
                           ..._receipt!.fuelServices.map(
                             (fs) => _buildFuelServiceCard(fs, theme, isDark),
                           ),
+                        ],
+
+                        // Daily Salary Itemized List (payment_for == '2')
+                        if (_receipt!.paymentFor == '2' &&
+                            _receipt!.dailySalaries.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.md,
+                              AppSpacing.lg,
+                              AppSpacing.xs,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.payments_outlined,
+                                    size: 18, color: AppColors.secondary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Item Gaji Harian (${_receipt!.dailySalaries.length})',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ..._receipt!.dailySalaries.map(
+                            (ds) => _buildDailySalaryCard(ds, theme, isDark),
+                          ),
+
+                          // Rekening pegawai penerima (admin only).
+                          if (_receipt!.paymentFor == '2' && _isAdmin)
+                            _buildEmployeeBankCard(theme, isDark),
                         ],
 
                         // Invoices Itemized List
@@ -642,6 +761,92 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
     );
   }
 
+  /// Kartu rekening pegawai penerima receipt gaji harian — pengganti QRIS:
+  /// transfer gaji langsung ke rekening yang diambil dari profil pegawai.
+  Widget _buildEmployeeBankCard(ThemeData theme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_rounded,
+                  size: 20, color: AppColors.gold),
+              AppSpacing.gapHorizontalSM,
+              Text(
+                'Rekening Pegawai',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (_bankLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_employeeBank != null) ...[
+            _qrRow('Bank', _employeeBank!['bank_name']?.toString(), theme),
+            _qrRow('No. Rekening',
+                _employeeBank!['bank_account_number']?.toString(), theme),
+            _qrRow('Atas Nama',
+                _employeeBank!['bank_account_name']?.toString(), theme),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final accountNumber =
+                      _employeeBank!['bank_account_number']?.toString();
+                  if (accountNumber == null || accountNumber.isEmpty) return;
+                  Clipboard.setData(ClipboardData(text: accountNumber));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nomor rekening disalin')),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Salin No. Rekening'),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Rekening pegawai belum tersedia di profil.',
+              style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loadEmployeeBank,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Coba Lagi'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _qrRow(String label, String? val, ThemeData theme) {
     if (val == null) return const SizedBox.shrink();
     return Padding(
@@ -775,6 +980,66 @@ class _PaymentReceiptDetailPageState extends State<PaymentReceiptDetailPage> {
           const SizedBox(height: 2),
           Text(
             'Tgl: ${fs.date}${fs.createdByName != null && fs.createdByName!.isNotEmpty ? ' | Oleh: ${fs.createdByName}' : ''}',
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailySalaryCard(
+      DailySalaryReceiptItem ds, ThemeData theme, bool isDark) {
+    final employeeName =
+        ds.createdByName != null && ds.createdByName!.isNotEmpty
+            ? ds.createdByName!
+            : 'Gaji Harian';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMD),
+        border: Border.all(
+          color: isDark
+              ? Colors.white12
+              : AppColors.secondaryContainer.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  employeeName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                _formatAmount(ds.amount),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Tgl: ${ds.date}',
             style: TextStyle(
               fontSize: 11,
               color: theme.colorScheme.onSurfaceVariant,

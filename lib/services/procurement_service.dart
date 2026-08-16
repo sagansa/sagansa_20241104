@@ -426,6 +426,45 @@ class ProcurementService {
     return (data as Map<String, dynamic>?) ?? {};
   }
 
+  /// Update payment receipt gaji harian: edit daftar daily salary (status
+  /// sync dua arah di backend) + metadata. total_amount computed backend.
+  Future<Map<String, dynamic>> updateDailySalaryPaymentReceipt({
+    required int receiptId,
+    required List<int> dailySalaryIds,
+    required int transferAmount,
+    String? notes,
+    File? image,
+  }) async {
+    final fields = <String, String>{};
+    // Indeks numerik agar tiap id terkirim sebagai field terpisah.
+    for (var i = 0; i < dailySalaryIds.length; i++) {
+      fields['daily_salary_ids[$i]'] = dailySalaryIds[i].toString();
+    }
+    fields['transfer_amount'] = transferAmount.toString();
+    if (notes != null) {
+      fields['notes'] = notes;
+    }
+    if (image != null) {
+      final path = await ImageUploadService.upload(image,
+          directory: 'images/PaymentReceipt');
+      if (path == null) throw Exception('Gagal upload gambar ke img service.');
+      fields['image'] = path;
+    }
+
+    final data = await _api.multipart(
+      method: 'POST',
+      path: 'procurement/daily-salary-payment-receipts/$receiptId',
+      fields: fields,
+    );
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  /// Hapus payment receipt gaji harian. Backend mengembalikan status semua
+  /// daily salary ter-attach menjadi siap dibayar (3).
+  Future<void> deletePaymentReceipt(int receiptId) async {
+    await _api.delete('procurement/payment-receipts/$receiptId');
+  }
+
   Future<InvoicePurchase> getInvoiceDetail(int id) async {
     final data = await _api.get('procurement/invoices/$id');
     return InvoicePurchase.fromJson(data);

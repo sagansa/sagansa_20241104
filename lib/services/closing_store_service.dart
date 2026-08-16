@@ -53,6 +53,7 @@ class ClosingStoreService {
     int page = 1,
     int perPage = 20,
     int? userId,
+    String? employeeRole, // 'active' (staff) | 'former' (former-employee)
     String? status,
     int? paymentTypeId,
     DateTime? dateFrom,
@@ -63,6 +64,7 @@ class ClosingStoreService {
       'per_page': perPage.toString(),
     };
     if (userId != null) params['user_id'] = userId.toString();
+    if (employeeRole != null) params['employee_role'] = employeeRole;
     if (status != null) params['status'] = status;
     if (paymentTypeId != null) params['payment_type_id'] = paymentTypeId.toString();
     if (dateFrom != null) params['date_from'] = dateFrom.toIso8601String().substring(0, 10);
@@ -84,11 +86,13 @@ class ClosingStoreService {
     return (result as Map<String, dynamic>)['updated_count'] ?? 0;
   }
 
-  /// Get daily salaries for payment receipt (transfer type, status 3 = siap dibayar)
+  /// Get daily salaries for payment receipt (transfer, status 1/3, belum
+  /// terikat receipt apa pun). Endpoint for-payment, bukan index.
   Future<List<dynamic>> getDailySalariesForPayment({int? userId}) async {
     final params = <String, String>{};
     if (userId != null) params['user_id'] = userId.toString();
-    final data = await _api.get('daily-salaries', queryParams: params.isNotEmpty ? params : null);
+    final data = await _api.get('daily-salaries/for-payment',
+        queryParams: params.isNotEmpty ? params : null);
     return data as List<dynamic>? ?? [];
   }
 

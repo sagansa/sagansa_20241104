@@ -12,6 +12,7 @@ import '../services/supplier_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/format_utils.dart';
+import '../widgets/modern_button.dart';
 import '../widgets/safe_bottom_bar.dart';
 import '../widgets/supplier_payment_info_card.dart';
 import '../widgets/supplier_picker_modal.dart';
@@ -786,43 +787,18 @@ class _CreatePaymentReceiptPageState extends State<CreatePaymentReceiptPage> {
                       ],
                     ),
                   ),
-                  AppSpacing.gapVerticalLG,
-
-                  // === Submit Button ===
-                  SafeBottomBar(
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.gold,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusMD),
-                          ),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.gold,
-                                ),
-                              )
-                            : const Text(
-                                'Buat Payment Receipt',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
                 ],
+              ),
+            ),
+      // Tombol submit dipatok di bawah (tidak ikut scroll) — pola standar
+      // SafeBottomBar + ModernButton seperti halaman create lainnya.
+      bottomNavigationBar: _errorMessage != null
+          ? null
+          : SafeBottomBar(
+              child: ModernButton(
+                text: 'Buat Payment Receipt',
+                onPressed: _isSubmitting ? null : _submit,
+                isLoading: _isSubmitting,
               ),
             ),
     );

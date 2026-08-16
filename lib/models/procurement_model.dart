@@ -420,6 +420,7 @@ class PaymentReceipt {
   final String? supplierName;
   final List<InvoicePurchase> invoicePurchases;
   final List<FuelServiceItem> fuelServices;
+  final List<DailySalaryReceiptItem> dailySalaries;
 
   PaymentReceipt({
     required this.id,
@@ -434,6 +435,7 @@ class PaymentReceipt {
     this.supplierName,
     this.invoicePurchases = const [],
     this.fuelServices = const [],
+    this.dailySalaries = const [],
   });
 
   factory PaymentReceipt.fromJson(Map<String, dynamic> json) {
@@ -443,6 +445,10 @@ class PaymentReceipt {
     final fuelList = json['fuel_services'] as List? ?? [];
     final List<FuelServiceItem> fuelServices =
         fuelList.map((i) => FuelServiceItem.fromJson(i as Map<String, dynamic>)).toList();
+
+    final salaryList = json['daily_salaries'] as List? ?? [];
+    final List<DailySalaryReceiptItem> dailySalaries =
+        salaryList.map((i) => DailySalaryReceiptItem.fromJson(i as Map<String, dynamic>)).toList();
 
     return PaymentReceipt(
       id: _toInt(json['id']),
@@ -457,6 +463,7 @@ class PaymentReceipt {
       supplierName: json['supplier']?['name']?.toString(),
       invoicePurchases: invoices,
       fuelServices: fuelServices,
+      dailySalaries: dailySalaries,
     );
   }
 }
@@ -494,6 +501,34 @@ class FuelServiceItem {
       vehicleRegister: json['vehicle']?['no_register']?.toString(),
       km: json['km']?.toString() ?? '',
       createdByName: json['created_by']?['name']?.toString(),
+    );
+  }
+}
+
+/// Representasi ringkas satu daily salary yang tercantum dalam sebuah
+/// [PaymentReceipt] (payment_for == '2'). Cermin [FuelServiceItem].
+class DailySalaryReceiptItem {
+  final int id;
+  final int amount;
+  final String date;
+  final String? createdByName;
+  final int? createdById;
+
+  DailySalaryReceiptItem({
+    required this.id,
+    this.amount = 0,
+    this.date = '',
+    this.createdByName,
+    this.createdById,
+  });
+
+  factory DailySalaryReceiptItem.fromJson(Map<String, dynamic> json) {
+    return DailySalaryReceiptItem(
+      id: _toInt(json['id']),
+      amount: _toInt(json['amount']),
+      date: json['date']?.toString() ?? '',
+      createdByName: json['created_by']?['name']?.toString(),
+      createdById: _toIntOrNull(json['created_by']?['id']),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'safe_bottom_bar.dart';
 
 /// Field spec untuk FilterBottomSheet.
 abstract class FilterField<T> {
@@ -15,11 +16,24 @@ abstract class FilterField<T> {
 /// Dropdown field (karyawan, status, dll — nilai dari API).
 class DropdownFilterField<T> extends FilterField<T?> {
   final List<(T, String)> options;
+
+  /// Label field lain yang memengaruhi opsi dropdown ini (mis. pilihan
+  /// "Status Karyawan" menyaring daftar opsi "Karyawan").
+  final String? dependsOn;
+
+  /// Menyaring [options] berdasarkan nilai field [dependsOn] saat ini.
+  final List<(T, String)> Function(
+      List<(T, String)> options, dynamic dependencyValue)? optionFilter;
+
   const DropdownFilterField({
     required super.label,
     required super.value,
     required this.options,
-  }) : super();
+    this.dependsOn,
+    this.optionFilter,
+  })  : assert(dependsOn == null || optionFilter != null,
+            'optionFilter wajib bila dependsOn diisi'),
+        super();
 }
 
 /// Date-range field.
@@ -92,7 +106,16 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   void _updateValue(String label, dynamic value) {
-    setState(() => _values[label] = value);
+    setState(() {
+      _values[label] = value;
+      // Reset field yang bergantung pada field ini agar pilihan tidak
+      // kontradiktif (mis. ganti Status Karyawan → reset pilihan Karyawan).
+      for (final f in widget.fields) {
+        if (f is DropdownFilterField && f.dependsOn == label) {
+          _values[f.label] = null;
+        }
+      }
+    });
   }
 
   @override
@@ -183,10 +206,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   Widget _buildField(FilterField field) {
     if (field is DropdownFilterField) {
+      var options = field.options;
+      if (field.dependsOn != null && field.optionFilter != null) {
+        options = field.optionFilter!(field.options, _values[field.dependsOn]);
+      }
       return _DropdownFieldWidget(
         label: field.label,
         value: _values[field.label],
-        options: field.options,
+        options: options,
         onChanged: (v) => _updateValue(field.label, v),
       );
     }
@@ -311,7 +338,16 @@ class _DropdownFieldWidget<T> extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 controller: controller,
-                padding: AppSpacing.paddingHorizontalMD,
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  // Item terakhir tidak boleh tertutup system navigation bar.
+                  // systemBottomInset dibaca langsung dari view engine
+                  // (bulletproof terhadap MediaQuery yang dimodifikasi
+                  // ancestor — lihat SafeBottomBar).
+                  context.systemBottomInset + AppSpacing.lg,
+                ),
                 itemCount: options.length + 1,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (_, i) {

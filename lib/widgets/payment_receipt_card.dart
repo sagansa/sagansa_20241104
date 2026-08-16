@@ -9,10 +9,17 @@ class PaymentReceiptCard extends StatelessWidget {
   final PaymentReceipt receipt;
   final VoidCallback onTap;
 
+  /// Menu tambahan (opsional): bila salah satu disediakan, kartu menampilkan
+  /// popup menu ⋮ (mirror pola kartu daily salary).
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
   const PaymentReceiptCard({
     super.key,
     required this.receipt,
     required this.onTap,
+    this.onEdit,
+    this.onDelete,
   });
 
   String _getPaymentForLabel(String paymentFor) {
@@ -39,6 +46,23 @@ class PaymentReceiptCard extends StatelessWidget {
       default:
         return AppColors.secondary;
     }
+  }
+
+  /// Judul kartu: nama karyawan untuk receipt gaji harian (payment_for == '2'),
+  /// nama supplier untuk invoice, fallback ke Receipt #id.
+  String _getTitle() {
+    if (receipt.paymentFor == '2') {
+      final employeeName =
+          receipt.dailySalaries.isNotEmpty ? receipt.dailySalaries.first.createdByName : null;
+      if (employeeName != null && employeeName.isNotEmpty) {
+        return employeeName;
+      }
+      return 'Receipt #${receipt.id}';
+    }
+    if (receipt.supplierName != null && receipt.supplierName!.isNotEmpty) {
+      return receipt.supplierName!;
+    }
+    return 'Receipt #${receipt.id}';
   }
 
   @override
@@ -135,11 +159,9 @@ class PaymentReceiptCard extends StatelessWidget {
                         ],
                       ),
                       AppSpacing.gapVerticalXS,
-                      // Receipt ID / Supplier Name
+                      // Receipt ID / Supplier Name / Employee Name
                       Text(
-                        receipt.supplierName != null && receipt.supplierName!.isNotEmpty
-                            ? receipt.supplierName!
-                            : 'Receipt #${receipt.id}',
+                        _getTitle(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -185,6 +207,40 @@ class PaymentReceiptCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onEdit != null || onDelete != null)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert,
+                        color: colorScheme.onSurfaceVariant),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        onEdit?.call();
+                      } else if (value == 'delete') {
+                        onDelete?.call();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      if (onEdit != null)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Edit'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      if (onDelete != null)
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.delete_outline),
+                            title: Text('Hapus'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                    ],
+                  ),
                 const SizedBox(width: 4),
                 Icon(
                   Icons.chevron_right_rounded,

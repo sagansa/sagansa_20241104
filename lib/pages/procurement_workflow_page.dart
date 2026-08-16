@@ -552,10 +552,12 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
         final receipt = _invoiceToReceipt[inv.id];
         // Invoice lain yang dibayar di receipt yg sama.
         final linkedInSameReceipt = receipt?.invoicePurchases ?? const [];
-        // Thumbnail priority: gambar payment receipt (paid) > invoice image.
-        final thumbUrl = (inv.paymentStatus == '2' && receipt?.imageUrl != null)
+        // Thumbnail utama selalu gambar invoice; kwitansi (kalau paid & ada)
+        // ditampilkan sebagai thumbnail sekunder agar keduanya tetap terlihat.
+        final thumbUrl = inv.imageUrl;
+        final kwitansiUrl = (inv.paymentStatus == '2' && receipt?.imageUrl != null)
             ? receipt!.imageUrl
-            : inv.imageUrl;
+            : null;
         return ProcurementEntityCard.invoiceMode(
           invoice: inv,
           linkedRequestIds: reqIds,
@@ -574,9 +576,14 @@ class _ProcurementWorkflowPageState extends State<ProcurementWorkflowPage> {
               ? () => ImagePreviewDialog.show(
                     context,
                     thumbUrl,
-                    title: inv.paymentStatus == '2' && receipt?.imageUrl != null
-                        ? 'Kwitansi #${receipt!.id}'
-                        : 'Invoice #${inv.id}',
+                    title: 'Invoice #${inv.id}',
+                  )
+              : null,
+          onTapSecondaryThumbnail: kwitansiUrl != null
+              ? () => ImagePreviewDialog.show(
+                    context,
+                    kwitansiUrl,
+                    title: 'Kwitansi #${receipt!.id}',
                   )
               : null,
           onTapLinkedInvoice: (otherInv) async {

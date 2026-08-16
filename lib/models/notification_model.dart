@@ -40,13 +40,14 @@ class NotificationModel {
 
   bool get isRead => readAt != null;
 
-  /// id record terkait (invoice_id / receipt_id) bila ada di data.
+  /// id record terkait (invoice_id / receipt_id / sales_order_id) bila ada di data.
   int? get recordId {
-    final raw = data == null
-        ? null
-        : (type == 'invoice_transfer_created'
-            ? data!['invoice_id']
-            : data!['receipt_id']);
+    if (data == null) return null;
+    final raw = switch (type) {
+      'invoice_transfer_created' => data!['invoice_id'],
+      'sales_order_online_created' => data!['sales_order_id'],
+      _ => data!['receipt_id'],
+    };
     return raw == null ? null : int.tryParse(raw.toString());
   }
 }

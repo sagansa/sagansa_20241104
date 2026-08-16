@@ -22,6 +22,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
   bool isStorageStaff = false;
   bool isAdmin = false;
   bool isSupervisor = false;
+  bool isSales = false;
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
             isAdmin = userRoles.contains('admin') ||
                 userRoles.contains('super_admin');
             isSupervisor = userRoles.contains('supervisor');
+            isSales = userRoles.contains('sales');
           });
         }
       }
@@ -60,7 +62,7 @@ class _TransactionDashboardPageState extends State<TransactionDashboardPage> {
           icon: Icons.point_of_sale_outlined,
           title: 'Penjualan',
           subtitle: 'Catat penjualan: online, employee, atau direct.',
-          visible: isStorageStaff || isAdmin,
+          visible: isStorageStaff || isAdmin || isSales,
           onTap: () {
             Navigator.push(
               context,

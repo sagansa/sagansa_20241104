@@ -102,6 +102,57 @@ void main() {
     });
   });
 
+  group('StatusMappers.isPayableDailySalary', () {
+    // Guard sama dengan server (ProcurementController):
+    // status 1 (belum dibayar) / 3 (siap dibayar) + metode Transfer.
+    test('unpaid + transfer → payable', () {
+      expect(
+        StatusMappers.isPayableDailySalary(
+            {'status': 1, 'payment_type_id': 1}),
+        isTrue,
+      );
+    });
+
+    test('ready + transfer → payable (string dari JSON)', () {
+      expect(
+        StatusMappers.isPayableDailySalary(
+            {'status': '3', 'payment_type_id': '1'}),
+        isTrue,
+      );
+    });
+
+    test('paid (2) → tidak payable', () {
+      expect(
+        StatusMappers.isPayableDailySalary(
+            {'status': 2, 'payment_type_id': 1}),
+        isFalse,
+      );
+    });
+
+    test('fix (4) → tidak payable', () {
+      expect(
+        StatusMappers.isPayableDailySalary(
+            {'status': '4', 'payment_type_id': 1}),
+        isFalse,
+      );
+    });
+
+    test('unpaid tapi tunai → tidak payable', () {
+      expect(
+        StatusMappers.isPayableDailySalary(
+            {'status': 1, 'payment_type_id': 2}),
+        isFalse,
+      );
+    });
+
+    test('status null → tidak payable', () {
+      expect(
+        StatusMappers.isPayableDailySalary({'payment_type_id': 1}),
+        isFalse,
+      );
+    });
+  });
+
   group('StatusMappers.hygiene', () {
     test('approved (2) → success', () {
       expect(StatusMappers.hygieneStatus(2), StatusType.success);

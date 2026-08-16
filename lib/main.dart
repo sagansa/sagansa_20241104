@@ -12,6 +12,7 @@ import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
+import '../pages/sales_home_page.dart';
 import 'providers/asset_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/fuel_service_payment_provider.dart';
@@ -20,6 +21,7 @@ import 'providers/presence_provider.dart';
 import 'providers/printer_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/asset_service.dart';
+import 'services/auth_service.dart';
 import 'services/auth_session.dart';
 import 'services/inventory_anomaly_service.dart';
 import 'services/leave_service.dart';
@@ -192,8 +194,12 @@ void main() {
     await TokenStore.instance.migrateFromPrefs();
 
     final String? token = await TokenStore.instance.readToken();
-    final String initialRoute =
-        (token != null && token.isNotEmpty) ? '/home' : '/login';
+    final bool isSalesOnly = token != null &&
+        token.isNotEmpty &&
+        await AuthService.isSalesOnlyUser();
+    final String initialRoute = isSalesOnly
+        ? '/sales-home'
+        : ((token != null && token.isNotEmpty) ? '/home' : '/login');
 
     runApp(ErrorBoundaryWidget(child: MyApp(initialRoute: initialRoute)));
 
@@ -205,7 +211,8 @@ void main() {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await LocationTrackingService.instance.initialize();
-      if (token != null && token.isNotEmpty) {
+      // User sales-only tidak memanggil onLogin — tidak ada fitur lokasi.
+      if (token != null && token.isNotEmpty && !isSalesOnly) {
         await LocationTrackingService.instance.onLogin();
       }
     });
@@ -310,6 +317,7 @@ class _MyAppState extends State<MyApp> {
               routes: {
                 '/login': (context) => const LoginPage(),
                 '/home': (context) => const HomePage(),
+                '/sales-home': (context) => const SalesHomePage(),
               },
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,

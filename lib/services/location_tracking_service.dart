@@ -28,6 +28,15 @@ import 'token_store.dart';
 /// Nama unik periodic task workmanager.
 const String _kLocationPeriodicTask = 'sagansa-location-ping';
 
+/// Kill-switch background location tracking (workmanager periodic task).
+///
+/// DIMATIKAN atas permintaan user (kekhawatiran review iOS). Saat `false`,
+/// Workmanager tidak di-initialize dan periodic task tidak diregistrasi —
+/// GPS foreground (clock-in radius & ambil koordinat konsumen) tetap jalan
+/// karena memakai `geolocator` langsung, bukan lewat service ini.
+/// Set `true` untuk mengaktifkan kembali.
+const bool backgroundTrackingEnabled = false;
+
 /// Tipe payload FCM on-demand (konvensi sama dengan backend FcmService).
 const String _kFcmTypeLocationRequest = 'location_request';
 
@@ -103,9 +112,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
 
     if (type == kFcmTypeInvoiceTransferCreated ||
-        type == kFcmTypePaymentReceiptPaid) {
-      // Notifikasi procurement → tampilkan notifikasi lokal.
-      await handleProcurementNotificationFcm(data);
+        type == kFcmTypePaymentReceiptPaid ||
+        type == kFcmTypeSalesOrderOnlineCreated) {
+      // Notifikasi procurement & sales online → tampilkan notifikasi lokal.
+      await handleNotificationFcm(data);
       return;
     }
   } catch (e) {
@@ -170,10 +180,12 @@ class LocationTrackingService {
     // Dipasang pertama dan terpisah dari blok Firebase agar periodic location
     // ping & channel notifikasi tetap aktif walau Firebase gagal.
     try {
-      // Inisialisasi workmanager untuk periodic location ping.
-      // workmanager >= 0.9: isInDebugMode diganti hook-based system; lihat
-      // https://github.com/fluttercommunity/flutter_workmanager/releases.
-      await Workmanager().initialize(callbackDispatcher);
+      // Inisialisasi workmanager untuk periodic location ping — hanya bila
+      // background tracking aktif (kill-switch). Bila nonaktif, Workmanager
+      // tidak pernah di-initialize sehingga callbackDispatcher tidak jalan.
+      if (backgroundTrackingEnabled) {
+        await Workmanager().initialize(callbackDispatcher);
+      }
 
       // Notifikasi lokal (channel) — butuh channel aktif di Android 8+.
       const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
@@ -234,19 +246,24 @@ class LocationTrackingService {
       }
     }
     try {
-      await Workmanager().registerPeriodicTask(
-        _kLocationPeriodicTask,
-        _kLocationPeriodicTask,
-        frequency: const Duration(hours: 2),
-        // Android Doze membatasi minimal 15 menit; 2 jam diterima sebagai
-        // "minimal". keepExisting mempertahankan jadwal walau app restart.
-        // (workmanager 0.9:ExistingWorkPolicy → ExistingPeriodicWorkPolicy.)
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
-        backoffPolicy: BackoffPolicy.exponential,
-      );
+      // Periodic task hanya diregistrasi bila background tracking aktif.
+      // Bila nonaktif (kill-switch), onLogin ini no-op untuk Workmanager —
+      // FCM token tetap didaftarkan bila Firebase aktif.
+      if (backgroundTrackingEnabled) {
+        await Workmanager().registerPeriodicTask(
+          _kLocationPeriodicTask,
+          _kLocationPeriodicTask,
+          frequency: const Duration(hours: 2),
+          // Android Doze membatasi minimal 15 menit; 2 jam diterima sebagai
+          // "minimal". keepExisting mempertahankan jadwal walau app restart.
+          // (workmanager 0.9:ExistingWorkPolicy → ExistingPeriodicWorkPolicy.)
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+          ),
+          backoffPolicy: BackoffPolicy.exponential,
+        );
+      }
     } catch (e) {
       debugPrint('LocationTrackingService.onLogin: register periodic gagal: $e');
     }
@@ -281,10 +298,12 @@ class LocationTrackingService {
       handleAssetCheckDueFcm(message.data);
       return;
     }
-    // Notifikasi procurement → tampilkan notifikasi lokal saat app di foreground.
+    // Notifikasi procurement & sales online → tampilkan notifikasi lokal
+    // saat app di foreground.
     if (type == kFcmTypeInvoiceTransferCreated ||
-        type == kFcmTypePaymentReceiptPaid) {
-      handleProcurementNotificationFcm(message.data);
+        type == kFcmTypePaymentReceiptPaid ||
+        type == kFcmTypeSalesOrderOnlineCreated) {
+      handleNotificationFcm(message.data);
       return;
     }
   }

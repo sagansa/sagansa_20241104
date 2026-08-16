@@ -235,6 +235,13 @@ class InvoicePurchase {
   final String? image;
   String? get imageUrl => ImageService.buildUrl(image);
 
+  /// Data pembayaran supplier — dipakai kartu "Pembayaran Transfer" di
+  /// invoice detail (tipe transfer = paymentTypeId 1).
+  final bool supplierHasQris;
+  final String? supplierBankName;
+  final String? supplierBankAccountNo;
+  final String? supplierBankAccountName;
+
   InvoicePurchase({
     required this.id,
     this.paymentTypeId,
@@ -253,7 +260,17 @@ class InvoicePurchase {
     this.createdByName = '',
     this.detailInvoices = const [],
     this.image,
+    this.supplierHasQris = false,
+    this.supplierBankName,
+    this.supplierBankAccountNo,
+    this.supplierBankAccountName,
   });
+
+  bool get isTransfer => paymentTypeId == 1;
+
+  bool get hasSupplierBankAccount =>
+      (supplierBankAccountNo ?? '').isNotEmpty &&
+      (supplierBankAccountName ?? '').isNotEmpty;
 
   String get paymentStatusText {
     switch (paymentStatus) {
@@ -304,6 +321,13 @@ class InvoicePurchase {
       orderStatus: json['order_status']?.toString() ?? '1',
       storeName: (json['store']?['nickname'] ?? json['store']?['name'] ?? 'Toko').toString(),
       supplierName: json['supplier']?['name']?.toString(),
+      supplierHasQris:
+          (json['supplier']?['qris']?.toString() ?? '').isNotEmpty,
+      supplierBankName: json['supplier']?['bank']?['name']?.toString(),
+      supplierBankAccountNo:
+          json['supplier']?['bank_account_no']?.toString(),
+      supplierBankAccountName:
+          json['supplier']?['bank_account_name']?.toString(),
       createdByName: (json['created_by']?['name'] ?? '').toString(),
       detailInvoices: items,
       image: json['image']?.toString(),

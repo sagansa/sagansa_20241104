@@ -9,7 +9,52 @@ import 'location_tracking_service.dart';
 import 'token_store.dart';
 
 class AuthService {
-  static const List<String> allowedRoles = ['admin', 'staff', 'supervisor', 'storage-staff'];
+  static const List<String> allowedRoles = [
+    'admin',
+    'staff',
+    'supervisor',
+    'storage-staff',
+    'sales',
+  ];
+
+  /// Role staf aktif — user yang memilikinya masuk "mode penuh".
+  /// `former-employee` TIDAK termasuk di sini, jadi `sales + former-employee`
+  /// otomatis masuk mode sales-only.
+  static const List<String> staffRoles = [
+    'admin',
+    'super_admin',
+    'staff',
+    'supervisor',
+    'storage-staff',
+  ];
+
+  /// Cek user tersimpan saat ini (prefs `user`) termasuk mode sales-only.
+  /// Sales-only = punya role `sales` dan TIDAK punya role staf aktif.
+  static Future<bool> isSalesOnlyUser() async {
+    final roles = await _storedRoles();
+    return roles.contains('sales') &&
+        !roles.any((r) => staffRoles.contains(r));
+  }
+
+  /// Sales aktif = ber-role `sales` dan TIDAK ber-role `former-employee`.
+  /// Hanya sales aktif yang boleh mengakses penjualan employee;
+  /// `sales + former-employee` diblokir dari penjualan dan hanya boleh
+  /// mengumpulkan data calon konsumen.
+  static Future<bool> canSell() async {
+    final roles = await _storedRoles();
+    return roles.contains('sales') && !roles.contains('former-employee');
+  }
+
+  static Future<List<String>> _storedRoles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString == null) return const [];
+    try {
+      return List<String>.from(json.decode(userString)['roles'] ?? []);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   final ApiClient _api = ApiClient();
 
@@ -27,7 +72,15 @@ class AuthService {
 
       if (hasAllowedRole) {
         await _saveUserData(userData);
-        LocationTrackingService.instance.onLogin();
+
+        // Background location tracking dimatikan global (kill-switch di
+        // LocationTrackingService). Untuk user sales-only, onLogin bahkan
+        // tidak dipanggil — dia tidak punya fitur lokasi sama sekali.
+        final isSalesOnly = userRoles.contains('sales') &&
+            !userRoles.any((role) => staffRoles.contains(role));
+        if (!isSalesOnly) {
+          LocationTrackingService.instance.onLogin();
+        }
         return {'success': true, 'message': 'Login successful'};
       } else {
         return {

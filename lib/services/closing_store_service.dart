@@ -98,6 +98,26 @@ class ClosingStoreService {
     return data as List<dynamic>? ?? [];
   }
 
+  /// Buat daily salary manual (created_by = user login, status belum dibayar).
+  /// Server menolak duplikat user + tanggal yang sama.
+  Future<Map<String, dynamic>> createDailySalary(Map<String, dynamic> data) async {
+    final result = await _api.post('daily-salaries', body: data);
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Update daily salary milik sendiri (atau admin), hanya selama belum
+  /// dibayar. Status tidak dapat diubah dari sini.
+  Future<Map<String, dynamic>> updateDailySalary(int id, Map<String, dynamic> data) async {
+    final result = await _api.put('daily-salaries/$id', body: data);
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Hapus daily salary milik sendiri (atau admin). Yang sudah dibayar atau
+  /// terikat payment receipt ditolak server.
+  Future<void> deleteDailySalary(int id) async {
+    await _api.delete('daily-salaries/$id');
+  }
+
 
   /// Create a payment receipt
   Future<Map<String, dynamic>> createPaymentReceipt(Map<String, dynamic> data, {File? imageFile}) async {

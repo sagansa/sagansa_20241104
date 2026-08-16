@@ -95,6 +95,20 @@ class StatusMappers {
         _ => 'Tidak Diketahui',
       };
 
+  /// Apakah daily salary bisa dibayar via payment receipt: status 1 (belum
+  /// dibayar) / 3 (siap dibayar) dan metode Transfer. Sama dengan guard
+  /// server ProcurementController::storeDailySalaryPaymentReceipt.
+  /// Status/tipe pembayaran dari JSON bisa int maupun string.
+  static bool isPayableDailySalary(dynamic salary) {
+    if (salary is! Map) return false;
+    final status = salary['status'];
+    final payableStatus =
+        status == 1 || status == '1' || status == 3 || status == '3';
+    final paymentType = salary['payment_type_id'];
+    final isTransfer = paymentType == 1 || paymentType == '1';
+    return payableStatus && isTransfer;
+  }
+
   /// Hygiene status (1=pending, 2=approved, 3=rejected)
   static StatusType hygieneStatus(int? code) => switch (code) {
         2 => StatusType.success,

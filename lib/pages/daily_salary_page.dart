@@ -9,11 +9,14 @@ import '../services/closing_store_service.dart';
 import '../services/procurement_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/status_mappers.dart';
+import '../widgets/add_fab.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/payment_receipt_card.dart';
 import 'create_payment_receipt_page.dart';
+import 'daily_salary_form_page.dart';
 import 'payment_receipt_detail_page.dart';
 
 class DailySalaryPage extends StatefulWidget {
@@ -43,6 +46,7 @@ class _DailySalaryPageState extends State<DailySalaryPage>
 
   // Role & filter states
   bool _isAdmin = false;
+  int? _currentUserId;
   List<dynamic> _employees = [];
   int? _selectedUserId;
   String? _selectedStatus;
@@ -104,8 +108,12 @@ class _DailySalaryPageState extends State<DailySalaryPage>
       if (userString != null) {
         final userData = json.decode(userString);
         final userRoles = List<String>.from(userData['roles'] ?? []);
+        final rawId = userData['id'];
         setState(() {
           _isAdmin = userRoles.contains('admin') || userRoles.contains('super_admin');
+          _currentUserId = rawId is int
+              ? rawId
+              : int.tryParse(rawId?.toString() ?? '');
         });
       }
     } catch (e) {
@@ -266,10 +274,21 @@ class _DailySalaryPageState extends State<DailySalaryPage>
   Future<void> _navigateToPaymentReceipt() async {
     if (_selectedIds.isEmpty) return;
 
-    // Get selected daily salary data
+    // Get selected daily salary data (hanya yang masih bisa dibayar —
+    // pertahanan bila status berubah setelah refresh).
     final selectedSalaries = _dailySalaries
         .where((s) => _selectedIds.contains(s['id']))
+        .where((s) => StatusMappers.isPayableDailySalary(s))
         .toList();
+
+    if (selectedSalaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Tidak ada daily salary yang bisa dibayar pada pilihan.')),
+      );
+      return;
+    }
 
     // Get unique employee ID from selected items
     final employeeIds = selectedSalaries
@@ -324,13 +343,78 @@ class _DailySalaryPageState extends State<DailySalaryPage>
   }
 
   void _selectAll() {
+    final payableIds = _dailySalaries
+        .where((s) => StatusMappers.isPayableDailySalary(s))
+        .map((s) => s['id'] as int)
+        .toSet();
     setState(() {
-      if (_selectedIds.length == _dailySalaries.length) {
+      if (_selectedIds.length == payableIds.length) {
         _selectedIds.clear();
       } else {
-        _selectedIds.addAll(_dailySalaries.map((s) => s['id'] as int));
+        _selectedIds.addAll(payableIds);
       }
     });
+  }
+
+  int get _payableCount => _dailySalaries
+      .where((s) => StatusMappers.isPayableDailySalary(s))
+      .length;
+
+  /// Bisa diedit/dihapus bila milik sendiri (atau admin) dan belum dibayar.
+  bool _canModify(Map<String, dynamic> salary) {
+    final status = salary['status'];
+    if (status == 2 || status == '2') return false;
+
+    final ownerId = salary['created_by']?['id'];
+    return _isAdmin || ownerId == _currentUserId;
+  }
+
+  Future<void> _openDailySalaryForm([Map<String, dynamic>? record]) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DailySalaryFormPage(dailySalary: record),
+      ),
+    );
+    if (result == true && mounted) {
+      await _loadData();
+    }
+  }
+
+  Future<void> _confirmDeleteDailySalary(Map<String, dynamic> salary) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Gaji Harian'),
+        content: const Text(
+            'Yakin ingin menghapus daily salary ini? Tindakan tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _service.deleteDailySalary(salary['id'] as int);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Daily salary berhasil dihapus.')),
+      );
+      await _loadData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   void _onReceiptScroll() {
@@ -460,12 +544,12 @@ class _DailySalaryPageState extends State<DailySalaryPage>
             if (_isSelectionMode) ...[
               IconButton(
                 icon: Icon(
-                  _selectedIds.length == _dailySalaries.length
+                  _selectedIds.length == _payableCount
                       ? Icons.deselect
                       : Icons.select_all,
                 ),
                 onPressed: _selectAll,
-                tooltip: _selectedIds.length == _dailySalaries.length
+                tooltip: _selectedIds.length == _payableCount
                     ? 'Batalkan Semua'
                     : 'Pilih Semua',
               ),
@@ -526,6 +610,9 @@ class _DailySalaryPageState extends State<DailySalaryPage>
           _isAdmin ? _buildPaymentReceiptTab() : _buildAdminOnlyWidget(),
         ],
       ),
+      floatingActionButton: (_tabController.index == 0 && !_isSelectionMode)
+          ? AddFab(onPressed: () => _openDailySalaryForm())
+          : null,
       bottomNavigationBar: ModernBottomNav(
         currentIndex: 1,
         onTap: (index) {
@@ -633,12 +720,13 @@ class _DailySalaryPageState extends State<DailySalaryPage>
             paymentType == 1 || paymentType == '1' ? 'Transfer' : 'Tunai';
 
         final isSelected = _selectedIds.contains(salaryId);
+        final isPayable = StatusMappers.isPayableDailySalary(salary);
 
         return Card(
           margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
           color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
           child: InkWell(
-            onTap: _isSelectionMode
+            onTap: _isSelectionMode && isPayable
                 ? () => _toggleSelection(salaryId)
                 : null,
             borderRadius: AppSpacing.borderRadiusMD,
@@ -653,12 +741,16 @@ class _DailySalaryPageState extends State<DailySalaryPage>
                         Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.sm),
                           child: Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.outline,
+                            !isPayable
+                                ? Icons.block
+                                : isSelected
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                            color: !isPayable
+                                ? colorScheme.outlineVariant
+                                : isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.outline,
                           ),
                         ),
                       Expanded(
@@ -684,6 +776,40 @@ class _DailySalaryPageState extends State<DailySalaryPage>
                           ),
                         ),
                       ),
+                      if (!_isSelectionMode && _canModify(salary))
+                        PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert,
+                              color: colorScheme.onSurfaceVariant),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _openDailySalaryForm(
+                                  Map<String, dynamic>.from(salary));
+                            } else if (value == 'delete') {
+                              _confirmDeleteDailySalary(
+                                  Map<String, dynamic>.from(salary));
+                            }
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: ListTile(
+                                dense: true,
+                                leading: Icon(Icons.edit_outlined),
+                                title: Text('Edit'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                dense: true,
+                                leading: Icon(Icons.delete_outline),
+                                title: Text('Hapus'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                   AppSpacing.gapVerticalSM,

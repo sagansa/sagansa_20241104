@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../models/delivery_address_model.dart';
 import '../models/sales_order_employee_model.dart';
 import '../models/store_model.dart';
 import '../services/image_upload_service.dart';
@@ -15,6 +16,7 @@ import '../utils/snackbar_utils.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/modern_dropdown.dart';
 import '../widgets/safe_bottom_bar.dart';
+import 'delivery_address_form_page.dart';
 
 /// Form create/update penjualan employee (role sales).
 ///
@@ -180,6 +182,24 @@ class _SalesOrderEmployeeFormPageState
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// Buka form konsumen baru. Bila tersimpan, tambahkan ke daftar alamat
+  /// pengiriman (format `{id, name}`) dan pilih langsung untuk order ini.
+  Future<void> _openCreateDeliveryAddress() async {
+    final created = await Navigator.push<DeliveryAddressModel>(
+      context,
+      MaterialPageRoute(builder: (_) => const DeliveryAddressFormPage()),
+    );
+    if (created == null || !mounted) return;
+    setState(() {
+      final entry = {'id': created.id, 'name': created.displayName};
+      _deliveryAddresses = [
+        ..._deliveryAddresses.where((e) => e['id'] != created.id),
+        entry,
+      ];
+      _deliveryAddress = entry;
+    });
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
@@ -288,13 +308,7 @@ class _SalesOrderEmployeeFormPageState
                       AppSpacing.gapVerticalMD,
                       _buildDateField(theme),
                       AppSpacing.gapVerticalMD,
-                      _buildDropdownField(
-                        theme: theme,
-                        label: 'Alamat Pengiriman',
-                        value: _deliveryAddress,
-                        items: _deliveryAddresses,
-                        onChanged: (v) => setState(() => _deliveryAddress = v),
-                      ),
+                      _buildDeliveryAddressField(theme),
                       AppSpacing.gapVerticalMD,
                       _buildDropdownField(
                         theme: theme,
@@ -355,6 +369,29 @@ class _SalesOrderEmployeeFormPageState
         ),
         child: Text(text.isEmpty ? 'Pilih tanggal' : text),
       ),
+    );
+  }
+
+  Widget _buildDeliveryAddressField(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDropdownField(
+          theme: theme,
+          label: 'Alamat Pengiriman',
+          value: _deliveryAddress,
+          items: _deliveryAddresses,
+          onChanged: (v) => setState(() => _deliveryAddress = v),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _saving ? null : _openCreateDeliveryAddress,
+            icon: const Icon(Icons.person_add_alt_outlined, size: 18),
+            label: const Text('Tambah konsumen baru'),
+          ),
+        ),
+      ],
     );
   }
 

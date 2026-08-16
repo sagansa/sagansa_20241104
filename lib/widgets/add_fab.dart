@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/safe_bottom_bar.dart';
-
 class AddFab extends StatelessWidget {
   final VoidCallback onPressed;
 
@@ -12,7 +10,7 @@ class AddFab extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: EdgeInsets.only(
-        bottom: context.systemBottomInset + 8,
+        bottom: 8,
         right: 8,
       ),
       child: FloatingActionButton(

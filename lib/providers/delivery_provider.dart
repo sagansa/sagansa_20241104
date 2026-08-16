@@ -76,7 +76,7 @@ class DeliveryFormState {
   final bool isSubmitting;
   final bool isMarkingReady;
   final bool isPrintingSticker;
-  final bool isUpdatingPaymentStatus;
+  final bool isUpdatingAssignment;
   final bool isPrintingPaymentProof;
 
   const DeliveryFormState({
@@ -85,7 +85,7 @@ class DeliveryFormState {
     this.isSubmitting = false,
     this.isMarkingReady = false,
     this.isPrintingSticker = false,
-    this.isUpdatingPaymentStatus = false,
+    this.isUpdatingAssignment = false,
     this.isPrintingPaymentProof = false,
   });
 
@@ -96,7 +96,7 @@ class DeliveryFormState {
     bool? isSubmitting,
     bool? isMarkingReady,
     bool? isPrintingSticker,
-    bool? isUpdatingPaymentStatus,
+    bool? isUpdatingAssignment,
     bool? isPrintingPaymentProof,
   }) {
     return DeliveryFormState(
@@ -105,8 +105,8 @@ class DeliveryFormState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isMarkingReady: isMarkingReady ?? this.isMarkingReady,
       isPrintingSticker: isPrintingSticker ?? this.isPrintingSticker,
-      isUpdatingPaymentStatus:
-          isUpdatingPaymentStatus ?? this.isUpdatingPaymentStatus,
+      isUpdatingAssignment:
+          isUpdatingAssignment ?? this.isUpdatingAssignment,
       isPrintingPaymentProof:
           isPrintingPaymentProof ?? this.isPrintingPaymentProof,
     );
@@ -274,6 +274,29 @@ class DeliveryProvider extends ChangeNotifier {
 
     _listState = _listState.copyWith(isLoadingSearch: false);
     notifyListeners();
+  }
+
+  /// Ganti item order terpilih (khusus admin). Setelah sukses, order
+  /// terpilih diganti dengan data terbaru dari server sehingga detail
+  /// langsung menampilkan items dan total yang baru.
+  Future<void> updateOrderItems(List<Map<String, dynamic>> items) async {
+    final order = _formState.selectedOrder;
+    final orderId = int.tryParse(order?['id']?.toString() ?? '');
+    if (order == null || orderId == null) {
+      throw Exception('Tidak ada order terpilih.');
+    }
+
+    final result = await presenceService.updateSalesOrderItems(
+      orderId: orderId,
+      items: items,
+    );
+
+    if (result['success'] == true && result['data'] is Map<String, dynamic>) {
+      _selectOrderInternal(result['data'] as Map<String, dynamic>);
+      notifyListeners();
+    } else {
+      throw Exception(result['message'] ?? 'Gagal memperbarui rincian produk.');
+    }
   }
 
   void selectOrder(Map<String, dynamic> order) {
@@ -447,37 +470,35 @@ class DeliveryProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updatePaymentStatus(
-      int orderId, String newStatus) async {
-    _formState = _formState.copyWith(isUpdatingPaymentStatus: true);
+  Future<void> updateAssignment({
+    required int orderId,
+    String? paymentStatus,
+    int? storeId,
+  }) async {
+    _formState = _formState.copyWith(isUpdatingAssignment: true);
     notifyListeners();
 
     try {
-      final result = await presenceService.updatePaymentStatus(
+      final result = await presenceService.assignSalesOrder(
         orderId: orderId,
-        paymentStatus: newStatus,
+        paymentStatus: paymentStatus,
+        storeId: storeId,
       );
 
-      if (result['success'] == true) {
-        if (_formState.selectedOrder != null) {
-          _formState = _formState.copyWith(
-            selectedOrder: {
-              ..._formState.selectedOrder!,
-              'payment_status': newStatus,
-            },
-            isUpdatingPaymentStatus: false,
-          );
-        }
+      if (result['success'] == true &&
+          result['data'] is Map<String, dynamic>) {
+        _selectOrderInternal(result['data'] as Map<String, dynamic>);
+        _formState = _formState.copyWith(isUpdatingAssignment: false);
         notifyListeners();
         loadInitialOrders();
       } else {
-        _formState = _formState.copyWith(isUpdatingPaymentStatus: false);
+        _formState = _formState.copyWith(isUpdatingAssignment: false);
         notifyListeners();
         throw Exception(
-            result['message'] ?? 'Gagal mengubah status pembayaran.');
+            result['message'] ?? 'Gagal menetapkan toko/status bayar.');
       }
     } catch (e) {
-      _formState = _formState.copyWith(isUpdatingPaymentStatus: false);
+      _formState = _formState.copyWith(isUpdatingAssignment: false);
       notifyListeners();
       rethrow;
     }

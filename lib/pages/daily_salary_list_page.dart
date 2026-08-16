@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/closing_store_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/status_mappers.dart';
 import '../widgets/filter_app_bar_action.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/modern_bottom_nav.dart';
@@ -242,10 +243,21 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
   Future<void> _navigateToPaymentReceipt() async {
     if (_selectedIds.isEmpty) return;
 
-    // Get selected daily salary data
+    // Get selected daily salary data (hanya yang masih bisa dibayar —
+    // pertahanan bila status berubah setelah refresh).
     final selectedSalaries = _dailySalaries
         .where((s) => _selectedIds.contains(s['id']))
+        .where((s) => StatusMappers.isPayableDailySalary(s))
         .toList();
+
+    if (selectedSalaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Tidak ada daily salary yang bisa dibayar pada pilihan.')),
+      );
+      return;
+    }
 
     // Get unique employee ID from selected items
     final employeeIds = selectedSalaries
@@ -300,14 +312,22 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
   }
 
   void _selectAll() {
+    final payableIds = _dailySalaries
+        .where((s) => StatusMappers.isPayableDailySalary(s))
+        .map((s) => s['id'] as int)
+        .toSet();
     setState(() {
-      if (_selectedIds.length == _dailySalaries.length) {
+      if (_selectedIds.length == payableIds.length) {
         _selectedIds.clear();
       } else {
-        _selectedIds.addAll(_dailySalaries.map((s) => s['id'] as int));
+        _selectedIds.addAll(payableIds);
       }
     });
   }
+
+  int get _payableCount => _dailySalaries
+      .where((s) => StatusMappers.isPayableDailySalary(s))
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -327,12 +347,12 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
             if (_isSelectionMode) ...[
               IconButton(
                 icon: Icon(
-                  _selectedIds.length == _dailySalaries.length
+                  _selectedIds.length == _payableCount
                       ? Icons.deselect
                       : Icons.select_all,
                 ),
                 onPressed: _selectAll,
-                tooltip: _selectedIds.length == _dailySalaries.length
+                tooltip: _selectedIds.length == _payableCount
                     ? 'Batalkan Semua'
                     : 'Pilih Semua',
               ),
@@ -480,12 +500,13 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
             paymentType == 1 || paymentType == '1' ? 'Transfer' : 'Tunai';
 
         final isSelected = _selectedIds.contains(salaryId);
+        final isPayable = StatusMappers.isPayableDailySalary(salary);
 
         return Card(
           margin: const EdgeInsets.only(bottom: AppSpacing.sectionGap),
           color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
           child: InkWell(
-            onTap: _isSelectionMode
+            onTap: _isSelectionMode && isPayable
                 ? () => _toggleSelection(salaryId)
                 : null,
             borderRadius: AppSpacing.borderRadiusMD,
@@ -500,12 +521,16 @@ class _DailySalaryListPageState extends State<DailySalaryListPage> {
                         Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.sm),
                           child: Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.outline,
+                            !isPayable
+                                ? Icons.block
+                                : isSelected
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                            color: !isPayable
+                                ? colorScheme.outlineVariant
+                                : isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.outline,
                           ),
                         ),
                       Expanded(

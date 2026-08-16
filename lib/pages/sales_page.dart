@@ -20,10 +20,12 @@ import 'create_sales_order_online_page.dart';
 import 'sales_order_employee_detail_page.dart';
 import 'sales_order_employee_form_page.dart';
 
-/// Halaman Penjualan terpadu — 3 tab: Online, Employee, Direct.
+/// Halaman Penjualan terpadu — tab Online, Employee, Direct.
 ///
 /// Menggantikan dialog pilih tipe penjualan di TransactionDashboardPage
 /// — user cukup tap tab untuk ganti tipe, tanpa bolak-balik ke menu utama.
+/// Tab Employee hanya untuk sales aktif (`sales` tanpa `former-employee`)
+/// dan admin; role lain (mis. storage-staff) hanya melihat Online/Direct.
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
 
@@ -33,23 +35,51 @@ class SalesPage extends StatefulWidget {
 
 class _SalesPageState extends State<SalesPage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
+  bool _showEmployeeTab = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _loadTabs();
+  }
+
+  Future<void> _loadTabs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    var roles = const <String>[];
+    if (userString != null) {
+      try {
+        roles = List<String>.from(json.decode(userString)['roles'] ?? []);
+      } catch (_) {}
+    }
+    final canSell =
+        roles.contains('sales') && !roles.contains('former-employee');
+    final isAdmin =
+        roles.contains('admin') || roles.contains('super_admin');
+    if (!mounted) return;
+    _tabController?.dispose();
+    setState(() {
+      _showEmployeeTab = canSell || isAdmin;
+      _tabController =
+          TabController(length: _showEmployeeTab ? 3 : 2, vsync: this);
+    });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final tabController = _tabController;
+
+    if (tabController == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -59,24 +89,24 @@ class _SalesPageState extends State<SalesPage>
           child: Container(
             color: cs.surface,
             child: TabBar(
-              controller: _tabController,
+              controller: tabController,
               indicatorColor: cs.primary,
               labelColor: cs.primary,
               unselectedLabelColor: cs.onSurfaceVariant,
-              tabs: const [
-                Tab(text: 'Online'),
-                Tab(text: 'Employee'),
-                Tab(text: 'Direct'),
+              tabs: [
+                const Tab(text: 'Online'),
+                if (_showEmployeeTab) const Tab(text: 'Employee'),
+                const Tab(text: 'Direct'),
               ],
             ),
           ),
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
+        controller: tabController,
         children: [
           _OnlineTabContent(),
-          const _EmployeeTabContent(),
+          if (_showEmployeeTab) const _EmployeeTabContent(),
           _DirectTabContent(),
         ],
       ),
@@ -288,7 +318,8 @@ class _EmployeeTabContentState extends State<_EmployeeTabContent> {
       final roles = List<String>.from(json.decode(userString)['roles'] ?? []);
       if (mounted) {
         setState(() {
-          _isSales = roles.contains('sales');
+          _isSales =
+              roles.contains('sales') && !roles.contains('former-employee');
         });
       }
     }

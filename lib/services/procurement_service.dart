@@ -439,4 +439,13 @@ class ProcurementService {
     }
     return body['data'] as Map<String, dynamic>;
   }
+
+  /// QRIS dinamis supplier dengan nominal total invoice (tipe transfer).
+  Future<Map<String, dynamic>> getInvoiceQris(int invoiceId) async {
+    final body = await _api.getRaw('procurement/invoices/$invoiceId/qris');
+    if (body['success'] != true) {
+      throw Exception(body['message'] ?? 'Gagal memuat QRIS invoice.');
+    }
+    return body['data'] as Map<String, dynamic>;
+  }
 }

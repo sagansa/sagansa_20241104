@@ -85,11 +85,24 @@ class LoginPageState extends State<LoginPage> {
         }
 
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomePage(initialIsAdmin: initialIsAdmin),
-          ),
-        );
+
+        // User sales-only → halaman khusus penjualan (tanpa navbar/drawer).
+        // Selain itu → aplikasi penuh, dengan initialIsAdmin agar perilaku
+        // dashboard supervisor/admin tidak berubah dari sebelumnya.
+        final isSalesOnly = context.read<AuthProvider>().isSalesOnly;
+        if (isSalesOnly) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/sales-home',
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) =>
+                  HomePage(initialIsAdmin: initialIsAdmin),
+            ),
+          );
+        }
       } else {
         final errorMsg = context.read<AuthProvider>().errorMessage;
         _showErrorDialog(errorMsg.isNotEmpty ? errorMsg : 'Login gagal');

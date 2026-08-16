@@ -224,6 +224,25 @@ class AuthProvider with ChangeNotifier {
   bool get isAdmin => hasAnyRole(const ['admin', 'super_admin']);
   bool get isStorageStaff => roles.contains('storage-staff');
 
+  /// Mode sales-only: punya role `sales` dan TIDAK punya role staf aktif
+  /// (admin, super_admin, staff, supervisor, storage-staff). `former-employee`
+  /// tidak dianggap role staf, jadi `sales + former-employee` masuk mode ini.
+  bool get isSalesOnly =>
+      roles.contains('sales') &&
+      !hasAnyRole(const [
+        'admin',
+        'super_admin',
+        'staff',
+        'supervisor',
+        'storage-staff',
+      ]);
+
+  /// Sales aktif = ber-role `sales` dan TIDAK ber-role `former-employee`.
+  /// Hanya sales aktif yang boleh membuat/mengubah penjualan employee;
+  /// `sales + former-employee` diblokir dari penjualan (hanya kelola konsumen).
+  bool get canSell =>
+      roles.contains('sales') && !roles.contains('former-employee');
+
   // --- Home data (absorbed from HomeController) ---
 
   Map<String, String>? _cachedUserInfo;

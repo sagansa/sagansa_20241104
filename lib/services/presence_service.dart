@@ -245,6 +245,38 @@ class PresenceService {
     }
   }
 
+  /// Ganti seluruh item order (khusus admin). Items berupa list
+  /// {product_id, quantity, unit_price}; server menghitung ulang subtotal
+  /// dan total_price, lalu mengembalikan order terbaru.
+  Future<Map<String, dynamic>> updateSalesOrderItems({
+    required int orderId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    try {
+      return await _api.postRaw(
+        'sales-orders/$orderId/items',
+        body: {'items': items},
+      );
+    } catch (e) {
+      throw Exception('Error saat memperbarui rincian produk: $e');
+    }
+  }
+
+  /// Detail satu order online (for=3) beserta items — dipakai deep-link
+  /// notifikasi. Mengembalikan null bila order tidak ditemukan.
+  Future<Map<String, dynamic>?> getOnlineSalesOrder(int id) async {
+    try {
+      final result = await _api.getRaw('sales-orders/online/$id');
+      if (result['success'] == true &&
+          result['data'] is Map<String, dynamic>) {
+        return result['data'] as Map<String, dynamic>;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> markReadyToShip({
     required int orderId,
     String? orderFor,
@@ -320,39 +352,22 @@ class PresenceService {
     }
   }
 
-  /// Update payment status for a direct sales order (admin only).
-  Future<Map<String, dynamic>> updatePaymentStatus({
+  /// Tetapkan status bayar &/atau toko untuk order direct (admin only).
+  Future<Map<String, dynamic>> assignSalesOrder({
     required int orderId,
-    required String paymentStatus,
+    String? paymentStatus,
+    int? storeId,
   }) async {
     try {
       return await _api.postRaw(
-        'sales-orders/update-payment-status',
+        'sales-orders/$orderId/assign',
         body: {
-          'order_id': orderId,
-          'payment_status': paymentStatus,
+          if (paymentStatus != null) 'payment_status': paymentStatus,
+          if (storeId != null) 'store_id': storeId,
         },
       );
     } catch (e) {
-      throw Exception('Error saat memperbarui status pembayaran: $e');
-    }
-  }
-
-  /// Update order items for a direct sales order (admin only).
-  Future<Map<String, dynamic>> updateOrderItems({
-    required int orderId,
-    required List<Map<String, dynamic>> items,
-  }) async {
-    try {
-      return await _api.postRaw(
-        'sales-orders/update-items',
-        body: {
-          'order_id': orderId,
-          'items': items,
-        },
-      );
-    } catch (e) {
-      throw Exception('Error saat memperbarui item order: $e');
+      throw Exception('Error saat menetapkan toko/status bayar: $e');
     }
   }
 

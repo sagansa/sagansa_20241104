@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/procurement_model.dart';
 import '../../services/procurement_service.dart';
@@ -31,6 +33,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   bool _canReceive = false;
   bool _isReceiving = false;
   bool _isDeleting = false;
+  bool _isStaff = false;
+  bool _qrisLoading = false;
+  Map<String, dynamic>? _qrisData;
+  String? _qrisError;
 
   @override
   void initState() {
@@ -45,6 +51,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       final userData = json.decode(userString);
       final roles = List<String>.from(userData['roles'] ?? []);
       _isAdmin = roles.contains('admin') || roles.contains('super_admin');
+      _isStaff = roles.contains('staff');
       _currentUserId = userData['id'] ?? 0;
       _canReceive =
           roles.any((r) => ['staff', 'admin', 'super_admin'].contains(r));
@@ -57,6 +64,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _qrisData = null;
+      _qrisError = null;
     });
 
     try {
@@ -86,6 +95,31 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
       setState(() {
         _errorMessage = 'Gagal memuat detail invoice: $e';
         _isLoading = false;
+      });
+    }
+  }
+
+  /// QRIS dinamis supplier dengan nominal total invoice. Di-load saat
+  /// tombol "Tampilkan Kode QRIS" ditekan (lazy) supaya tidak membebani
+  /// pembukaan halaman detail.
+  Future<void> _loadQris() async {
+    if (_qrisLoading || _qrisData != null) return;
+    setState(() {
+      _qrisLoading = true;
+      _qrisError = null;
+    });
+    try {
+      final data = await _procurementService.getInvoiceQris(widget.invoiceId);
+      if (!mounted) return;
+      setState(() {
+        _qrisData = data;
+        _qrisLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _qrisLoading = false;
+        _qrisError = e.toString().replaceAll('Exception: ', '');
       });
     }
   }
@@ -851,6 +885,14 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                           ),
                         ),
 
+                        // Kartu Pembayaran Transfer: QRIS / rekening supplier.
+                        // Hanya untuk invoice tipe transfer dan bukan staff
+                        // (konsisten dengan policy QRIS payment receipt).
+                        if (_invoice!.isTransfer && !_isStaff) ...[
+                          AppSpacing.gapVerticalMD,
+                          _buildTransferPaymentCard(theme, colorScheme),
+                        ],
+
                         // Catatan (jika ada)
                         if (_invoice!.notes != null &&
                             _invoice!.notes!.isNotEmpty) ...[
@@ -1214,6 +1256,249 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Kartu tujuan pembayaran untuk invoice tipe transfer: rekening bank
+  /// dan/atau QRIS dinamis milik supplier (nominal = total invoice).
+  Widget _buildTransferPaymentCard(ThemeData theme, ColorScheme colorScheme) {
+    final invoice = _invoice!;
+    return Card(
+      color: colorScheme.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.account_balance,
+                      color: AppColors.info, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Pembayaran Transfer',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Total: Rp ${FormatUtils.formatNumber(invoice.totalPrice)}',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Divider(
+                height: 1,
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
+            if (invoice.hasSupplierBankAccount) ...[
+              _buildBankAccountSection(theme, colorScheme),
+              if (invoice.supplierHasQris) ...[
+                const SizedBox(height: 16),
+                Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                const SizedBox(height: 16),
+              ],
+            ],
+            if (invoice.supplierHasQris)
+              _buildQrisSection(theme)
+            else if (!invoice.hasSupplierBankAccount)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Supplier belum memiliki data QRIS / rekening bank. Lengkapi data supplier terlebih dahulu.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBankAccountSection(ThemeData theme, ColorScheme colorScheme) {
+    final invoice = _invoice!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.credit_card,
+                size: 16, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              'Rekening Supplier',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _buildInfoRow('Bank', invoice.supplierBankName ?? '-', theme),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'No. Rekening',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      invoice.supplierBankAccountNo ?? '-',
+                      textAlign: TextAlign.end,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: () => _copyToClipboard(
+                      invoice.supplierBankAccountNo!,
+                      label: 'Nomor rekening',
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Icon(Icons.copy_rounded,
+                        size: 15, color: colorScheme.primary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _buildInfoRow('Atas Nama', invoice.supplierBankAccountName ?? '-', theme),
+      ],
+    );
+  }
+
+  Widget _buildQrisSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.qr_code_2_rounded,
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              'QRIS Supplier',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_qrisData != null) ...[
+          Center(
+            child: QrImageView(
+              data: _qrisData!['payload'] as String,
+              version: QrVersions.auto,
+              size: 180,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Colors.black,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildInfoRow(
+              'Merchant', _qrisData!['merchant_name']?.toString() ?? '-', theme),
+          const SizedBox(height: 8),
+          _buildInfoRow(
+              'Nominal QRIS',
+              'Rp ${FormatUtils.formatNumber(_qrisData!['amount'])}',
+              theme),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  _copyToClipboard(_qrisData!['payload'] as String,
+                      label: 'Payload QRIS'),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Salin Payload QRIS'),
+            ),
+          ),
+        ] else if (_qrisLoading) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ] else if (_qrisError != null) ...[
+          Text(
+            _qrisError!,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.error),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _loadQris,
+              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+              label: const Text('Coba Lagi'),
+            ),
+          ),
+        ] else ...[
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _loadQris,
+              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+              label: const Text('Tampilkan Kode QRIS'),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _copyToClipboard(String text, {required String label}) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label disalin')),
     );
   }
 

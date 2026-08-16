@@ -16,7 +16,11 @@ import 'sales_order_employee_form_page.dart';
 /// - Role `sales`: melihat miliknya sendiri, FAB "+" untuk create.
 /// - Role `admin/super_admin`: melihat SEMUA order, dengan filter per sales.
 class SalesOrderEmployeeListPage extends StatefulWidget {
-  const SalesOrderEmployeeListPage({super.key});
+  /// Set false saat di-embed di [SalesHomePage] agar tidak muncul AppBar
+  /// ganda (halaman induk sudah punya AppBar + tab bar).
+  final bool showAppBar;
+
+  const SalesOrderEmployeeListPage({super.key, this.showAppBar = true});
 
   @override
   State<SalesOrderEmployeeListPage> createState() =>
@@ -58,7 +62,10 @@ class _SalesOrderEmployeeListPageState
       if (mounted) {
         setState(() {
           _isAdmin = roles.contains('admin') || roles.contains('super_admin');
-          _isSales = roles.contains('sales');
+          // Sales aktif saja — `sales + former-employee` diblokir dari
+          // penjualan (backend juga menolak dengan 403).
+          _isSales =
+              roles.contains('sales') && !roles.contains('former-employee');
         });
       }
     }
@@ -140,7 +147,9 @@ class _SalesOrderEmployeeListPageState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Penjualan Employee')),
+      appBar: widget.showAppBar
+          ? AppBar(title: const Text('Penjualan Employee'))
+          : null,
       body: Column(
         children: [
           if (_isAdmin) _buildSalesFilter(theme, colorScheme),

@@ -9,11 +9,12 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/status_mappers.dart';
 import '../../widgets/detail_row.dart';
-import '../../widgets/modern_dropdown.dart';
 import '../../widgets/photo_uploader.dart';
 import '../../widgets/status_badge.dart';
 import 'delivery_actions.dart';
 import 'delivery_stepper.dart';
+import 'edit_order_assignment_sheet.dart';
+import 'edit_order_items_sheet.dart';
 
 class DirectOrderDetailView extends StatelessWidget {
   final Map<String, dynamic> order;
@@ -91,6 +92,13 @@ class DirectOrderDetailView extends StatelessWidget {
     DeliveryListState listState,
     bool isLocked,
   ) {
+    final canEditAssignment = listState.isAdmin &&
+        !(status == DeliveryStatus.delivered &&
+            order['payment_status']?.toString() == '2');
+    final editIcon = canEditAssignment
+        ? _buildEditAssignmentIcon(context, provider)
+        : null;
+
     return Card(
       color: colorScheme.surface,
       elevation: 0,
@@ -129,20 +137,19 @@ class DirectOrderDetailView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 DetailRow(
-                    label: 'Toko', value: order['store_name'] ?? '-'),
+                    label: 'Toko',
+                    value: order['store_name'] ?? '-',
+                    trailing: editIcon),
                 const SizedBox(height: 8),
                 DetailRow(
                     label: 'Metode Bayar',
                     value: order['payment_method'] ?? '-'),
                 const SizedBox(height: 8),
-                if (listState.isAdmin)
-                  _buildAdminPaymentStatusField(
-                      context, provider, colorScheme, textTheme)
-                else
-                  DetailRow(
-                      label: 'Status Bayar',
-                      value: StatusMappers.paymentLabel(
-                          order['payment_status']?.toString())),
+                DetailRow(
+                    label: 'Status Bayar',
+                    value: StatusMappers.paymentLabel(
+                        order['payment_status']?.toString()),
+                    trailing: editIcon),
                 if (order['bank_name'] != null) ...[
                   const SizedBox(height: 8),
                   DetailRow(
@@ -173,68 +180,20 @@ class DirectOrderDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildAdminPaymentStatusField(
+  Widget _buildEditAssignmentIcon(
     BuildContext context,
     DeliveryProvider provider,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
   ) {
-    final formState = provider.formState;
-    final currentStatus =
-        order['payment_status']?.toString() ?? '4';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        children: [
-          Icon(Icons.payment, size: 16, color: AppColors.info),
-          AppSpacing.gapHorizontalSM,
-          Text('Status Bayar: ', style: textTheme.bodySmall),
-          Expanded(
-            child: formState.isUpdatingPaymentStatus
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : ModernDropdown<String>(
-                    value: currentStatus,
-                    labelText: 'Status Bayar',
-                    hint: 'Pilih status bayar...',
-                    items: const ['1', '2', '3', '4'],
-                    getLabel: (value) {
-                      switch (value) {
-                        case '1':
-                          return 'Sudah Dibayar';
-                        case '2':
-                          return 'Valid';
-                        case '3':
-                          return 'Tidak Valid';
-                        case '4':
-                          return 'Menunggu Pembayaran';
-                        default:
-                          return 'Pilih status';
-                      }
-                    },
-                    onChanged: (value) {
-                      if (value != null && value != currentStatus) {
-                        final orderId = int.tryParse(
-                            order['id'].toString());
-                        if (orderId != null) {
-                          provider
-                              .updatePaymentStatus(orderId, value)
-                              .catchError((e) {
-                            if (context.mounted) {
-                              _showError(context, e);
-                            }
-                          });
-                        }
-                      }
-                    },
-                  ),
-          ),
-        ],
+    return IconButton(
+      onPressed: () => EditOrderAssignmentSheet.show(
+        context,
+        order: order,
+        provider: provider,
       ),
+      icon: const Icon(Icons.edit_rounded, size: 16),
+      visualDensity: VisualDensity.compact,
+      tooltip: 'Ubah toko & status bayar',
+      color: Theme.of(context).colorScheme.primary,
     );
   }
 
@@ -345,7 +304,7 @@ class DirectOrderDetailView extends StatelessWidget {
               ),
             if (listState.isAdmin && !isLocked) ...[
               AppSpacing.gapVerticalMD,
-              _buildAdminProductEditSection(textTheme, colorScheme),
+              _buildAdminProductEditSection(context, provider),
             ],
           ],
         ),
@@ -354,38 +313,21 @@ class DirectOrderDetailView extends StatelessWidget {
   }
 
   Widget _buildAdminProductEditSection(
-    TextTheme textTheme,
-    ColorScheme colorScheme,
+    BuildContext context,
+    DeliveryProvider provider,
   ) {
-    return Card(
-      color: colorScheme.surface,
-      child: Padding(
-        padding: AppSpacing.paddingMD,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.edit_outlined,
-                    color: colorScheme.primary, size: 18),
-                AppSpacing.gapHorizontalSM,
-                Text(
-                  'Edit Item Order',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            AppSpacing.gapVerticalSM,
-            Text(
-              'Hubungi admin backend untuk mengubah jenis produk yang dibeli.',
-              style: textTheme.bodySmall
-                  ?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-          ],
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => EditOrderItemsSheet.show(
+          context,
+          order: order,
+          provider: provider,
         ),
+        icon: Icon(Icons.edit_outlined, color: colorScheme.primary, size: 18),
+        label: const Text('Ubah Rincian Produk'),
       ),
     );
   }
@@ -414,7 +356,7 @@ class DirectOrderDetailView extends StatelessWidget {
                     color: colorScheme.primary, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Resi',
+                  'Bukti Pembayaran',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,

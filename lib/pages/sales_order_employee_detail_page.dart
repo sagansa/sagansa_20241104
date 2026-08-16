@@ -152,7 +152,7 @@ class _SalesOrderEmployeeDetailPageState
           (1, 'Belum Diperiksa', AppColors.onSurfaceVariant),
           (2, 'Valid', AppColors.success),
           (3, 'Tidak Valid', AppColors.error),
-          (4, 'Periksa Ulang', AppColors.warning),
+          (4, 'Menunggu Pembayaran', AppColors.warning),
         ];
         return SafeArea(
           child: Column(

@@ -126,7 +126,7 @@ class SalesOrderEmployeeModel {
       case 3:
         return 'Tidak Valid';
       case 4:
-        return 'Periksa Ulang';
+        return 'Menunggu Pembayaran';
       default:
         return '-';
     }

@@ -66,12 +66,6 @@ class ApiConstants {
   // Sales Order Employee (for=2) — penjualan oleh sales.
   static const String salesOrderEmployee = '$baseUrl/sales-orders/employee';
 
-  // Sales Order Admin Endpoints
-  static const String updatePaymentStatus =
-      '$baseUrl/sales-orders/update-payment-status';
-  static const String updateOrderItems =
-      '$baseUrl/sales-orders/update-items';
-
   // Inventory Anomaly Comparison (admin)
   static const String compareInventoryAnomaly =
       '$baseUrl/inventory-anomalies/compare';

@@ -26,6 +26,9 @@ class ProcurementEntityCard extends StatelessWidget {
   final String? thumbnailUrl;
   final IconData thumbnailPlaceholder;
   final VoidCallback? onTapThumbnail;
+  final String? secondaryThumbnailUrl;
+  final IconData secondaryThumbnailIcon;
+  final VoidCallback? onTapSecondaryThumbnail;
 
   const ProcurementEntityCard._({
     super.key,
@@ -43,6 +46,9 @@ class ProcurementEntityCard extends StatelessWidget {
     this.thumbnailUrl,
     this.thumbnailPlaceholder = Icons.receipt_long,
     this.onTapThumbnail,
+    this.secondaryThumbnailUrl,
+    this.secondaryThumbnailIcon = Icons.payment,
+    this.onTapSecondaryThumbnail,
   });
 
   /// Mode Request.
@@ -126,6 +132,7 @@ class ProcurementEntityCard extends StatelessWidget {
     VoidCallback? onTapCard,
     VoidCallback? onTapBayar,
     VoidCallback? onTapThumbnail,
+    VoidCallback? onTapSecondaryThumbnail,
     void Function(InvoicePurchase)? onTapLinkedInvoice,
   }) {
     final isPaid = invoice.paymentStatus == '2';
@@ -171,16 +178,14 @@ class ProcurementEntityCard extends StatelessWidget {
       return '${parts[2]}-${parts[1]}-${parts[0]}';
     }
 
-    // Thumbnail prioritas: gambar payment receipt (kalau paid & ada receipt),
-    // baru fallback ke gambar invoice.
-    final String? effectiveThumb =
+    // Thumbnail utama selalu gambar invoice; kwitansi (kalau paid & ada)
+    // ditampilkan sebagai thumbnail sekunder agar keduanya tetap terlihat.
+    final String? effectiveThumb = invoice.imageUrl;
+    final IconData effectiveThumbIcon = Icons.receipt_long;
+    final String? kwitansiThumb =
         (isPaid && paymentReceipt?.imageUrl != null)
             ? paymentReceipt!.imageUrl
-            : invoice.imageUrl;
-    final IconData effectiveThumbIcon =
-        (isPaid && paymentReceipt?.imageUrl != null)
-            ? Icons.payment
-            : Icons.receipt_long;
+            : null;
 
     return ProcurementEntityCard._(
       key: key,
@@ -191,6 +196,9 @@ class ProcurementEntityCard extends StatelessWidget {
       thumbnailUrl: effectiveThumb,
       thumbnailPlaceholder: effectiveThumbIcon,
       onTapThumbnail: onTapThumbnail,
+      secondaryThumbnailUrl: kwitansiThumb,
+      secondaryThumbnailIcon: Icons.payment,
+      onTapSecondaryThumbnail: onTapSecondaryThumbnail,
       amountText: FormatUtils.formatCurrency(invoice.totalPrice),
       amountColor: const Color(0xFF1976D2),
       badge: badge,
@@ -350,18 +358,41 @@ class ProcurementEntityCard extends StatelessWidget {
                             ),
                             // Thumbnail + badge ditaruh di kanan-atas.
                             // Thumbnail di atas, badge di bawahnya.
-                            if (thumbnailUrl != null || badge != null) ...[
+                            if (thumbnailUrl != null ||
+                                secondaryThumbnailUrl != null ||
+                                badge != null) ...[
                               const SizedBox(width: 8),
                               Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  if (thumbnailUrl != null) ...[
-                                    ListThumbnail(
-                                      imageUrl: thumbnailUrl,
-                                      placeholderIcon: thumbnailPlaceholder,
-                                      size: 44,
-                                      onTap: onTapThumbnail,
+                                  if (thumbnailUrl != null ||
+                                      secondaryThumbnailUrl != null) ...[
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (thumbnailUrl != null) ...[
+                                          ListThumbnail(
+                                            imageUrl: thumbnailUrl,
+                                            placeholderIcon:
+                                                thumbnailPlaceholder,
+                                            size: 44,
+                                            onTap: onTapThumbnail,
+                                          ),
+                                          if (secondaryThumbnailUrl != null)
+                                            const SizedBox(width: 4),
+                                        ],
+                                        if (secondaryThumbnailUrl != null)
+                                          ListThumbnail(
+                                            imageUrl: secondaryThumbnailUrl,
+                                            placeholderIcon:
+                                                secondaryThumbnailIcon,
+                                            size: 44,
+                                            onTap: onTapSecondaryThumbnail,
+                                          ),
+                                      ],
                                     ),
                                     if (badge != null)
                                       const SizedBox(height: 6),
